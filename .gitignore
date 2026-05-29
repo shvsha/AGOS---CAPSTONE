@@ -1,0 +1,27 @@
+# ─── Python / Django ───
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/*.pyc
+backend/.env
+backend/db.sqlite3
+
+# ─── AI Model ───
+ai_model/dataset/
+ai_model/saved_model/
+ai_model/__pycache__/
+*.h5
+*.pkl
+
+# ─── Next.js ───
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env
+
+# ─── General ───
+.DS_Store
+Thumbs.db
+*.log
+.env
