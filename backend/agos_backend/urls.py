@@ -21,4 +21,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.users.urls')),
     path('api/', include('apps.barangay.urls')),
+    path('api/', include('apps.sensor_nodes.urls')),
+    path('api/', include('apps.sensor_readings.urls')),
+    path('api/', include('apps.waste_classification.urls')),
+    path('api/', include('apps.clog_events.urls')),
+    path('api/', include('apps.alerts.urls')),
+    path('api/', include('apps.reports.urls')),
+    path('api/', include('apps.audit_logs.urls')),
 ]

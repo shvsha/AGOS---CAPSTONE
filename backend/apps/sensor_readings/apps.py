@@ -3,3 +3,6 @@ from django.apps import AppConfig
 class SensorReadingsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.sensor_readings'
+
+    def ready(self):
+        import apps.sensor_readings.signals
