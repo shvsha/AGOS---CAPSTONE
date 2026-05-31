@@ -120,11 +120,14 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
   }
   body {
     @apply bg-background text-foreground;
+    min-height: 100svh;
   }
   html {
     @apply font-sans;
+    font-size: 16px;
   }
 }

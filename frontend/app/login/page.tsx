@@ -287,9 +287,9 @@ export default function Login() {
       <div className="w-screen h-screen flex items-center justify-center">
 
         {/* login form */}
-        <Card className="w-full max-w-100 p-10 py-18 bg-[#FFFAFA] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
+        <Card className="w-full max-w-[95vw] sm:max-w-100  p-6 py-10 sm:p-10 sm:py-18 bg-[#FFFAFA] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
           <CardHeader className="items-center justify-center">
-            <img src="" alt="AGOS Logo" className='w-25 h-25 mx-auto mb-2 -mt-3 bg-[#CDE3DE] rounded-full' />
+            <img src="" alt="AGOS Logo" className='w-16 h-16 sm:w-25 sm:h-25 mx-auto mb-2 -mt-3 bg-[#CDE3DE] rounded-full' />
             <CardTitle className='text-black text-sm text-center'>AGOS</CardTitle>
             <CardTitle className='text-[#1565BC] font-bold text-lg text-center'>Automated Geo-Based <br />Obstruction Sensing System</CardTitle>
           </CardHeader>
@@ -354,9 +354,9 @@ export default function Login() {
 
       {/* forgot password / email */}
       <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
-        <DialogContent className="[&>button]:hidden shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)] py-8">
-          <div className="flex justify-center py-4.5 rounded-full bg-[#CDE3DE] mx-33 mt-3">
-            <LockKeyhole className="w-13 h-13" color={"#122A48"} />
+        <DialogContent className="[&>button]:hidden shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)] py-8 !max-w-[95vw] sm:!max-w-[410px]">
+          <div className="flex justify-center py-6 rounded-full bg-[#CDE3DE] mx-auto w-fit px-6 mt-3">
+            <LockKeyhole className="w-12 h-12" color={"#122A48"} />
           </div>
           <DialogHeader>
             <div className="text-center">
@@ -398,8 +398,8 @@ export default function Login() {
 
       {/* check email / otp */}
       <Dialog open={checkEmailOpen} onOpenChange={handleCloseOtpDialog}>
-        <DialogContent className="[&>button]:hidden py-7 px-0 !max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
-          <div className="flex justify-center py-5 rounded-full bg-[#CDE3DE] mx-40 mt-3">
+        <DialogContent className="[&>button]:hidden py-7 px-0 !max-w-[95vw] sm:!max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
+          <div className="flex justify-center py-6 rounded-full bg-[#CDE3DE] mx-auto w-fit px-6 mt-3">
             <MdOutlineMarkEmailUnread className="w-12 h-12" color={"#122A48"} />
           </div>
           <DialogHeader>
@@ -408,7 +408,7 @@ export default function Login() {
               <p className="text-[#122A48] px-5 mt-2 mb-5">Input the code that was sent to <span className="font-semibold">{resetEmail}</span>.</p>
             </div>
             <DialogDescription className="flex flex-col gap-5">
-              <div className='flex justify-center gap-3 px-10'>
+              <div className='flex justify-center gap-2 sm:gap-3 px-4 sm:px-10'>
                 {otp.map((digit, index) => (
                   <input
                     key={index}
@@ -420,7 +420,7 @@ export default function Login() {
                     onChange={e => handleOtpChange(index, e.target.value)}
                     onKeyDown={e => handleKeyDown(index, e)}
                     onPaste={handlePaste}
-                    className={`w-11 h-11 text-center text-lg font-bold rounded-lg border-2 outline-none focus:ring-2 focus:ring-[#122A48] text-[#122A48] ${codeError ? "bg-white border-red-500" : "bg-[#CDE3DEB0] border-transparent"}`}
+                    className={`w-9 h-9 sm:w-11 sm:h-11 text-center text-lg font-bold rounded-lg border-2 outline-none focus:ring-2 focus:ring-[#122A48] text-[#122A48] ${codeError ? "bg-white border-red-500" : "bg-[#CDE3DEB0] border-transparent"}`}
                   />
                 ))}
               </div>
@@ -477,7 +477,7 @@ export default function Login() {
 
       {/* set new password */}
       <Dialog open={newPasswordOpen} onOpenChange={setNewPasswordOpen}>
-        <DialogContent className="[&>button]:hidden py-5 px-0 !max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
+        <DialogContent className="[&>button]:hidden py-5 px-0 !max-w-[95vw] sm:!max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
           {isLoadingReset ? (
             <div className="flex flex-col items-center justify-center py-10 gap-5">
               <div className='bg-[#CDE3DE] py-7 px-7 rounded-2xl flex justify-center mb-3'>
@@ -495,8 +495,8 @@ export default function Login() {
             </div>
           ) : (
             <>
-              <div className="flex justify-center py-5 rounded-full bg-[#CDE3DE] mx-40 mt-3">
-                <KeyRound className="w-12 h-12" color={"#122A48"} />
+              <div className="flex justify-center py-6 rounded-full bg-[#CDE3DE] mx-auto w-fit px-6 mt-3">
+                <KeyRound className="w-11 h-11" color={"#122A48"} />
               </div>
               <DialogHeader>
                 <div className='text-center'>
@@ -580,8 +580,8 @@ export default function Login() {
 
       {/* success */}
       <Dialog open={successChangePasswordOpen} onOpenChange={setSuccessChangePasswordOpen}>
-        <DialogContent className="[&>button]:hidden py-7 px-0 !max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
-          <div className="flex justify-center py-4.5 rounded-full bg-[#CDE3DE] mx-33 mt-3">
+        <DialogContent className="[&>button]:hidden py-7 px-0 !max-w-[95vw] sm:!max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
+          <div className="flex justify-center py-4.5 rounded-full bg-[#CDE3DE] mx-auto w-fit px-6 mt-3">
             <BadgeCheck className="w-13 h-13" color={"#122A48"} />
           </div>
           <DialogHeader>
@@ -603,8 +603,8 @@ export default function Login() {
 
       {/* error dialog */}
       <Dialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog(prev => ({ ...prev, open }))}>
-        <DialogContent className="[&>button]:hidden py-7 px-0 !max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
-          <div className='bg-[#FFE1E1] py-4 rounded-full flex justify-center mx-33 mb-2'>
+        <DialogContent className="[&>button]:hidden py-7 px-0 !max-w-[95vw] sm:!max-w-[410px] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
+          <div className='bg-[#FFE1E1] py-4 rounded-full flex justify-center mx-auto w-fit px-6 mb-2'>
             <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>

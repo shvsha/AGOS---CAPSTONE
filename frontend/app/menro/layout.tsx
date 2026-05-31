@@ -5,10 +5,12 @@ export default function MenroLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex h-screen">
       <SideBar />
-      <main className="flex-1 overflow-auto">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header />
-        {children}
-      </main>
+        <main className="flex-1 overflow-auto p-4 lg:p-6">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
