@@ -1,3 +1,51 @@
 from django.db import models
+from apps.barangay.models import Barangay
 
-# Create your models here.
+class SensorNode(models.Model):
+    STATUS_CHOICES = [
+        ('Active', 'Active'),
+        ('Inactive', 'Inactive'),
+        ('Maintenance', 'Maintenance'),
+    ]
+
+    node_id = models.AutoField(primary_key=True)
+    barangay = models.ForeignKey(
+        Barangay,
+        on_delete=models.CASCADE,
+        db_column='barangay_id'
+    )
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Active')
+    installed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tbl_sensor_nodes'
+
+    def __str__(self):
+        return f"Node {self.node_id} - {self.barangay.barangay_name}"
+    
+class SystemHealthLog(models.Model):
+    STATUS_CHOICES = [
+        ('Normal', 'Normal'),
+        ('Warning', 'Warning'),
+        ('Critical', 'Critical'),
+    ]
+
+    health_id = models.AutoField(primary_key=True)
+    node = models.ForeignKey(
+        SensorNode,
+        on_delete=models.CASCADE,
+        db_column='node_id'
+    )
+    battery_voltage = models.FloatField()
+    signal_strength = models.FloatField()
+    sensor_continuity = models.BooleanField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Normal')
+    checked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tbl_system_health_logs'
+
+    def __str__(self):
+        return f"Health {self.health_id} - Node {self.node.node_id} - {self.status}"
