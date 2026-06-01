@@ -66,8 +66,17 @@ class ReportMedia(models.Model):
     media_id = models.AutoField(primary_key=True)
     monthly_report = models.ForeignKey(
         BarangayMonthlyReport,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         db_column='monthly_report_id'
+    )
+    clog_event = models.ForeignKey(
+        'clog_events.ClogEvent',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='event_id'
     )
     file_path = models.CharField(max_length=255)
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES)
