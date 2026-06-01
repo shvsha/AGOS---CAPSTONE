@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import generate_otp, send_otp_email, store_otp, verify_otp, is_verified, clear_verified
 from django.contrib.auth import authenticate
 from .models import User
+from apps.users.permissions import IsAdmin
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 
 class LoginView(APIView):
@@ -71,7 +72,7 @@ class MeView(APIView):
 
 class UserListView(generics.ListCreateAPIView):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    permission_classes = [IsAdmin]
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -83,6 +84,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     lookup_field = 'user_id'
+    permission_classes = [IsAdmin]
 
 
 class ForgotPasswordView(APIView):

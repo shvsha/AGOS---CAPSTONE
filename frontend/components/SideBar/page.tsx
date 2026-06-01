@@ -33,7 +33,7 @@ const navItems = {
     { label: "History",        href: "/admin/history",      icon: <History size={18} /> },
     { label: "Audit Logs",     href: "/admin/audit",        icon: <Stamp size={18} /> },
   ],
-  Menro: [
+  MENRO: [
     { label: "Centralized Map",  href: "/menro/map",              icon: <Map size={18} /> },
     { label: "Alerts",           href: "/menro/alerts",           icon: <Siren size={18} /> },
     { label: "Waste Analytics",  href: "/menro/analytics",        icon: <ChartNoAxesCombined size={18} /> },

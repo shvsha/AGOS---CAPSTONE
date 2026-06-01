@@ -78,7 +78,7 @@ class ReportMedia(models.Model):
         blank=True,
         db_column='event_id'
     )
-    file_path = models.CharField(max_length=255)
+    file = models.FileField(upload_to='report_media/', null=True, blank=True)
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

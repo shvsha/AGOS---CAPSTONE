@@ -15,6 +15,10 @@ from dotenv import load_dotenv
 import os
 from datetime import timedelta
 
+# harmless warning toh by apscheduler accesing ung database pero gnyn n lng muna
+# import warnings
+# warnings.filterwarnings('ignore', category=RuntimeWarning, message='Accessing the database during app initialization')
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -185,3 +189,7 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# Media files (uploaded photos/videos)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
