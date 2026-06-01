@@ -1,4 +1,5 @@
-import SideBar from "@/components/SideBar/page"
+
+import SideBar from "@/components/NavBar/page"
 import Header from "@/components/Header/page"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

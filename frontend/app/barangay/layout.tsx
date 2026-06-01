@@ -1,4 +1,4 @@
-import SideBar from "@/components/SideBar/page"
+import SideBar from "@/components/NavBar/page"
 import Header from "@/components/Header/page"
 
 export default function BarangayLayout({ children }: { children: React.ReactNode }) {
