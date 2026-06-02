@@ -51,9 +51,9 @@ export default function Users() {
     setTimeout(() => {
       setUsers([
         { user_id: 1, fname: 'Juan',  lname: 'Dela Cruz', email: 'juan@example.com',  role: 'Admin',    status: 'Active'   },
-        { user_id: 2, fname: 'Maria', lname: 'Santos',    email: 'maria@example.com', role: 'MENRO',    status: 'Active'   },
+        { user_id: 2, fname: 'Maria', lname: 'Santos',    email: 'maria@example.com', role: 'MENRO Officer',    status: 'Active'   },
         { user_id: 3, fname: 'Pedro', lname: 'Reyes',     email: 'pedro@example.com', role: 'Admin',    status: 'Inactive' },
-        { user_id: 4, fname: 'Ana',   lname: 'Cruz',      email: 'ana@example.com',   role: 'Barangay', status: 'Active'   },
+        { user_id: 4, fname: 'Ana',   lname: 'Cruz',      email: 'ana@example.com',   role: 'Barangay Personnel', status: 'Active'   },
       ])
       setLoading(false)
     }, 1200)
