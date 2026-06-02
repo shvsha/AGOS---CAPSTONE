@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 const pageTitles: Record<string, string> = {
   "/admin/dashboard": "Dashboard",
   "/admin/users": "User Management",
+  "/admin/users/form": "User Management",
   "/admin/monitoring": "Monitoring",
   "/admin/alerts": "Alerts",
   "/admin/health": "IoT Health",
