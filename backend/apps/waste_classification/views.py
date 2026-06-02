@@ -10,7 +10,7 @@ class WasteClassificationListView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdminOrMENROOrBarangay()]
-        return [IsAuthenticated()]
+        return [IsAdmin()] 
 
     def get_queryset(self):
         user = self.request.user

@@ -1,6 +1,7 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from .models import SensorReading
+from apps.users.permissions import IsAdmin
 from .serializers import SensorReadingSerializer
 from apps.users.permissions import IsAdminOrMENRO
 
@@ -11,8 +12,7 @@ class SensorReadingListView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdminOrMENRO()]
-        # POST is for Arduino — allow any authenticated
-        return [IsAuthenticated()]
+        return [IsAdmin()] 
 
 class SensorReadingByNodeView(generics.ListAPIView):
     serializer_class = SensorReadingSerializer

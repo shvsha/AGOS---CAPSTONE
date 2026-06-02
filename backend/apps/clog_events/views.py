@@ -45,6 +45,20 @@ class UpdateClogStatusView(APIView):
         try:
             event = ClogEvent.objects.get(event_id=event_id)
             new_status = request.data.get('status')
+            user = request.user
+
+            # Role-based status restrictions
+            if user.user_role == 'Barangay' and new_status not in ['Responded', 'Cleared']:
+                return Response(
+                    {'error': 'Barangay can only set Responded or Cleared'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if user.user_role == 'MENRO' and new_status not in ['Verified']:
+                return Response(
+                    {'error': 'MENRO can only set Verified'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
             if new_status not in ['Detected', 'Responded', 'Cleared', 'Verified']:
                 return Response(
