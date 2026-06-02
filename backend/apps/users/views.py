@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate
 from .models import User
 from apps.users.permissions import IsAdmin
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
+from apps.audit_logs.utils import log_action
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -39,6 +40,14 @@ class LoginView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
             refresh = RefreshToken.for_user(user)
+
+            # Log the login action
+            log_action(
+                user=user,  
+                action='Login',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+
             return Response({
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
@@ -56,6 +65,14 @@ class LogoutView(APIView):
             refresh_token = request.data['refresh']
             token = RefreshToken(refresh_token)
             token.blacklist()
+
+            # Log the logout action
+            log_action(
+                user=request.user,
+                action='Logout',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+
             return Response({'message': 'Logged out successfully'})
         except Exception:
             return Response(
@@ -78,6 +95,16 @@ class UserListView(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return RegisterSerializer
         return UserSerializer
+    
+    def perform_create(self, serializer):
+        user = serializer.save()
+        log_action(
+            user=self.request.user,
+            action='Created User',
+            affected_table='tbl_user',
+            new_value=f"username: {user.username}, role: {user.user_role}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -85,6 +112,29 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UserSerializer
     lookup_field = 'user_id'
     permission_classes = [IsAdmin]
+
+    # log actions
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+        user = serializer.save()
+        log_action(
+            user=self.request.user,
+            action='Updated User',
+            affected_table='tbl_user',
+            old_value=f"status: {old_status}",
+            new_value=f"status: {user.status}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+    
+    def perform_destroy(self, instance):
+        log_action(
+            user=self.request.user,
+            action='Deleted User',
+            affected_table='tbl_user',
+            old_value=f"username: {instance.username}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+        instance.delete()
 
 
 class ForgotPasswordView(APIView):

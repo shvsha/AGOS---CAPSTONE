@@ -4,15 +4,16 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum
 from .models import BarangayMonthlyReport, ReportMedia, MunicipalMonthlyReport
-from .serializers import (
-    BarangayMonthlyReportSerializer,
-    ReportMediaSerializer,
-    MunicipalMonthlyReportSerializer
-)
+from .serializers import ( BarangayMonthlyReportSerializer, ReportMediaSerializer, MunicipalMonthlyReportSerializer )
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay
+from apps.audit_logs.utils import log_action
+from django_filters.rest_framework import DjangoFilterBackend
+
 
 class BarangayMonthlyReportListView(generics.ListCreateAPIView):
     serializer_class = BarangayMonthlyReportSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['status', 'report_month', 'barangay']
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -26,6 +27,17 @@ class BarangayMonthlyReportListView(generics.ListCreateAPIView):
                 barangay=user.barangay
             ).order_by('-submitted_at')
         return BarangayMonthlyReport.objects.all().order_by('-submitted_at')
+    
+    def perform_create(self, serializer):
+        report = serializer.save()
+        log_action(
+            user=self.request.user,
+            action='Submitted Barangay Monthly Report',
+            affected_table='tbl_barangay_monthly_report',
+            new_value=f"barangay: {report.barangay.barangay_name}, month: {report.report_month}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+
 
 class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = BarangayMonthlyReport.objects.all()
@@ -33,10 +45,12 @@ class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'monthly_report_id'
     permission_classes = [IsAdminOrMENRO]
 
+
 class ReportMediaListView(generics.ListAPIView):
     queryset = ReportMedia.objects.all()
     serializer_class = ReportMediaSerializer
     permission_classes = [IsAdminOrMENRO]
+
 
 class ReportMediaUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
@@ -88,10 +102,24 @@ class ReportMediaUploadView(APIView):
             status=status.HTTP_201_CREATED
         )
 
+
 class MunicipalMonthlyReportListView(generics.ListAPIView):
     queryset = MunicipalMonthlyReport.objects.all().order_by('-generated_at')
     serializer_class = MunicipalMonthlyReportSerializer
     permission_classes = [IsAdminOrMENRO]
+
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+        report = serializer.save()
+        log_action(
+            user=self.request.user,
+            action='Updated Municipal Report Status',
+            affected_table='tbl_municipal_monthly_report',
+            old_value=old_status,
+            new_value=report.status,
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+
 
 class MunicipalMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = MunicipalMonthlyReport.objects.all()

@@ -5,9 +5,17 @@ from .models import ClogEvent
 from .serializers import ClogEventSerializer
 from django.utils import timezone
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay
+from apps.audit_logs.utils import log_action
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+
 
 class ClogEventListView(generics.ListCreateAPIView):
     serializer_class = ClogEventSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['status', 'severity', 'barangay']
+    ordering_fields = ['detected_at', 'severity']
+    ordering = ['-detected_at']
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -19,14 +27,16 @@ class ClogEventListView(generics.ListCreateAPIView):
         if user.user_role == 'Barangay':
             return ClogEvent.objects.filter(
                 barangay=user.barangay
-            ).order_by('-detected_at')
-        return ClogEvent.objects.all().order_by('-detected_at')
+            )
+        return ClogEvent.objects.all()
+    
 
 class ClogEventDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ClogEvent.objects.all()
     serializer_class = ClogEventSerializer
     lookup_field = 'event_id'
     permission_classes = [IsAdminOrMENRO]
+
 
 class ClogEventByBarangayView(generics.ListAPIView):
     serializer_class = ClogEventSerializer
@@ -37,6 +47,7 @@ class ClogEventByBarangayView(generics.ListAPIView):
         return ClogEvent.objects.filter(
             barangay__barangay_id=barangay_id
         ).order_by('-detected_at')
+    
 
 class UpdateClogStatusView(APIView):
     permission_classes = [IsAdminOrMENROOrBarangay]
@@ -66,10 +77,21 @@ class UpdateClogStatusView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            old_status = event.status
             event.status = new_status
             if new_status == 'Cleared':
                 event.resolved_at = timezone.now()
             event.save()
+
+            # Log the status update
+            log_action(
+                user=user,
+                action=f'Updated Clog Status to {new_status}',
+                affected_table='tbl_clog_events',
+                old_value=old_status,
+                new_value=new_status,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
 
             return Response(ClogEventSerializer(event).data)
         except ClogEvent.DoesNotExist:
