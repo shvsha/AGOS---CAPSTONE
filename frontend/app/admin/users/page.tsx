@@ -4,7 +4,7 @@
 import { FaSearch, FaBars, FaUserTimes } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
 import { FaUsers } from "react-icons/fa";
-import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, } from "lucide-react";
+import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, } from "lucide-react";
 
 // react
 import { useState, useEffect } from "react"
@@ -14,16 +14,82 @@ import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog"
 
+// type for states
 type User = {
-  user_id: number
-  fname: string
-  lname: string
-  email: string
-  role: string
-  status: string
+  user_id: number;
+  fname: string;
+  lname: string;
+  email: string;
+  role: string;
+  status: string;
 }
+
+type DialogState = {
+  open: boolean;
+  user: User | null;
+};
+
+type ConfirmDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  color: string;
+  icon: React.ElementType;
+  iconColor: string,
+  title: string;
+  description: React.ReactNode;
+  confirmLabel: string;
+}
+
+const DIALOG_COLOR = {
+  reactivate: '#347D43',
+  deactivate: '#CC251F',
+  bgColorIconReact: '#58D07159',
+  bgColorIconDeact: '#FDD1D2'
+}
+
+
+// functions
+function ConfirmDialog ({
+  open,
+  onClose,
+  onConfirm,
+  color,
+  icon: Icon,
+  iconColor,
+  title,
+  description,
+  confirmLabel,
+}: ConfirmDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="!max-w-[350px] [&>button]:cursor-pointer bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg" style={{backgroundColor: color}}>
+              <Icon size={23} color={iconColor} />
+            </div>
+            <p className="font-bold text-[#122A48]">{title}</p>
+          </div>
+        </DialogHeader>
+        <DialogDescription className="flex flex-col">
+          <div className="flex flex-col">
+            <p className="text-[#122A48] text-[13px]">{description}</p>
+            <hr className="my-3 mb-5" />
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button onClick={onClose} className="rounded-lg border border-[#C6C6C8] px-4 h-9 cursor-pointer bg-transparent hover:bg-[#edebeb] text-[#727272]">Cancel</Button>
+            <Button onClick={onConfirm} className="rounded-lg border border-[#C6C6C8] px-4 h-9 cursor-pointer" style={{backgroundColor: iconColor}}>{confirmLabel}</Button>
+          </div>
+        </DialogDescription>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 
 function getFilteredUsers(users: User[], role: string, status: string, search: string) {
   return users
@@ -44,6 +110,16 @@ export default function Users() {
   // table states
   const [users, setUsers]     = useState<User[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+
+  // reactivate and deactivate dialogs
+  const [reactivateDialog, setReactivateDialog] = useState<DialogState>({
+    open: false,
+    user: null,
+  })
+  const [deactivateDialog, setDeactivateDialog] = useState<DialogState>({
+    open: false,
+    user: null,
+  })
 
   useEffect(() => {
     setLoading(true)
@@ -66,6 +142,14 @@ export default function Users() {
   const active   = users.filter(u => u.status === 'Active').length
   const inactive = users.filter(u => u.status === 'Inactive').length
   const admins   = users.filter(u => u.role === 'Admin').length
+
+  // handlers (reactivate and deactivate)
+  const handleReactivate = () => {
+    setReactivateDialog({open: false, user: null})
+  }
+  const handlerDeactivate = () => {
+    setDeactivateDialog({open: false, user: null})
+  }
 
   return (
     <>
@@ -241,7 +325,7 @@ export default function Users() {
                             <div className="rounded-full bg-[#1565BC] p-3 px-3.25 font-bold text-white">
                               {user.fname.charAt(0)}{user.lname.charAt(0)}
                             </div>
-                            <div className="flex flex-col">
+                            <div className="flex flex-col text-left">
                               <p className="font-semibold">{user.fname} {user.lname}</p>
                               <p className="underline text-[13px]">{user.email}</p>
                             </div>
@@ -273,12 +357,18 @@ export default function Users() {
                           </Button>
 
                           {user.status === 'Active' ? (
-                            <Button className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3">
+                            <Button 
+                              onClick={() => setDeactivateDialog({ open: true, user: user})}
+                              className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                            >
                               <UserMinus size={16} />
                               Deactivate
                             </Button>
                           ) : (
-                            <Button className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3">
+                            <Button
+                              onClick={() => setReactivateDialog({ open: true, user: user })}
+                              className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                            >
                               <UserPlus size={16} />
                               Activate
                             </Button>
@@ -294,6 +384,44 @@ export default function Users() {
         </div>
 
       </div>
+
+      {/* Dialog */}
+      {/* Reactivate Dialog */}
+      <ConfirmDialog
+        open={reactivateDialog.open}
+        onClose={() => setReactivateDialog({open: false, user: null})}
+        onConfirm={handleReactivate}
+        color={DIALOG_COLOR.bgColorIconReact}
+        icon={UserPlus}
+        iconColor={DIALOG_COLOR.reactivate}
+        title="Reactivate User"
+        description={
+          <>
+            Are you sure you want to activate{" "}
+            <strong>{reactivateDialog.user?.fname} {reactivateDialog.user?.lname}</strong>?
+          </>
+        }
+        confirmLabel='Activate User'
+      />
+
+      {/* Deactivate dialog */}
+      <ConfirmDialog
+        open={deactivateDialog.open}
+        onClose={() => setDeactivateDialog({open: false, user: null})}
+        onConfirm={handlerDeactivate}
+        color={DIALOG_COLOR.bgColorIconDeact}
+        icon={UserMinus}
+        iconColor={DIALOG_COLOR.deactivate}
+        title="Deactivate User"
+        description={
+          <>
+            Are you sure you want to deactivate{" "}
+            <strong>{deactivateDialog.user?.fname} {deactivateDialog.user?.lname}</strong>?
+          </>
+        }
+        confirmLabel='Deactivate User'
+      />
+
     </>
   )
 }
