@@ -201,3 +201,6 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 # Media files (uploaded photos/videos)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# API key for the IoT
+IOT_API_KEY = os.getenv('IOT_API_KEY')

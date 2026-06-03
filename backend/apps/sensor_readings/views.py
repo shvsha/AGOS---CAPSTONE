@@ -1,18 +1,19 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from .models import SensorReading
-from apps.users.permissions import IsAdmin
 from .serializers import SensorReadingSerializer
-from apps.users.permissions import IsAdminOrMENRO
+from apps.users.permissions import IsAdminOrMENRO, IsIoTDevice, IoTDeviceAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class SensorReadingListView(generics.ListCreateAPIView):
     queryset = SensorReading.objects.all().order_by('-timestamp')
     serializer_class = SensorReadingSerializer
+    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
 
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdminOrMENRO()]
-        return [IsAdmin()] 
+        return [IsIoTDevice()]
 
 class SensorReadingByNodeView(generics.ListAPIView):
     serializer_class = SensorReadingSerializer
@@ -20,4 +21,6 @@ class SensorReadingByNodeView(generics.ListAPIView):
 
     def get_queryset(self):
         node_id = self.kwargs['node_id']
-        return SensorReading.objects.filter(node__node_id=node_id).order_by('-timestamp')
+        return SensorReading.objects.filter(
+            node__node_id=node_id
+        ).order_by('-timestamp')

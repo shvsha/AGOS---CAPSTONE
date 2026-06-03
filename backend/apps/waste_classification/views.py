@@ -4,9 +4,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import WasteClassification
 from .serializers import WasteClassificationSerializer
-from apps.users.permissions import IsAdmin, IsAdminOrMENROOrBarangay
+from apps.users.permissions import IsAdmin, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 import sys
 import os
+
 
 class WasteClassificationListView(generics.ListCreateAPIView):
     serializer_class = WasteClassificationSerializer
@@ -24,11 +26,12 @@ class WasteClassificationListView(generics.ListCreateAPIView):
             ).order_by('-timestamp')
         return WasteClassification.objects.all().order_by('-timestamp')
 
+
 class WasteClassificationDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = WasteClassification.objects.all()
     serializer_class = WasteClassificationSerializer
     lookup_field = 'classification_id'
-    permission_classes = [IsAdmin]
+    permission_classes = [IsIoTDevice]
 
 
 class ClassifyWasteView(APIView):
@@ -37,6 +40,7 @@ class ClassifyWasteView(APIView):
     Runs it through the AI model
     Saves the classification result
     """
+    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
