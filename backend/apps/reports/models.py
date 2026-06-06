@@ -63,7 +63,7 @@ class ReportMedia(models.Model):
         ('Video', 'Video'),
     ]
 
-    media_id = models.AutoField(primary_key=True)
+    media = models.AutoField(primary_key=True)
     monthly_report = models.ForeignKey(
         BarangayMonthlyReport,
         on_delete=models.SET_NULL,
@@ -71,7 +71,7 @@ class ReportMedia(models.Model):
         blank=True,
         db_column='monthly_report_id'
     )
-    clog_event = models.ForeignKey(
+    clog_event_id = models.ForeignKey(
         'clog_events.ClogEvent',
         on_delete=models.SET_NULL,
         null=True,
