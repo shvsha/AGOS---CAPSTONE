@@ -16,7 +16,7 @@ import { Toast } from "@/components/Toast";
 
 // component
 import { SpinnerIcon } from "@/components/SpinnerIcon"
-import { DialogModal } from "@/components/ConfirmDialog";
+import { DialogModal } from "@/components/DialogModal";
 
 // constant
 import { DIALOG_COLOR } from "@/lib/constant";

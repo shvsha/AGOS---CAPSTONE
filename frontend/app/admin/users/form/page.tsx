@@ -8,7 +8,7 @@ import { useState, useEffect } from "react"
 import { DIALOG_COLOR } from "@/lib/constant";
 
 // components
-import { DialogModal } from "@/components/ConfirmDialog";
+import { DialogModal } from "@/components/DialogModal";
 import { Toast } from "@/components/Toast";
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 
