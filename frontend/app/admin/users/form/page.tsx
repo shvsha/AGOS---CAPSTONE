@@ -4,14 +4,29 @@
 import { useSearchParams, useRouter, } from "next/navigation"
 import { useState, useEffect } from "react"
 
+// constant
+import { DIALOG_COLOR } from "@/lib/constant";
+
+// components
+import { DialogModal } from "@/components/ConfirmDialog";
+import { Toast } from "@/components/Toast";
+import { SpinnerIcon } from "@/components/SpinnerIcon"
+
+// hooks
+import { useToast } from "@/components/hooks/useToast";
+
 // icons
-import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck } from "lucide-react";
+import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check } from "lucide-react";
 
 // shadcn
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+type DialogState = {
+  open: boolean;
+};
 
 export default function Form() {
   const searchParams = useSearchParams()
@@ -23,21 +38,32 @@ export default function Form() {
   // us
   const [fname, setFname] = useState<string>('')
   const [lname, setLname] = useState<string>('')
-
   const [position, setPosition] = useState<string>('')
-
-  const [role, setRole] = useState<string>('MENRO Officer')
+  const [role, setRole] = useState<string>('')
   const [email, setEmail] = useState<string>('')
   const [status, setStatus] = useState<string>('')
 
   // extract later on the office/barangay of the user from the database (office if MENRO the role, barangay if barangay personnel role)
-  const [officeBarangay, setOfficeBarangay] = useState<string>('MENRO Office')
-
+  const [officeBarangay, setOfficeBarangay] = useState<string>('')
   // pati toh from database later on
   const [username, setUsername] = useState<string>('')
 
   // form us
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  // dialog us
+  const [cancelDialog, setCancelDialog] = useState<DialogState>({
+    open: false,
+  })
+  const [confirmDialog, setConfirmDialog] = useState<DialogState>({
+    open: false,
+  })
+  const [loadingDialog, setLoadingDialog] = useState<DialogState>({
+    open: false,
+  })
+
+  // toast
+  const {toasts, addToast, removeToast } = useToast()
 
   useEffect(() => {
     if (!isEdit) return
@@ -57,11 +83,46 @@ export default function Form() {
   }, [id])
 
   // handlers
-  const validateField = (name: string, value: string) => {
-    setFieldErrors(prev => ({
-      ...prev,
-      [name]: value.trim() === '' ? 'This field is required.' : ''
-    }))
+  const handleCancelDialog = () => {
+    setCancelDialog({ open: true })
+  }
+  const handleCancelConfirm = () => {
+    setCancelDialog({ open: false})
+    router.push('/admin/users')
+  }
+
+  const handleConfirmationDialog = () => {
+    const errors: Record<string, string> = {}
+    if (!fname.trim())        errors.fname         = 'This field is required.'
+    if (!lname.trim())        errors.lname         = 'This field is required.'
+    if (!position.trim())     errors.position      = 'This field is required.'
+    if (!role.trim())         errors.role          = 'This field is required.'
+    if (!officeBarangay.trim()) errors.officeBarangay = 'This field is required.'
+    if (!username.trim())     errors.username      = 'This field is required.'
+    if (!email.trim())        errors.email         = 'This field is required.'
+
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
+    setConfirmDialog({ open: true })
+  }
+  const handleSubmit = async () => {
+    setConfirmDialog({ open: false })
+    setLoadingDialog({ open: true })
+
+    try {
+      // await api.post('/api/users/', { fname, lname, ... })
+      await new Promise(resolve => setTimeout(resolve, 1500)) // remove this when real api is ready
+
+      setLoadingDialog({ open: false })
+      addToast(isEdit ? `${fname} ${lname}'s account has been updated.` : `${fname} ${lname} has been added.`)
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      router.push('/admin/users')
+
+    } catch {
+      setLoadingDialog({ open: false })
+      addToast(isEdit ? 'Failed to save changes. Please try again.' : 'Failed to create user. Please try again.', 'error')
+    }
   }
 
   return (
@@ -162,9 +223,7 @@ export default function Form() {
                         value={fname}
                         onChange={(e) => {
                           setFname(e.target.value)
-                          validateField('fname', e.target.value)
                         }}
-                        onBlur={(e) => validateField('fname', e.target.value)}
                         placeholder="e.g. Patricia"
                         className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
                           fieldErrors.fname ? 'border-[#FF0000]' : 'border-[#727272]'
@@ -181,9 +240,7 @@ export default function Form() {
                         value={lname}
                         onChange={(e) => {
                           setLname(e.target.value)
-                          validateField('lname', e.target.value)
                         }}
-                        onBlur={(e) => validateField('lname', e.target.value)}
                         placeholder="e.g. Quinto"
                         className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
                           fieldErrors.lname ? 'border-[#FF0000]' : 'border-[#727272]'
@@ -200,17 +257,21 @@ export default function Form() {
                       <Input
                         name="position"
                         value={position}
+                        maxLength={50}
                         onChange={(e) => {
                           setPosition(e.target.value)
-                          validateField('position', e.target.value)
                         }}
-                        onBlur={(e) => validateField('position', e.target.value)}
                         placeholder="e.g. Barangay Sanitary Inspector"
                         className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
                           fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'
                         }`}
                       />
-                      <FieldError className="text-xs">{fieldErrors.lnapositionme}</FieldError>
+                      <div className="flex justify-between items-center">
+                      <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                      <span className={`text-xs ml-auto ${position.length >= 50 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {position.length}/50
+                      </span>
+                    </div>
                   </Field>
                 </div>
               </div>
@@ -242,11 +303,11 @@ export default function Form() {
                           value={role}
                           onValueChange={(value) => {
                             setRole(value)
-                            validateField('role', value)
+                            if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
                           }}
                         >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.dept ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select" />
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder="Select Role..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem className="text-[#122A48] p-2" value="MENRO Officer">MENRO Officer</SelectItem>
@@ -263,11 +324,11 @@ export default function Form() {
                           value={officeBarangay}
                           onValueChange={(value) => {
                             setOfficeBarangay(value)
-                            validateField('role', value)
+                            if (fieldErrors.officeBarangay) setFieldErrors(prev => ({ ...prev, officeBarangay: '' }))
                           }}
                         >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.dept ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select" />
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.officeBarangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder="Select..." />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem className="text-[#122A48] p-2" value="MENRO Office">MENRO Office</SelectItem>
@@ -277,7 +338,7 @@ export default function Form() {
                           <SelectItem className="text-[#122A48] p-2" value="Barangay 4">Barangay 4</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FieldError className="text-xs">{fieldErrors.role}</FieldError>
+                      <FieldError className="text-xs">{fieldErrors.officeBarangay }</FieldError>
                   </Field>
                 </div>
               </div>
@@ -308,17 +369,21 @@ export default function Form() {
                       <Input
                         name="username"
                         value={username}
+                        maxLength={20}
                         onChange={(e) => {
                           setUsername(e.target.value)
-                          validateField('fname', e.target.value)
                         }}
-                        onBlur={(e) => validateField('username', e.target.value)}
                         placeholder="e.g. patquinto"
                         className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
                           fieldErrors.username ? 'border-[#FF0000]' : 'border-[#727272]'
                         }`}
                       />
+                      <div className="flex justify-between items-center">
                       <FieldError className="text-xs">{fieldErrors.username}</FieldError>
+                      <span className={`text-xs ml-auto ${username.length >= 20 ? 'text-[#FF0000]' : 'text-[#72727280]'}`}>
+                        {username.length}/20
+                      </span>
+                    </div>
                   </Field>
                   
                   {/* email */}
@@ -329,9 +394,7 @@ export default function Form() {
                         value={email}
                         onChange={(e) => {
                           setEmail(e.target.value)
-                          validateField('email', e.target.value)
                         }}
-                        onBlur={(e) => validateField('email', e.target.value)}
                         placeholder="e.g. patpobeast@rosario.gov.ph"
                         className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
                           fieldErrors.email ? 'border-[#FF0000]' : 'border-[#727272]'
@@ -345,8 +408,17 @@ export default function Form() {
             </div>
 
             <div className="flex gap-3 justify-end">
-              <Button className="cursor-pointer border border-[#C6C6C8] text-[#727272] rounded-lg bg-[#FAFCFD] hover:text-[#525050] hover:bg-[#adbac1] px-7 py-4.5">Cancel</Button>
-              <Button className="cursor-pointer rounded-lg bg-[#1565BC] hover:bg-[#13569e] px-5 py-4.5">✅ {isEdit ? 'Save Changes' : 'Create User Account'}</Button>
+              <Button
+                type="button"
+                onClick={handleCancelDialog}
+                className="cursor-pointer border border-[#C6C6C8] text-[#727272] rounded-lg bg-[#FAFCFD] hover:text-[#525050] hover:bg-[#adbac1] px-7 py-4.5">
+                  Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmationDialog}
+                className="cursor-pointer rounded-lg bg-[#1565BC] hover:bg-[#13569e] px-5 pl-4 py-4.5"> <Check/> {isEdit ? 'Save Changes' : 'Create User Account'}
+              </Button>
             </div>
 
           </form>
@@ -354,6 +426,64 @@ export default function Form() {
         </div>
 
       </div>
+
+      {/* Dialog */}
+
+      {/* Cancel dialog */}
+      <DialogModal
+        open={cancelDialog.open}
+        onClose={() => setCancelDialog({open: false})}
+        onConfirm={handleCancelConfirm}
+        color={isEdit ? DIALOG_COLOR.lightyellow : DIALOG_COLOR.lightred}
+        icon={isEdit ? SquarePen : UserPlus}
+        iconColor={isEdit ? DIALOG_COLOR.yellow : DIALOG_COLOR.red}
+        title={isEdit? "Cancel Changes" : "Cancel Adding User"}
+        description={isEdit ? "You have unsaved changes that will be lost if you cancel." : "Are you sure you want to cancel? This user account has not been created yet."}
+        cancelLabel="Keep Editing"
+        confirmLabel='Yes, Cancel'
+      />
+
+      {/* Confirmation Dialog */}
+      <DialogModal
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({open: false})}
+        onConfirm={handleSubmit}
+        color={DIALOG_COLOR.lightgreen}
+        icon={isEdit ? SquarePen : UserPlus}
+        iconColor={DIALOG_COLOR.green}
+        title={isEdit? "Confirm Changes" : "Confirm Adding User"}
+        description={isEdit ?
+          <>
+            Are you sure you want to change <strong>{fname} {lname}</strong> information?
+          </>
+          :
+          <>
+            Are you sure you want to add this new user?
+          </>
+        }
+        cancelLabel="Keep Editing"
+        confirmLabel={isEdit ? 'Confirm Changes' : 'Add User'}
+      />
+
+      {/* Loading Dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={isEdit? "Saving Changes" : "Saving User Account"}
+        description={isEdit ? 
+          <>
+            Processing account detail changes for <strong>{fname} {lname}</strong>. Please wait.
+          </>
+          : 
+          <>
+            Proccessing account details. Please wait.
+          </>
+        }
+      />
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

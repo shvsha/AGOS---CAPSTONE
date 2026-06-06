@@ -299,7 +299,7 @@ export default function Login() {
                     className={`border focus:ring-0 bg-[#CDE3DEB0] h-7.5 sm:h-8.5 pl-10 text-xs sm:text-base pr-10 ${fieldError || loginError ? "border-red-500" : "border-none"}`}
                   />
 
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#122A48BA] cursor-pointer">
+                  <button suppressHydrationWarning type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#122A48BA] cursor-pointer">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
 

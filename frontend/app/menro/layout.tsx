@@ -1,5 +1,5 @@
-import SideBar from "@/components/NavBar/page"
-import Header from "@/components/Header/page"
+import SideBar from "@/components/NavBar"
+import Header from "@/components/Header"
 
 export default function MenroLayout({ children }: { children: React.ReactNode }) {
   return (

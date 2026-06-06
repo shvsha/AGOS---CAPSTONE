@@ -41,6 +41,7 @@ function SelectTrigger({
 }) {
   return (
     <SelectPrimitive.Trigger
+      suppressHydrationWarning
       data-slot="select-trigger"
       data-size={size}
       className={cn(

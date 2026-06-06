@@ -1,7 +1,7 @@
 "use client"
 
 // icons
-import { FaSearch, FaBars, FaUserTimes } from "react-icons/fa"
+import { FaSearch } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
 import { FaUsers } from "react-icons/fa";
 import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, } from "lucide-react";
@@ -10,12 +10,22 @@ import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, Us
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+// toast
+import { useToast } from "@/components/hooks/useToast";
+import { Toast } from "@/components/Toast";
+
+// component
+import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { DialogModal } from "@/components/ConfirmDialog";
+
+// constant
+import { DIALOG_COLOR } from "@/lib/constant";
+
 // shadcn
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog"
 
 // type for states
 type User = {
@@ -31,64 +41,6 @@ type DialogState = {
   open: boolean;
   user: User | null;
 };
-
-type ConfirmDialogProps = {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  color: string;
-  icon: React.ElementType;
-  iconColor: string,
-  title: string;
-  description: React.ReactNode;
-  confirmLabel: string;
-}
-
-const DIALOG_COLOR = {
-  reactivate: '#347D43',
-  deactivate: '#CC251F',
-  bgColorIconReact: '#58D07159',
-  bgColorIconDeact: '#FDD1D2'
-}
-
-
-// functions
-function ConfirmDialog ({
-  open,
-  onClose,
-  onConfirm,
-  color,
-  icon: Icon,
-  iconColor,
-  title,
-  description,
-  confirmLabel,
-}: ConfirmDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="!max-w-[350px] [&>button]:cursor-pointer bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{backgroundColor: color}}>
-              <Icon size={23} color={iconColor} />
-            </div>
-            <p className="font-bold text-[#122A48]">{title}</p>
-          </div>
-        </DialogHeader>
-        <DialogDescription className="flex flex-col">
-          <div className="flex flex-col">
-            <p className="text-[#122A48] text-[13px]">{description}</p>
-            <hr className="my-3 mb-5" />
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button onClick={onClose} className="rounded-lg border border-[#C6C6C8] px-4 h-9 cursor-pointer bg-transparent hover:bg-[#edebeb] text-[#727272]">Cancel</Button>
-            <Button onClick={onConfirm} className="rounded-lg border border-[#C6C6C8] px-4 h-9 cursor-pointer" style={{backgroundColor: iconColor}}>{confirmLabel}</Button>
-          </div>
-        </DialogDescription>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 
 function getFilteredUsers(users: User[], role: string, status: string, search: string) {
@@ -106,6 +58,9 @@ export default function Users() {
   const [search, setSearch] = useState<string>('')
   const [userRole, setUserRole] = useState<string>('Admin')
   const [userStatus, setUserStatus] = useState<string>('Active')
+
+  // toast
+  const {toasts, addToast, removeToast } = useToast()
 
   // table states
   const [users, setUsers]     = useState<User[]>([])
@@ -146,9 +101,11 @@ export default function Users() {
   // handlers (reactivate and deactivate)
   const handleReactivate = () => {
     setReactivateDialog({open: false, user: null})
+    addToast(`${reactivateDialog.user?.fname} has been activated.`)
   }
   const handlerDeactivate = () => {
     setDeactivateDialog({open: false, user: null})
+    addToast(`${deactivateDialog.user?.fname} has been deactivated.`)
   }
 
   return (
@@ -286,7 +243,7 @@ export default function Users() {
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-31">
                       <div className="flex flex-col items-center gap-3 text-[#122A48]">
-                        <div className="w-8 h-8 border-4 border-[#727272] border-t-transparent rounded-full animate-spin" />
+                        <SpinnerIcon size={32} color="#122A48" />
                         <span className="text-sm font-medium">Loading Users...</span>
                       </div>
                     </TableCell>
@@ -387,13 +344,13 @@ export default function Users() {
 
       {/* Dialog */}
       {/* Reactivate Dialog */}
-      <ConfirmDialog
+      <DialogModal
         open={reactivateDialog.open}
         onClose={() => setReactivateDialog({open: false, user: null})}
         onConfirm={handleReactivate}
-        color={DIALOG_COLOR.bgColorIconReact}
+        color={DIALOG_COLOR.lightgreen}
         icon={UserPlus}
-        iconColor={DIALOG_COLOR.reactivate}
+        iconColor={DIALOG_COLOR.green}
         title="Reactivate User"
         description={
           <>
@@ -401,17 +358,18 @@ export default function Users() {
             <strong>{reactivateDialog.user?.fname} {reactivateDialog.user?.lname}</strong>?
           </>
         }
+        cancelLabel='Cancel'
         confirmLabel='Activate User'
       />
 
       {/* Deactivate dialog */}
-      <ConfirmDialog
+      <DialogModal
         open={deactivateDialog.open}
         onClose={() => setDeactivateDialog({open: false, user: null})}
         onConfirm={handlerDeactivate}
-        color={DIALOG_COLOR.bgColorIconDeact}
+        color={DIALOG_COLOR.lightred}
         icon={UserMinus}
-        iconColor={DIALOG_COLOR.deactivate}
+        iconColor={DIALOG_COLOR.red}
         title="Deactivate User"
         description={
           <>
@@ -419,9 +377,11 @@ export default function Users() {
             <strong>{deactivateDialog.user?.fname} {deactivateDialog.user?.lname}</strong>?
           </>
         }
+        cancelLabel='Cancel'
         confirmLabel='Deactivate User'
       />
 
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }
