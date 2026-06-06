@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
-type ConfirmDialogProps = {
+type DialogModalProps = {
   open: boolean;
   onClose?: () => void;
   onConfirm?: () => void;
@@ -26,7 +26,7 @@ export function DialogModal({
   description,
   cancelLabel,
   confirmLabel,
-}: ConfirmDialogProps) {
+}: DialogModalProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className={`!max-w-[350px] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)] ${!onClose ? '[&>button]:hidden' : '[&>button]:cursor-pointer'}`}>
