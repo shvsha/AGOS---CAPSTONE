@@ -22,7 +22,18 @@ class WasteClassification(models.Model):
         on_delete=models.CASCADE,
         db_column='reading_id'
     )
-    waste_type = models.CharField(max_length=20, choices=WASTE_TYPE_CHOICES)
+    dominant_waste_type = models.CharField(
+        max_length=20,
+        choices=WASTE_TYPE_CHOICES,
+        default='None'
+)
+    recyclable_pct = models.FloatField(default=0)
+    biodegradable_pct = models.FloatField(default=0)
+    residual_pct = models.FloatField(default=0)
+    special_waste_pct = models.FloatField(default=0)
+    none_pct = models.FloatField(default=0)
+    
+    confidence = models.FloatField(default=0)
     estimated_volume = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
 

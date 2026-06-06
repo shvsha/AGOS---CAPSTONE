@@ -47,6 +47,7 @@ class ClassifyWasteView(APIView):
         image_file = request.FILES.get('image')
         node_id = request.data.get('node_id')
         reading_id = request.data.get('reading_id')
+        estimated_volume = request.data.get('estimated_volume', 0.0)
 
         if not image_file:
             return Response(
@@ -69,7 +70,13 @@ class ClassifyWasteView(APIView):
 
             # Load classifier
             ai_model_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+                os.path.dirname(
+                    os.path.dirname(
+                        os.path.dirname(
+                            os.path.dirname(__file__)
+                        )
+                    )
+                ),
                 'ai_model'
             )
             sys.path.append(ai_model_path)
@@ -94,11 +101,19 @@ class ClassifyWasteView(APIView):
             node = SensorNode.objects.get(node_id=node_id)
             reading = SensorReading.objects.get(reading_id=reading_id)
 
+            percentages = result.get('percentages', {})
+
             classification = WasteClassification.objects.create(
                 node=node,
                 reading=reading,
-                waste_type=result['waste_type'].capitalize(),
-                estimated_volume=0.0  # Volume estimated separately
+                dominant_waste_type=result['dominant_waste_type'].capitalize(),
+                recyclable_pct=percentages.get('recyclable', 0),
+                biodegradable_pct=percentages.get('biodegradable', 0),
+                residual_pct=percentages.get('residual', 0),
+                special_waste_pct=percentages.get('special_waste', 0),
+                none_pct=percentages.get('none', 0),
+                confidence=result['confidence'],
+                estimated_volume=float(estimated_volume)
             )
 
             return Response(
