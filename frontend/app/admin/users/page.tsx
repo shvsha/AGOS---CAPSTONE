@@ -121,13 +121,13 @@ export default function Users() {
           <div className="flex gap-3">
 
             {/* search filter */}
-            <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 py-1 gap-2">
-              <FaSearch size={18} className="shrink-0" />
+            <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-11">
+              <FaSearch size={18} className="text-[#C6C6C8]" />
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search Users..."
-                className="bg-transparent border-0 rounded-lg placeholder:text-black/50 focus-visible:ring-0 h-8 w-[200px]"
+                className="bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-[200px]"
               />
             </div>
 
@@ -136,7 +136,7 @@ export default function Users() {
               <SelectTrigger className="w-27 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent className='w-27 min-w-0'>
+              <SelectContent position="popper" className='w-27 min-w-0'>
                 <SelectItem className="p-2 text-[#122A48]" value="Admin">Admin</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="MENRO">MENRO</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
@@ -148,7 +148,7 @@ export default function Users() {
               <SelectTrigger className="w-27 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent className='w-27 min-w-0'>
+              <SelectContent position="popper" className='w-27 min-w-0'>
                 <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
               </SelectContent>

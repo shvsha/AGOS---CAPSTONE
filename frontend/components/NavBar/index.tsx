@@ -142,6 +142,7 @@ export default function SideBar() {
         {/* Logout Dialog */}
         <div className="border-t p-2">
           <button
+            suppressHydrationWarning
             onClick={() => setLogoutDialog(true)}
             className={`
               flex items-center w-full cursor-pointer py-3 text-[#122A48] hover:bg-[#eaedf2]
