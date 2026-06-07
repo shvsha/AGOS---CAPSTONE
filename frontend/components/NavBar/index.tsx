@@ -11,6 +11,12 @@ import { usePathname, useRouter } from "next/navigation"
 // auth
 import { getUserRole, clearAuth } from "@/lib/auth"
 
+// component
+import { DialogModal } from "../DialogModal"
+
+// constant
+import { DIALOG_COLOR } from "@/lib/constant"
+
 // icons
 import {
   LayoutDashboard, Users, ChartNoAxesCombined,
@@ -51,9 +57,12 @@ const navItems = {
 
 
 export default function SideBar() {
+  // us
   const [expanded, setExpanded] = useState<boolean>(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [moreOpen, setMoreOpen] = useState<boolean>(false)
+  const [logoutDialog, setLogoutDialog] = useState<boolean>(false)
+
   const pathname = usePathname()
   const router = useRouter()
 
@@ -130,47 +139,40 @@ export default function SideBar() {
           })}
         </nav>
 
-        {/* Logout */}
+        {/* Logout Dialog */}
         <div className="border-t p-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button className={`
-                flex items-center w-full cursor-pointer py-3 text-[#122A48] hover:bg-[#eaedf2]
-                rounded transition-all duration-200 overflow-hidden whitespace-nowrap
-                ${expanded ? 'px-[13px] gap-3' : 'px-[13px]'}
-              `}>
-                <span className="flex-shrink-0 w-5 flex items-center justify-center">
-                  <LogOut size={20} />
-                </span>
-                {expanded && <span className="text-sm font-medium">Logout</span>}
-              </button>
-            </AlertDialogTrigger>
+          <button
+            onClick={() => setLogoutDialog(true)}
+            className={`
+              flex items-center w-full cursor-pointer py-3 text-[#122A48] hover:bg-[#eaedf2]
+              rounded transition-all duration-200 overflow-hidden whitespace-nowrap
+              ${expanded ? 'px-[13px] gap-3' : 'px-[13px]'}
+            `}
+          >
+            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+              <LogOut size={20} />
+            </span>
+            {expanded && <span className="text-sm font-medium">Logout</span>}
+          </button>
 
-            <AlertDialogContent className="pt-0 px-0 bg-[#E6EEF6] pb-0 !max-w-[280px] overflow-hidden rounded-[10px] border-none">
-              <div className="py-3 bg-[#122A48] rounded-t-lg" />
-              <AlertDialogHeader className="p-4 text-center items-center -mb-4 -mt-3">
-                <AlertDialogTitle className="font-bold text-[#122A48] text-[25px] w-full text-center">
-                  Logout
-                </AlertDialogTitle>
-                <AlertDialogDescription className="!text-[13px] text-gray-600 w-full text-center">
-                  Are you sure you want to logout?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="flex flex-row justify-center items-center gap-2 border-none mb-0.5 mr-8.5 pt-2">
-                <AlertDialogCancel className="cursor-pointer px-4">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="!bg-[#122A48] cursor-pointer text-white hover:bg-[#1a1f4d] px-4"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <DialogModal
+            open={logoutDialog}
+            onClose={() => setLogoutDialog(false)}
+            onConfirm={handleLogout}
+            color={DIALOG_COLOR.lightgray}
+            icon={LogOut}
+            iconColor={DIALOG_COLOR.gray}
+            title="Logout"
+            description="Are you sure you want to log out of your account?"
+            cancelLabel="Cancel"
+            confirmLabel="Logout"
+          />
         </div>
 
-      </aside>
 
+      </aside>
+      
+      {/* mobile nav bar */}
       <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-[#FAFCFD] border-t border-[#C6C6C8] z-50 h-16">
         {/* "More" backdrop */}
         {moreOpen && (

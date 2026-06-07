@@ -1,4 +1,8 @@
 export const DIALOG_COLOR = {
+  primary: '#122A48',
+  gray: '#727272',
+  lightgray: '#72727247',
+
   green: '#347D43',
   red: '#CC251F',
   lightgreen: '#58D07159',
