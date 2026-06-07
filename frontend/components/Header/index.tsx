@@ -1,11 +1,18 @@
 "use client"
 
 // icons
+import { Menu } from 'lucide-react' 
 import { FaBell } from 'react-icons/fa'
+
 import Link from 'next/link'
+
+// react
 import { usePathname } from 'next/navigation'
-import { getUserRole } from '@/lib/auth'
 import { useEffect, useState } from 'react'
+
+// lib
+import { getUserRole } from '@/lib/auth'
+import { useDrawer } from '@/lib/drawer-context' 
 
 // map pathnames to page titles
 const pageTitles: Record<string, string> = {
@@ -39,6 +46,7 @@ const alertRoutes: Record<string, string> = {
 export default function Header() {
   const pathname = usePathname()
   const [alertHref, setAlertHref] = useState("#")
+  const { setDrawerOpen } = useDrawer()
 
   useEffect(() => {
     const role = getUserRole()
@@ -50,10 +58,19 @@ export default function Header() {
   return (
     <header className="bg-[linear-gradient(90deg,#132A49_0%,#1565BC_46%,#2C7B3C_100%)] px-6 h-14 flex justify-between items-center shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
 
-      {/* page title */}
-      <h1 className='text-base font-bold text-white'>
-        {title}
-      </h1>
+      {/* nav drawer */}
+      <div className="flex items-center gap-3">
+        {/* hamburger for mobile*/}
+        <button
+          className="md:hidden text-white"
+          onClick={() => setDrawerOpen(true)}
+        >
+          <Menu size={22} />
+        </button>
+
+        {/* page title */}
+        <h1 className='text-base font-bold text-white'>{title}</h1>
+      </div>
 
       {/* notification bell */}
       <Link href={alertHref} className="relative inline-flex items-center">

@@ -16,7 +16,7 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { useToast } from "@/components/hooks/useToast";
 
 // icons
-import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check } from "lucide-react";
+import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, User } from "lucide-react";
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -424,6 +424,291 @@ export default function Form() {
           </form>
 
         </div>
+
+      </div>
+
+      {/* --------------------------------------------------------------- */}
+
+      {/* for mobile */}
+      <div className="md:hidden">
+
+        {/* profile container */}
+        <div className="flex items-center gap-3 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-3 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+          
+          {/* avatar */}
+          <div className={`bg-[#2C7B3C] rounded-full w-14 h-14 flex-shrink-0 flex items-center justify-center text-white font-bold ${isEdit ? 'text-[22px]' : 'text-[27px]'}`}>
+            {isEdit ? `${fname.charAt(0)}${lname.charAt(0)}` : '?'}
+          </div>
+
+          {/* info */}
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
+            
+            {/* row 1 - full name */}
+            <p className="text-[#122A48] font-semibold text-sm truncate">
+              {isEdit ? `${fname} ${lname}` : 'Full Name'}
+            </p>
+
+            {/* row 2 - role and email */}
+            <div className="flex gap-3">
+              <p className="text-xs text-[#122A48] truncate"><span className="font-medium">Role:</span> {isEdit ? role : '---'}</p>
+              <p className="text-xs text-[#122A48] truncate"><span className="font-medium">Email:</span> {isEdit ? email : '---'}</p>
+            </div>
+
+            {/* row 3 - status and office/barangay */}
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${
+                (isEdit ? status : 'Active') === 'Active'
+                  ? 'bg-[#B2FBC173] text-[#2C7B3C]'
+                  : 'bg-[#FFE5E5] text-[#D81010]'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  (isEdit ? status : 'Active') === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
+                }`}/>
+                {isEdit ? status : 'Active'}
+              </span>
+
+              <div className="flex items-center gap-1 rounded-full bg-[#1565BC29] text-[#1565BC] px-2.5 py-0.5 text-[10px] min-w-0">
+                <MapPin size={11} className="flex-shrink-0" />
+                <p className="truncate">{isEdit ? officeBarangay : 'Office/Barangay'}</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* form */}
+        <form action="">
+
+          {/* personal information */}
+          <div className="mt-3 text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            {/* header */}
+            <div className="flex gap-3 p-3">
+              <div className="rounded-lg p-2 text-[#1565BC] bg-[#CDE3DE]">
+                <UserRound size={21}/>
+              </div>
+              <div className="flex flex-col justify-center">
+                <p className="font-bold text-sm">Personal Information</p>
+                <p className="text-[11px] text-[#727272] ">Basic identity details of the user</p>
+              </div>
+            </div>
+
+            <hr />
+
+            {/* inputs for PI */}
+            <div className="p-3">
+              <div className="flex gap-5 w-full">
+                {/* fname */}
+                <Field className="flex gap-1.5 flex-col w-[400px]">
+                  <FieldLabel className="text-[#122A48] text-xs">FIRST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                    <Input
+                      name="fname"
+                      value={fname}
+                      onChange={(e) => {
+                        setFname(e.target.value)
+                      }}
+                      placeholder="e.g. Patricia"
+                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
+                        fieldErrors.fname ? 'border-[#FF0000]' : 'border-[#727272]'
+                      }`}
+                    />
+                    <FieldError className="text-xs">{fieldErrors.fname}</FieldError>
+                </Field>
+                
+                {/* lname */}
+                <Field className="flex gap-1.5 flex-col w-[400px]">
+                  <FieldLabel className="text-[#122A48] text-xs">LAST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                    <Input
+                      name="lname"
+                      value={lname}
+                      onChange={(e) => {
+                        setLname(e.target.value)
+                      }}
+                      placeholder="e.g. Quinto"
+                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
+                        fieldErrors.lname ? 'border-[#FF0000]' : 'border-[#727272]'
+                      }`}
+                    />
+                    <FieldError className="text-xs">{fieldErrors.lname}</FieldError>
+                </Field>
+              </div>
+
+              <div className="mt-3">
+                {/* position/designation */}
+                <Field className="flex gap-1.5 flex-col">
+                  <FieldLabel className="text-[#122A48] text-xs">POSITION/DESIGNATION <span className="text-[#FF0000]">*</span></FieldLabel>
+                    <Input
+                      name="position"
+                      value={position}
+                      maxLength={50}
+                      onChange={(e) => {
+                        setPosition(e.target.value)
+                      }}
+                      placeholder="e.g. Barangay Sanitary Inspector"
+                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
+                        fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'
+                      }`}
+                    />
+                    <div className="flex justify-between items-center">
+                    <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                    <span className={`text-xs ml-auto ${position.length >= 50 ? 'text-red-500' : 'text-gray-400'}`}>
+                      {position.length}/50
+                    </span>
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+          </div>
+
+          {/* role and assignment */}
+          <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg mt-3 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            {/* header */}
+            <div className="flex gap-3 p-3 w-238">
+              <div className="rounded-lg p-2 text-[#1565BC] bg-[#CDE3DE]">
+                <ClipboardCheck size={21}/>
+              </div>
+              <div className="flex flex-col justify-center">
+                <p className="font-bold text-sm">Role & Assignment</p>
+                <p className="text-[11px] text-[#727272]">Access level and barangay coverage</p>
+              </div>
+            </div>
+
+            <hr />
+
+            {/* inputs for R&A */}
+            <div className="p-3">
+              <div className="flex flex-col gap-5 w-full">
+                {/* role */}
+                <Field className="flex gap-1.5 flex-col">
+                  <FieldLabel className="text-[#122A48] text-xs">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <Select
+                        value={role}
+                        onValueChange={(value) => {
+                          setRole(value)
+                          if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
+                        }}
+                      >
+                      <SelectTrigger className={`text-xs !font-normal bg-[#1565BC05] py-[17px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                        <SelectValue placeholder="Select Role..." />
+                      </SelectTrigger>
+                      <SelectContent position="popper" side="bottom">
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO Officer">MENRO Officer</SelectItem>
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay">Barangay Personnel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldError className="text-xs">{fieldErrors.role}</FieldError>
+                </Field>
+                
+                {/* office/barangay */}
+                <Field className="flex gap-1.5 flex-col">
+                  <FieldLabel className="text-[#122A48] text-xs">OFFICE/BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <Select
+                        value={officeBarangay}
+                        onValueChange={(value) => {
+                          setOfficeBarangay(value)
+                          if (fieldErrors.officeBarangay) setFieldErrors(prev => ({ ...prev, officeBarangay: '' }))
+                        }}
+                      >
+                      <SelectTrigger className={`text-xs !font-normal bg-[#1565BC05] py-[17px] rounded-lg ${fieldErrors.officeBarangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                        <SelectValue placeholder="Select..." />
+                      </SelectTrigger>
+                      <SelectContent position="popper" side="bottom">
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO Office">MENRO Office</SelectItem>
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 1">Barangay 1</SelectItem>
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 2">Barangay 2</SelectItem>
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 3">Barangay 3</SelectItem>
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 4">Barangay 4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldError className="text-xs">{fieldErrors.officeBarangay }</FieldError>
+                </Field>
+              </div>
+            </div>
+
+          </div>
+
+          {/* acct credentials */}
+          <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg mt-3 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            {/* header */}
+            <div className="flex gap-3 p-3 w-238">
+              <div className="rounded-lg p-2 text-[#1565BC] bg-[#CDE3DE]">
+                <UserCheck size={21}/>
+              </div>
+              <div className="flex flex-col justify-center">
+                <p className="font-bold text-xs">Account Credentials</p>
+                <p className="text-[11px] text-[#727272]">Login username and email</p>
+              </div>
+            </div>
+
+            <hr />
+
+            {/* inputs for PI */}
+            <div className="p-3">
+              <div className="flex flex-col gap-3 w-full">
+                {/* username */}
+                <Field className="flex gap-1.5 flex-col">
+                  <FieldLabel className="text-[#122A48] text-xs">USERNAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                    <Input
+                      name="username"
+                      value={username}
+                      maxLength={20}
+                      onChange={(e) => {
+                        setUsername(e.target.value)
+                      }}
+                      placeholder="e.g. patquinto"
+                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
+                        fieldErrors.username ? 'border-[#FF0000]' : 'border-[#727272]'
+                      }`}
+                    />
+                    <div className="flex justify-between items-center">
+                    <FieldError className="text-xs">{fieldErrors.username}</FieldError>
+                    <span className={`text-xs ml-auto ${username.length >= 20 ? 'text-[#FF0000]' : 'text-[#72727280]'}`}>
+                      {username.length}/20
+                    </span>
+                  </div>
+                </Field>
+                
+                {/* email */}
+                <Field className="flex gap-1.5 flex-col">
+                  <FieldLabel className="text-[#122A48] text-xs">EMAIL <span className="text-[#FF0000]">*</span></FieldLabel>
+                    <Input
+                      name="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value)
+                      }}
+                      placeholder="e.g. patpobeast@rosario.gov.ph"
+                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
+                        fieldErrors.email ? 'border-[#FF0000]' : 'border-[#727272]'
+                      }`}
+                    />
+                    <FieldError className="text-xs">{fieldErrors.email}</FieldError>
+                </Field>
+              </div>
+            </div>
+
+          </div>
+
+          {/* button */}
+          <div className="flex gap-3 justify-end mt-3">
+            <Button
+              type="button"
+              onClick={handleCancelDialog}
+              className="cursor-pointer border border-[#C6C6C8] text-[#727272] rounded-lg bg-[#FAFCFD] hover:text-[#525050] hover:bg-[#adbac1] px-7 py-4.5">
+                Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmationDialog}
+              className="cursor-pointer rounded-lg bg-[#1565BC] hover:bg-[#13569e] px-5 pl-4 py-4.5"> <Check/> {isEdit ? 'Save Changes' : 'Create User Account'}
+            </Button>
+          </div>
+        </form>
+
+
+        
+
+
 
       </div>
 

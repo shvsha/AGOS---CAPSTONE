@@ -8,14 +8,13 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
-// auth
+// lib
 import { getUserRole, clearAuth } from "@/lib/auth"
+import { useDrawer } from "@/lib/drawer-context"
+import { DIALOG_COLOR } from "@/lib/constant"
 
 // component
 import { DialogModal } from "../DialogModal"
-
-// constant
-import { DIALOG_COLOR } from "@/lib/constant"
 
 // icons
 import {
@@ -56,7 +55,7 @@ const navItems = {
 }
 
 
-export default function SideBar() {
+export default function NavBar() {
   // us
   const [expanded, setExpanded] = useState<boolean>(false)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -65,6 +64,7 @@ export default function SideBar() {
 
   const pathname = usePathname()
   const router = useRouter()
+  const { drawerOpen, setDrawerOpen } = useDrawer()
 
   useEffect(() => {
     const role = getUserRole()
@@ -155,128 +155,86 @@ export default function SideBar() {
             </span>
             {expanded && <span className="text-sm font-medium">Logout</span>}
           </button>
-
-          <DialogModal
-            open={logoutDialog}
-            onClose={() => setLogoutDialog(false)}
-            onConfirm={handleLogout}
-            color={DIALOG_COLOR.lightgray}
-            icon={LogOut}
-            iconColor={DIALOG_COLOR.gray}
-            title="Logout"
-            description="Are you sure you want to log out of your account?"
-            cancelLabel="Cancel"
-            confirmLabel="Logout"
-          />
         </div>
-
 
       </aside>
       
-      {/* mobile nav bar */}
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-[#FAFCFD] border-t border-[#C6C6C8] z-50 h-16">
-        {/* "More" backdrop */}
-        {moreOpen && (
-          <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setMoreOpen(false)} />
-        )}
+      
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 md:hidden"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
 
-        {/* "More" slide-up drawer */}
-        {moreOpen && (
-          <div className="fixed bottom-16 left-0 right-0 z-50 bg-[#FAFCFD] border-t border-[#C6C6C8] rounded-t-2xl shadow-xl px-4 pt-3 pb-4">
-            <div className="w-10 h-1 rounded-full bg-[#C6C6C8] mx-auto mb-3" />
-            <div className="flex flex-col gap-1">
-              {overflowItems.map(({ href, label, icon }) => {
-                const isActive = pathname === href
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setMoreOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-medium transition-colors
-                      ${isActive ? "bg-[#58D07159] text-[#122A48]" : "text-[#122A48] hover:bg-[#eaedf2]"}`}
-                  >
-                    <span className="w-5 flex items-center justify-center">{icon}</span>
-                    <span>{label}</span>
-                  </Link>
-                )
-              })}
-            </div>
-            <div className="border-t border-[#C6C6C8] mt-3 pt-2">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[#122A48] hover:bg-[#eaedf2] text-[13px] font-medium transition-colors">
-                    <span className="w-5 flex items-center justify-center"><LogOut size={20} /></span>
-                    <span>Logout</span>
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="pt-0 px-0 bg-[#E6EEF6] pb-0 !max-w-[280px] overflow-hidden rounded-[10px] border-none">
-                  <div className="py-3 bg-[#122A48] rounded-t-lg" />
-                  <AlertDialogHeader className="p-4 text-center items-center -mb-4 -mt-3">
-                    <AlertDialogTitle className="font-bold text-[#122A48] text-[25px] w-full text-center">Logout</AlertDialogTitle>
-                    <AlertDialogDescription className="!text-[13px] text-gray-600 w-full text-center">Are you sure you want to logout?</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter className="flex flex-row justify-center items-center gap-2 border-none mb-0.5 mr-8.5 pt-2">
-                    <AlertDialogCancel className="cursor-pointer px-4">Cancel</AlertDialogCancel>
-                    <AlertDialogAction className="!bg-[#122A48] cursor-pointer text-white hover:bg-[#1a1f4d] px-4" onClick={handleLogout}>Logout</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+      {/* Mobile drawer */}
+      <div
+        className={`
+          fixed top-0 left-0 h-full w-64 bg-[#FAFCFD] z-50 flex flex-col
+          border-r border-[#C6C6C8] shadow-xl transition-transform duration-300 ease-in-out md:hidden
+          ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-4 py-5 pb-3 h-18">
+          <Image src={AgosLogo} alt="AGOS Logo" width={40} height={40}
+            className="rounded-full flex-shrink-0 bg-[#CDE3DE]" />
+          <div>
+            <p className="text-[#122A48] font-bold text-[13px] leading-tight">AGOS</p>
+            <p className="text-[#122A48] text-[9px] leading-tight mt-1">
+              Automated Geo-Based <br /> Obstruction Sensing System
+            </p>
           </div>
-        )}
+        </div>
 
-        {/* Bar */}
-        <div className="flex items-center h-full px-1">
-          {visibleItems.map(({ href, label, icon }) => {
+        {/* Nav items */}
+        <nav className="flex flex-col mt-6 flex-1">
+          {items.map(({ href, label, icon }) => {
             const isActive = pathname === href
             return (
-              <Link key={href} href={href} className="flex-1 flex flex-col items-center justify-center gap-1 py-2 h-full">
-                <span className={`flex items-center justify-center w-10 h-7 rounded-full transition-all duration-200 ${isActive ? "bg-[#58D07159]" : ""}`}>
-                  <span className={isActive ? "text-[#122A48]" : "text-[#6B7A90]"}>{icon}</span>
-                </span>
-                <span className={`text-[10px] font-medium leading-none ${isActive ? "text-[#122A48]" : "text-[#6B7A90]"}`}>{label}</span>
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setDrawerOpen(false)}
+                className={`
+                  flex items-center gap-3 px-4 py-3 mx-3 my-0.5 text-[13px] font-medium
+                  rounded-lg transition-colors
+                  ${isActive ? 'bg-[#58D07159] text-[#122A48]' : 'text-[#122A48] hover:bg-[#eaedf2]'}
+                `}
+              >
+                <span className="w-5 flex items-center justify-center">{icon}</span>
+                <span>{label}</span>
               </Link>
             )
           })}
+        </nav>
 
-          {/* More button */}
-          {hasOverflow && (
-            <button onClick={() => setMoreOpen(p => !p)} className="flex-1 flex flex-col items-center justify-center gap-1 py-2 h-full">
-              <span className={`flex items-center justify-center w-10 h-7 rounded-full transition-all duration-200 ${overflowActive || moreOpen ? "bg-[#58D07159]" : ""}`}>
-                <span className={overflowActive || moreOpen ? "text-[#122A48]" : "text-[#6B7A90]"}>
-                  {moreOpen ? <X size={20} /> : <MoreHorizontal size={20} />}
-                </span>
-              </span>
-              <span className={`text-[10px] font-medium leading-none ${overflowActive || moreOpen ? "text-[#122A48]" : "text-[#6B7A90]"}`}>More</span>
-            </button>
-          )}
-
-          {/* Logout directly in bar */}
-          {!hasOverflow && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="flex-1 flex flex-col items-center justify-center gap-1 py-2 h-full">
-                  <span className="flex items-center justify-center w-10 h-7 rounded-full">
-                    <LogOut size={20} className="text-[#6B7A90]" />
-                  </span>
-                  <span className="text-[10px] font-medium leading-none text-[#6B7A90]">Logout</span>
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="pt-0 px-0 bg-[#E6EEF6] pb-0 !max-w-[280px] overflow-hidden rounded-[10px] border-none">
-                <div className="py-3 bg-[#122A48] rounded-t-lg" />
-                <AlertDialogHeader className="p-4 text-center items-center -mb-4 -mt-3">
-                  <AlertDialogTitle className="font-bold text-[#122A48] text-[25px] w-full text-center">Logout</AlertDialogTitle>
-                  <AlertDialogDescription className="!text-[13px] text-gray-600 w-full text-center">Are you sure you want to logout?</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-row justify-center items-center gap-2 border-none mb-0.5 mr-8.5 pt-2">
-                  <AlertDialogCancel className="cursor-pointer px-4">Cancel</AlertDialogCancel>
-                  <AlertDialogAction className="!bg-[#122A48] cursor-pointer text-white hover:bg-[#1a1f4d] px-4" onClick={handleLogout}>Logout</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+        {/* Logout */}
+        <div className="border-t p-2">
+          <button
+            onClick={() => { setDrawerOpen(false); setLogoutDialog(true) }}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[#122A48] hover:bg-[#eaedf2] text-[13px] font-medium transition-colors"
+          >
+            <span className="w-5 flex items-center justify-center"><LogOut size={20} /></span>
+            <span>Logout</span>
+          </button>
         </div>
-      </nav>
+      </div>
+      
+      {/* Dialog */}
+      <DialogModal
+        open={logoutDialog}
+        onClose={() => setLogoutDialog(false)}
+        onConfirm={handleLogout}
+        color={DIALOG_COLOR.lightgray}
+        icon={LogOut}
+        iconColor={DIALOG_COLOR.gray}
+        title="Logout"
+        description="Are you sure you want to log out of your account?"
+        cancelLabel="Cancel"
+        confirmLabel="Logout"
+      />
     </>
   )
 }
