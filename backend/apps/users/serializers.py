@@ -18,7 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
       }
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
@@ -28,7 +28,17 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
+        password = validated_data.pop('password', None)
+        user_role = validated_data.get('user_role')
+
+        if not password:
+            if user_role == 'MENRO':
+                password = 'menro123'
+            elif user_role == 'Barangay':
+                password = 'barangay123'
+            else:
+                password = 'admin123'
+                
         user = User(**validated_data)
         user.set_password(password)
         user.save()
