@@ -88,7 +88,7 @@ class MeView(APIView):
 
 
 class UserListView(generics.ListCreateAPIView):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('user_id')
     permission_classes = [IsAdmin]
 
     def get_serializer_class(self):
@@ -97,6 +97,7 @@ class UserListView(generics.ListCreateAPIView):
         return UserSerializer
     
     def perform_create(self, serializer):
+        print(self.request.data)
         user = serializer.save()
         log_action(
             user=self.request.user,
@@ -224,3 +225,36 @@ class ResetPasswordView(APIView):
                 {'error': 'User not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class InitialSetupView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        """Check if setup is still needed"""
+        admin_exists = User.objects.filter(user_role='Admin').exists()
+        return Response({'setup_required': not admin_exists})
+
+    def post(self, request):
+        """Create first admin — only works if no admin exists yet"""
+        if User.objects.filter(user_role='Admin').exists():
+            return Response(
+                {'error': 'Setup already completed. An admin account already exists.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save(user_role='Admin')
+            log_action(
+                user=user,
+                action='Initial Setup - Created Admin',
+                affected_table='tbl_user',
+                new_value=f"username: {user.username}, role: {user.user_role}",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return Response(
+                {'message': f'Admin account created for {user.first_name} {user.last_name}.'},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

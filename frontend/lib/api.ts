@@ -45,6 +45,21 @@ export const api = {
     return result
   },
 
+  patch: async (endpoint: string, data?: unknown, token?: string) => {
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    }
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(data),
+    })
+    const result = await response.json()
+    if (!response.ok) throw result
+    return result
+  },
+
   delete: async (endpoint: string, token?: string) => {
     const headers: HeadersInit = {
       "Content-Type": "application/json",

@@ -48,12 +48,12 @@ export function DialogModal({
               <hr className="my-3 mb-4" />
               <div className="flex gap-3 justify-end">
                 {cancelLabel && (
-                  <Button onClick={onClose} className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer bg-transparent hover:bg-[#edebeb] text-[#727272]">
+                  <Button onClick={onClose} className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer text-[11px] sm:text-sm bg-transparent hover:bg-[#edebeb] text-[#727272]">
                     {cancelLabel}
                   </Button>
                 )}
                 {confirmLabel && (
-                  <Button onClick={onConfirm} className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer" style={{ backgroundColor: iconColor }}>
+                  <Button onClick={onConfirm} className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer text-[11px] sm:text-sm" style={{ backgroundColor: iconColor }}>
                     {confirmLabel}
                   </Button>
                 )}

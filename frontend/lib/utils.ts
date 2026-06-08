@@ -52,3 +52,17 @@ export const getErrorMessage = (error: unknown): string => {
   return "Something went wrong. Please try again."
 }
 
+// Role display mapping (backend value -> friendly UI name)
+export const ROLE_DISPLAY: Record<string, string> = {
+  MENRO: 'MENRO Officer',
+  Barangay: 'Barangay Personnel',
+  Admin: 'Admin',
+}
+
+// Convert friendly name back to backend value
+export const ROLE_VALUE: Record<string, string> = {
+  'MENRO Officer': 'MENRO',
+  'Barangay Personnel': 'Barangay',
+  Admin: 'Admin',
+}
+

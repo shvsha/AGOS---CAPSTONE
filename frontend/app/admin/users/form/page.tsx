@@ -24,9 +24,26 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// api + auth
+import { api } from "@/lib/api"
+import { getAccessToken } from "@/lib/auth";
+
 type DialogState = {
   open: boolean;
 };
+
+type Barangay = { 
+  barangay_id: number; 
+  barangay_name: string 
+}
+
+const MENRO_OFFICE = "MENRO Office"
+
+const ROLE_DISPLAY: Record<string, string> = {
+  'MENRO': 'MENRO Officer',
+  'Barangay': 'Barangay Personnel',
+  'Admin': 'Admin',
+}
 
 export default function Form() {
   const searchParams = useSearchParams()
@@ -42,10 +59,8 @@ export default function Form() {
   const [role, setRole] = useState<string>('')
   const [email, setEmail] = useState<string>('')
   const [status, setStatus] = useState<string>('')
-
-  // extract later on the office/barangay of the user from the database (office if MENRO the role, barangay if barangay personnel role)
-  const [officeBarangay, setOfficeBarangay] = useState<string>('')
-  // pati toh from database later on
+  const [barangays, setBarangays] = useState<Barangay[]>([])
+  const [barangayId, setBarangayId] = useState<number | null>(null)
   const [username, setUsername] = useState<string>('')
 
   // form us
@@ -65,22 +80,45 @@ export default function Form() {
   // toast
   const {toasts, addToast, removeToast } = useToast()
 
+  // get barangay
+  useEffect(() => {
+    const loadBarangays = async () => {
+      try {
+        const token = getAccessToken()
+        const data = await api.get('/api/barangays/', token ?? undefined)
+        setBarangays(data.results ?? data)
+      } catch {
+        addToast('Failed to load barangays.', 'error')
+      }
+    }
+    loadBarangays()
+  }, [])
+
   useEffect(() => {
     if (!isEdit) return
 
     // change with api later on
-    const mockUsers = [
-      { user_id: 1, fname: 'Juan', lname: 'Dela Cruz', role: 'Admin', status: 'Active', email: 'juan@example.com' },
-    ]
-    const user = mockUsers.find(u => u.user_id === Number(id))
-    if (user) {
-      setFname(user.fname)
-      setLname(user.lname)
-      setRole(user.role)
-      setEmail(user.email)
-      setStatus(user.status)
+    const loadUser = async () => {
+      try {
+        const token = getAccessToken()
+        const data = await api.get(`/api/users/${id}/`, token ?? undefined)
+        setFname(data.first_name)
+        setLname(data.last_name)
+        setRole(data.user_role)
+        setEmail(data.email)
+        setStatus(data.status)
+        setUsername(data.username)
+        setPosition(data.position ?? '')
+        setBarangayId(data.barangay_id ?? null)
+      } catch {
+        addToast('Failed to load user data.', 'error')
+      }
     }
+    loadUser()
   }, [id])
+
+  const selectedBarangay = barangays.find(b => b.barangay_id === barangayId)
+  const officeDisplay = role === 'MENRO' ? MENRO_OFFICE : selectedBarangay?.barangay_name ?? 'Office/Barangay'
 
   // handlers
   const handleCancelDialog = () => {
@@ -96,8 +134,8 @@ export default function Form() {
     if (!fname.trim())        errors.fname         = 'This field is required.'
     if (!lname.trim())        errors.lname         = 'This field is required.'
     if (!position.trim())     errors.position      = 'This field is required.'
-    if (!role.trim())         errors.role          = 'This field is required.'
-    if (!officeBarangay.trim()) errors.officeBarangay = 'This field is required.'
+    if (!role) errors.role = 'This field is required.'
+    if (role !== 'MENRO' && !barangayId) errors.barangayId = 'This field is required.'
     if (!username.trim())     errors.username      = 'This field is required.'
     if (!email.trim())        errors.email         = 'This field is required.'
 
@@ -111,16 +149,40 @@ export default function Form() {
     setLoadingDialog({ open: true })
 
     try {
-      // await api.post('/api/users/', { fname, lname, ... })
-      await new Promise(resolve => setTimeout(resolve, 1500)) // remove this when real api is ready
+      // await new Promise(resolve => setTimeout(resolve, 1500))
+      const token = getAccessToken()
+      const payload = {
+        first_name: fname,
+        last_name: lname,
+        email,
+        username,
+        user_role: role,
+        position,
+        barangay_id: role === 'MENRO' ? null : barangayId,
+      }
+
+      if (isEdit) {
+        await api.patch(`/api/users/${id}/`, payload, token ?? undefined)
+      } else {
+        await api.post('/api/users/', payload, token ?? undefined)
+      }
 
       setLoadingDialog({ open: false })
-      addToast(isEdit ? `${fname} ${lname}'s account has been updated.` : `${fname} ${lname} has been added.`)
+      addToast(isEdit ? `${fname} ${lname}'s \naccount has been updated.` : `${fname} ${lname} \nhas been added.`, 'success')
       await new Promise(resolve => setTimeout(resolve, 3000))
       router.push('/admin/users')
 
-    } catch {
+    } catch (err: any) {
       setLoadingDialog({ open: false })
+      
+      if (err && typeof err === 'object') {
+        const backendErrors: Record<string, string> = {}
+        for (const key in err) {
+          backendErrors[key] = Array.isArray(err[key]) ? err[key][0] : err[key]
+        }
+        setFieldErrors(backendErrors)
+      }
+
       addToast(isEdit ? 'Failed to save changes. Please try again.' : 'Failed to create user. Please try again.', 'error')
     }
   }
@@ -139,7 +201,9 @@ export default function Form() {
 
             <div className="flex flex-col text-[#122A48] justify-center">
               <p className="font-bold">{isEdit ? 'Edit User Account' : 'Add User Account'}</p>
-              <p className="text-[13px]">{isEdit ? `Modifying account for ${fname} ${lname} | ${role}` : 'Create a new system account for AGOS'}</p>
+              <p className="text-[13px]">
+                {isEdit ? `Modifying account for ${fname} ${lname} | ${ROLE_DISPLAY[role] ?? role}` : '...'}
+              </p>
             </div>
           </div>
 
@@ -161,7 +225,9 @@ export default function Form() {
             </div>
 
             <p className="text-center text-[#122A48] mt-3 font-bold">{isEdit ? `${fname} ${lname}` : 'Full Name'}</p>
-            <p className="text-center text-[#122A48] text-sm">{isEdit ? `${role}` : '---'}</p>
+            <p className="text-center text-[#122A48] text-sm">
+              {isEdit ? ROLE_DISPLAY[role] ?? role : '---'}
+            </p>
 
             {/* status */}
             <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium justify-center mx-auto mt-1.5 ${
@@ -178,7 +244,9 @@ export default function Form() {
             <div className="flex flex-col gap-1 mt-7 px-4">
               <div className="flex justify-between text-sm">
                 <span className="text-[#122A48] font-medium">Role</span>
-                <span className="font-semibold text-[#122A48]">{isEdit ? role : '---'}</span>
+                <span className="font-semibold text-[#122A48]">
+                  {isEdit ? ROLE_DISPLAY[role] ?? role : '---'}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#122A48] font-medium">Email</span>
@@ -188,9 +256,9 @@ export default function Form() {
 
             <hr className="mx-4 my-7" />
 
-            <div className={`rounded-full flex gap-2 bg-[#1565BC29] text-[#1565BC] py-1.5 justify-center items-center ${isEdit ? 'mx-20' : 'mx-15'} `}>
+            <div className={`rounded-full flex gap-2 bg-[#1565BC29] text-[#1565BC] py-1.5 justify-center items-center ${isEdit ? 'mx-17' : 'mx-17'} `}>
               <MapPin size={21}/>
-              <p className="text-center text-sm">{isEdit ? `${officeBarangay}` : 'Office/Barangay'}</p>
+              <p className="text-center text-sm">{officeDisplay}</p>
             </div>
           </div>
 
@@ -303,14 +371,17 @@ export default function Form() {
                           value={role}
                           onValueChange={(value) => {
                             setRole(value)
+                            if (value === 'MENRO Officer') {
+                              setBarangayId(null)
+                            }
                             if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
                           }}
                         >
                         <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                           <SelectValue placeholder="Select Role..." />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem className="text-[#122A48] p-2" value="MENRO Officer">MENRO Officer</SelectItem>
+                        <SelectContent position="popper">
+                          <SelectItem className="text-[#122A48] p-2" value="MENRO">MENRO Officer</SelectItem>
                           <SelectItem className="text-[#122A48] p-2" value="Barangay">Barangay Personnel</SelectItem>
                         </SelectContent>
                       </Select>
@@ -321,24 +392,25 @@ export default function Form() {
                   <Field className="flex gap-1.5 flex-col w-[400px]">
                     <FieldLabel className="text-[#122A48] text-sm">OFFICE/BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Select
-                          value={officeBarangay}
+                          value={role === 'MENRO' ? MENRO_OFFICE : barangayId ? String(barangayId) : ''}
                           onValueChange={(value) => {
-                            setOfficeBarangay(value)
-                            if (fieldErrors.officeBarangay) setFieldErrors(prev => ({ ...prev, officeBarangay: '' }))
+                            setBarangayId(Number(value))
+                            if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
                           }}
+                          disabled={role === 'MENRO'}
                         >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.officeBarangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem className="text-[#122A48] p-2" value="MENRO Office">MENRO Office</SelectItem>
-                          <SelectItem className="text-[#122A48] p-2" value="Barangay 1">Barangay 1</SelectItem>
-                          <SelectItem className="text-[#122A48] p-2" value="Barangay 2">Barangay 2</SelectItem>
-                          <SelectItem className="text-[#122A48] p-2" value="Barangay 3">Barangay 3</SelectItem>
-                          <SelectItem className="text-[#122A48] p-2" value="Barangay 4">Barangay 4</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FieldError className="text-xs">{fieldErrors.officeBarangay }</FieldError>
+                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            {barangays.map(b => (
+                              <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                                {b.barangay_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      <FieldError className="text-xs">{fieldErrors.barangayId }</FieldError>
                   </Field>
                 </div>
               </div>
@@ -450,7 +522,9 @@ export default function Form() {
 
             {/* row 2 - role and email */}
             <div className="flex gap-3">
-              <p className="text-xs text-[#122A48] truncate"><span className="font-medium">Role:</span> {isEdit ? role : '---'}</p>
+              <p className="text-xs text-[#122A48] truncate">
+                <span className="font-medium">Role:</span> {isEdit ? ROLE_DISPLAY[role] ?? role : '---'}
+              </p>
               <p className="text-xs text-[#122A48] truncate"><span className="font-medium">Email:</span> {isEdit ? email : '---'}</p>
             </div>
 
@@ -469,7 +543,7 @@ export default function Form() {
 
               <div className="flex items-center gap-1 rounded-full bg-[#1565BC29] text-[#1565BC] px-2.5 py-0.5 text-[10px] min-w-0">
                 <MapPin size={11} className="flex-shrink-0" />
-                <p className="truncate">{isEdit ? officeBarangay : 'Office/Barangay'}</p>
+                <p className="truncate">{selectedBarangay?.barangay_name ?? 'Office/Barangay'}</p>
               </div>
             </div>
 
@@ -585,6 +659,9 @@ export default function Form() {
                         value={role}
                         onValueChange={(value) => {
                           setRole(value)
+                          if (value === 'MENRO Officer') {
+                            setBarangayId(null)
+                          }
                           if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
                         }}
                       >
@@ -592,7 +669,7 @@ export default function Form() {
                         <SelectValue placeholder="Select Role..." />
                       </SelectTrigger>
                       <SelectContent position="popper" side="bottom">
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO Officer">MENRO Officer</SelectItem>
+                        <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO">MENRO Officer</SelectItem>
                         <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay">Barangay Personnel</SelectItem>
                       </SelectContent>
                     </Select>
@@ -603,24 +680,25 @@ export default function Form() {
                 <Field className="flex gap-1.5 flex-col">
                   <FieldLabel className="text-[#122A48] text-xs">OFFICE/BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
                       <Select
-                        value={officeBarangay}
+                        value={role === 'MENRO' ? MENRO_OFFICE : barangayId ? String(barangayId) : ''}
                         onValueChange={(value) => {
-                          setOfficeBarangay(value)
-                          if (fieldErrors.officeBarangay) setFieldErrors(prev => ({ ...prev, officeBarangay: '' }))
+                          setBarangayId(Number(value))
+                          if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
                         }}
+                        disabled={role === 'MENRO'}
                       >
                       <SelectTrigger className={`text-xs !font-normal bg-[#1565BC05] py-[17px] rounded-lg ${fieldErrors.officeBarangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
                       <SelectContent position="popper" side="bottom">
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO Office">MENRO Office</SelectItem>
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 1">Barangay 1</SelectItem>
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 2">Barangay 2</SelectItem>
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 3">Barangay 3</SelectItem>
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay 4">Barangay 4</SelectItem>
+                        {barangays.map(b => (
+                          <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                            {b.barangay_name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <FieldError className="text-xs">{fieldErrors.officeBarangay }</FieldError>
+                    <FieldError className="text-xs">{fieldErrors.barangayId }</FieldError>
                 </Field>
               </div>
             </div>

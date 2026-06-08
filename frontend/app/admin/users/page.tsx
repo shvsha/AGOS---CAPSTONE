@@ -21,6 +21,13 @@ import { DialogModal } from "@/components/DialogModal";
 // constant
 import { DIALOG_COLOR } from "@/lib/constant";
 
+// utils
+import { ROLE_DISPLAY } from "@/lib/utils";
+
+// api + auth
+import { api } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
+
 // shadcn
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -30,11 +37,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 // type for states
 type User = {
   user_id: number;
-  fname: string;
-  lname: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  role: string;
+  username: string;
+  user_role: string;
   status: string;
+  barangay_id: number | null;
+  barangay_details: { barangay_id: number; barangay_name: string } | null;
 }
 
 type DialogState = {
@@ -43,28 +53,28 @@ type DialogState = {
 };
 
 const getAvatarColor = (role: string) => {
-  if (role === "MENRO Officer") return "#2C7B3C"
-  if (role === "Barangay Personnel") return "#1565BC"
+  if (role === "MENRO") return "#2C7B3C"
+  if (role === "Barangay") return "#1565BC"
   return "#122A48"
 }
 
 function getFilteredUsers(users: User[], role: string, status: string, search: string) {
   return users
-    .filter(u => role === "All" || u.role === role)
+    .filter(u => role === "All" || u.user_role === role)
     .filter(u => status === "All" || u.status === status)
-    .filter(u => `${u.fname} ${u.lname}`.toLowerCase().includes(search.toLowerCase()))
+    .filter(u => `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.user_id - a.user_id)
 }
 
 export default function Users() {
   const router = useRouter()
 
-  // us
+  // filters
   const [search, setSearch] = useState<string>('')
   const [userRole, setUserRole] = useState<string>('All')
   const [userStatus, setUserStatus] = useState<string>('Active')
 
-  // mobile us
+  // mobile filters
   const [tempRole, setTempRole] = useState<string>(userRole)
   const [tempStatus, setTempStatus] = useState<string>(userStatus)
   const [filterOpen, setFilterOpen] = useState<boolean>(false)
@@ -76,8 +86,9 @@ export default function Users() {
   // table states
   const [users, setUsers]     = useState<User[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  const [fetchError, setFetchError] = useState(false)
 
-  // reactivate and deactivate dialogs
+  // dialog states
   const [reactivateDialog, setReactivateDialog] = useState<DialogState>({
     open: false,
     user: null,
@@ -87,36 +98,62 @@ export default function Users() {
     user: null,
   })
 
-  useEffect(() => {
+  const fetchUsers = async () => {
     setLoading(true)
-    // TODO: replace with api.get('/api/users/')
-    setTimeout(() => {
-      setUsers([
-        { user_id: 1, fname: 'Juan',  lname: 'Dela Cruz', email: 'juan@example.com',  role: 'MENRO Officer',    status: 'Active'   },
-        { user_id: 2, fname: 'Maria', lname: 'Santos',    email: 'maria@example.com', role: 'MENRO Officer',    status: 'Active'   },
-        { user_id: 3, fname: 'Pedro', lname: 'Reyes',     email: 'pedro@example.com', role: 'Barangay Personnel',    status: 'Inactive' },
-        { user_id: 4, fname: 'Ana',   lname: 'Cruz',      email: 'ana@example.com',   role: 'Barangay Personnel', status: 'Active'   },
-      ])
+    setFetchError(false)
+    try {
+      const token = getAccessToken()
+      const data = await api.get('/api/users/', token ?? undefined)
+      setUsers((data.results as User[]).filter(u => u.user_role !== 'Admin'))
+    } catch (err) {
+      setFetchError(true)
+    } finally {
       setLoading(false)
-    }, 1200)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
   }, [])
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
 
-  // for the cards
+  // summary cards
   const total    = users.length
   const active   = users.filter(u => u.status === 'Active').length
   const inactive = users.filter(u => u.status === 'Inactive').length
-  const admins   = users.filter(u => u.role === 'Admin').length
+  const barangay    = users.filter(u => u.user_role === 'Barangay').length
 
   // handlers (reactivate and deactivate)
-  const handleReactivate = () => {
+  const handleReactivate = async () => {
+    const user = reactivateDialog.user
+    if (!user) return
     setReactivateDialog({open: false, user: null})
-    addToast(`${reactivateDialog.user?.fname} has been activated.`)
+    try {
+      const token = getAccessToken()
+      await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' }, token ?? undefined)
+      addToast(`${user.first_name} ${user.last_name} has been activated.`)
+      fetchUsers()
+    } catch (err) {
+      console.log(err)
+      addToast('Failed to activate user', 'error')
+    }
   }
-  const handlerDeactivate = () => {
+
+  const handlerDeactivate = async () => {
+    const user = deactivateDialog.user
+    if (!user) return
     setDeactivateDialog({open: false, user: null})
-    addToast(`${deactivateDialog.user?.fname} has been deactivated.`)
+    try {
+      const token = getAccessToken()
+      await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' }, token ?? undefined)
+      addToast(`${user.first_name} ${user.last_name} has been deactivated`)
+      fetchUsers()
+    } catch (err) {
+      console.log(err)
+      addToast('Failed to deactivate user.', 'error')
+    }
+
   }
 
   return (
@@ -160,6 +197,7 @@ export default function Users() {
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-27 min-w-0'>
+                <SelectItem className="p-2 text-[#122A48]" value="All">All Status</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
               </SelectContent>
@@ -187,7 +225,7 @@ export default function Users() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">6</span>
+              <span className="text-2xl font-bold text-[#122A48] leading-tight">{total}</span>
               <p className="text-sm text-[#122A48]">Total Users</p>
             </div>
           </div>
@@ -200,7 +238,7 @@ export default function Users() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">6</span>
+              <span className="text-2xl font-bold text-[#122A48] leading-tight">{active}</span>
               <p className="text-sm text-[#122A48]">Active</p>
             </div>
           </div>
@@ -213,12 +251,12 @@ export default function Users() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">6</span>
+              <span className="text-2xl font-bold text-[#122A48] leading-tight">{inactive}</span>
               <p className="text-sm text-[#122A48]">Inactive</p>
             </div>
           </div>
 
-          {/* total ??? */}
+          {/* total barangay personnel */}
           <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#DACDE3] rounded-lg p-2">
@@ -226,8 +264,8 @@ export default function Users() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">6</span>
-              <p className="text-sm text-[#122A48]">???</p>
+              <span className="text-2xl font-bold text-[#122A48] leading-tight">{barangay}</span>
+              <p className="text-sm text-[#122A48]">Barangay Personnel</p>
             </div>
           </div>
         </div>
@@ -249,10 +287,22 @@ export default function Users() {
               </TableHeader>
               <TableBody>
                 
-                {/* loading state */}
-                {loading ? (
+                {/* fetch error state */}
+                {fetchError ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-31">
+                    <TableCell colSpan={5} className="text-center py-15">
+                      <div className="flex flex-col justify-center items-center gap-3 py-20">
+                        <p className="text-[#D81010] font-semibold text-base">Failed to load users. Please try again later.</p>
+                        <Button onClick={fetchUsers} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+
+                
+                // loading state
+                ) : loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-30">
                       <div className="flex flex-col items-center gap-3 text-[#122A48]">
                         <SpinnerIcon size={32} color="#122A48" />
                         <span className="text-sm font-medium">Loading Users...</span>
@@ -292,18 +342,18 @@ export default function Users() {
                           <div className="flex gap-3 justify-center">
                             <div
                               className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
-                              style={{ backgroundColor: getAvatarColor(user.role) }}
+                              style={{ backgroundColor: getAvatarColor(user.user_role) }}
                             >
-                              {user.fname.charAt(0)}{user.lname.charAt(0)}
+                              {user.first_name.charAt(0)}{user.last_name.charAt(0)}
                             </div>
                             <div className="flex flex-col text-left">
-                              <p className="font-semibold">{user.fname} {user.lname}</p>
+                              <p className="font-semibold">{user.first_name} {user.last_name}</p>
                               <p className="underline text-[13px]">{user.email}</p>
                             </div>
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-[#122A48] text-center h-18">{user.role}</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">{ROLE_DISPLAY[user.user_role] ?? user.user_role}</TableCell>
                         
                         <TableCell className="text-center h-18">
                           <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
@@ -393,7 +443,8 @@ export default function Users() {
             <SlidersHorizontal /> Filter
           </Button>
         </div>
-
+        
+        {/* Cards */}
         <div className="flex flex-col gap-3 w-full text-[#122A48] mt-3">
           <div className="flex gap-2">
             {/* total users */}
@@ -402,7 +453,7 @@ export default function Users() {
                 <FaUsers size={20} color={"#1565BC"} />
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-[#122A48] leading-tight">6</span>
+                <span className="text-lg font-bold text-[#122A48] leading-tight">{total}</span>
                 <p className="text-xs text-[#122A48]">Total Users</p>
               </div>
             </div>
@@ -413,7 +464,7 @@ export default function Users() {
                 <BadgeCheck size={20} color={"#2C7B3C"} />
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-[#122A48] leading-tight">6</span>
+                <span className="text-lg font-bold text-[#122A48] leading-tight">{active}</span>
                 <p className="text-xs text-[#122A48]">Active</p>
               </div>
             </div>
@@ -429,12 +480,12 @@ export default function Users() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-[#122A48] leading-tight">6</span>
+              <span className="text-lg font-bold text-[#122A48] leading-tight">{inactive}</span>
               <p className="text-xs text-[#122A48]">Inactive</p>
             </div>
           </div>
 
-          {/* total ??? */}
+          {/* total barangay personnel */}
           <div className="rounded-lg border border-[#C6C6C8] h-18 w-85 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#DACDE3] rounded-lg p-2">
@@ -442,8 +493,8 @@ export default function Users() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-lg font-bold text-[#122A48] leading-tight">6</span>
-              <p className="text-xs text-[#122A48]">???</p>
+              <span className="text-lg font-bold text-[#122A48] leading-tight">{barangay}</span>
+              <p className="text-xs text-[#122A48]">Barnagay Personnel</p>
             </div>
           </div>
 
@@ -455,8 +506,15 @@ export default function Users() {
           <p className="font-semibold text-sm p-3">User Accounts</p>
           <hr />
 
-          {/* loading */}
-          {loading ? (
+          {/* fetch error state */}
+          {fetchError ? (
+            <div className="flex flex-col justify-center items-center text-center gap-3 py-25">
+              <p className="text-[#D81010] font-semibold text-xs">Failed to load users. <br/> Please try again later.</p>
+              <Button onClick={fetchUsers} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+            </div>
+  
+          // loading state
+          ) : loading ? (
             <div className="flex flex-col justify-center items-center gap-2 py-30 text-[#122A48]">
               <SpinnerIcon size={24} color="#122A48" />
               <span className="text-xs font-medium">Loading Users...</span>
@@ -489,21 +547,21 @@ export default function Users() {
                   {/* avatar */}
                   <div
                     className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
-                    style={{ backgroundColor: getAvatarColor(user.role) }}
+                    style={{ backgroundColor: getAvatarColor(user.user_role) }}
                   >
-                    {user.fname.charAt(0)}{user.lname.charAt(0)}
+                    {user.first_name.charAt(0)}{user.last_name.charAt(0)}
                   </div>
 
                   {/* info */}
                   <div className="flex flex-col flex-1 min-w-0">
                     <p className="font-semibold text-sm text-[#122A48] truncate">
-                      {user.fname} {user.lname}
+                      {user.first_name} {user.last_name}
                     </p>
                     <p className="text-xs text-[#727272] truncate">{user.email}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {/* role badge */}
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#CDE3DE] text-[#122A48]">
-                        {user.role === "MENRO Officer" ? "MENRO" : "Barangay"}
+                        {ROLE_DISPLAY[user.user_role] ?? user.user_role}
                       </span>
                       {/* status badge */}
                       <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
@@ -596,7 +654,7 @@ export default function Users() {
             {/* Role */}
             <p className="text-[11px] font-medium text-[#6B7A90] uppercase tracking-wide mb-2">Role</p>
             <div className="flex gap-2 flex-wrap mb-5">
-              {["All", "MENRO Officer", "Barangay Personnel"].map(role => (
+              {["All", "MENRO", "Barangay"].map(role => (
                 <button
                   key={role}
                   onClick={() => setTempRole(role)}
@@ -606,7 +664,7 @@ export default function Users() {
                       : 'bg-white text-[#122A48] border-[#C6C6C8]'
                     }`}
                 >
-                  {role === "MENRO Officer" ? "MENRO" : role === "Barangay Personnel" ? "Barangay" : role}
+                  {role}
                 </button>
               ))}
             </div>
@@ -666,7 +724,7 @@ export default function Users() {
         description={
           <>
             Are you sure you want to activate{" "}
-            <strong>{reactivateDialog.user?.fname} {reactivateDialog.user?.lname}</strong>?
+            <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong>?
           </>
         }
         cancelLabel='Cancel'
@@ -685,7 +743,7 @@ export default function Users() {
         description={
           <>
             Are you sure you want to deactivate{" "}
-            <strong>{deactivateDialog.user?.fname} {deactivateDialog.user?.lname}</strong>?
+            <strong>{deactivateDialog.user?.first_name} {deactivateDialog.user?.last_name}</strong>?
           </>
         }
         cancelLabel='Cancel'

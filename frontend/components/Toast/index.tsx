@@ -33,8 +33,10 @@ export function Toast({ toasts, onRemove }: ToastProps) {
               }
             </div>
             <div>
-              <p className="font-semibold text-sm text-[#2C7B3C]">{isError ? 'Error!' : 'SUCCESS!'}</p>
-              <p className="text-[#122A48] text-xs ">{toast.message}</p>
+              <p className={`font-semibold text-sm ${isError ? 'text-[#BB2325]' : 'text-[#2C7B3C]'}`}>
+                {isError ? 'Error!' : 'Success!'}
+              </p>
+              <p className="text-[#122A48] text-xs whitespace-pre-line md:whitespace-normal">{toast.message}</p>
             </div>
 
             <button
