@@ -6,16 +6,16 @@ class UserSerializer(serializers.ModelSerializer):
   barangay_details = BarangaySerializer(source='barangay', read_only=True)
 
   class Meta:
-      model = User
-      fields = [
-          'user_id', 'first_name', 'last_name',
-          'email', 'username', 'user_role',
-          'barangay', 'barangay_details',
-          'status', 'created_at', 'updated_at'
-      ]
-      extra_kwargs = {
-          'password': {'write_only': True}
-      }
+    model = User
+    fields = [
+        'user_id', 'first_name', 'last_name',
+        'email', 'username', 'user_role',
+        'position', 'barangay_id', 'barangay_details',
+        'status', 'created_at', 'updated_at'
+    ]
+    extra_kwargs = {
+        'password': {'write_only': True}
+    }
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
@@ -24,7 +24,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'first_name', 'last_name', 'email',
-            'username', 'password', 'user_role', 'barangay'
+            'username', 'password', 'user_role',
+            'position', 'barangay_id'
         ]
 
     def create(self, validated_data):
@@ -38,7 +39,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                 password = 'barangay123'
             else:
                 password = 'admin123'
-                
+
         user = User(**validated_data)
         user.set_password(password)
         user.save()

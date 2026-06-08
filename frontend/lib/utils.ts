@@ -51,3 +51,4 @@ export const getErrorMessage = (error: unknown): string => {
   // True fallback — network error etc
   return "Something went wrong. Please try again."
 }
+

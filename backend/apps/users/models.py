@@ -48,6 +48,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=50, unique=True)
     user_role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    position = models.CharField(max_length=50, null=True, blank=True)
     barangay = models.ForeignKey(
         Barangay,
         on_delete=models.SET_NULL,
