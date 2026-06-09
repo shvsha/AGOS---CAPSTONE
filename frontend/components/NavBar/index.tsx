@@ -1,8 +1,5 @@
 "use client"
 
-// shadcn
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-
 // react
 import { useState, useEffect } from "react"
 import Link from "next/link"
@@ -21,7 +18,7 @@ import {
   LayoutDashboard, Users, ChartNoAxesCombined,
   Siren, Activity, History, Stamp,
   Map, Package, FileBarChart, CalendarDays,
-  MapPin, FileUp, LogOut, MoreHorizontal, X
+  MapPin, FileUp, LogOut, MoreHorizontal, X,
 } from "lucide-react"
 
 // logo
@@ -30,8 +27,9 @@ import AgosLogo from '../../public/agos-test-logo.png'
 
 const navItems = {
   Admin: [
-    { label: "Dashboard", href: "/admin/dashboard", icon: <LayoutDashboard size={18} /> },
-    { label: "Users",href: "/admin/users",        icon: <Users size={18} /> },
+    { label: "Dashboard",      href: "/admin/dashboard",    icon: <LayoutDashboard size={18} /> },
+    { label: "Users",          href: "/admin/users",        icon: <Users size={18} /> },
+    { label: "Barangay",          href: "/admin/barangay",     icon: <MapPin size={18} /> },
     { label: "Monitoring",     href: "/admin/monitoring",   icon: <ChartNoAxesCombined size={18} /> },
     { label: "Alerts",         href: "/admin/alerts",       icon: <Siren size={18} /> },
     { label: "IoT Health",     href: "/admin/health",       icon: <Activity size={18} /> },

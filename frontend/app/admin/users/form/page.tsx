@@ -64,6 +64,7 @@ export default function Form() {
   const [username, setUsername] = useState<string>('')
 
   // form us
+  const [formLoading, setFormLoading] = useState<boolean>(isEdit)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // dialog us
@@ -112,6 +113,8 @@ export default function Form() {
         setBarangayId(data.barangay_id ?? null)
       } catch {
         addToast('Failed to load user data.', 'error')
+      } finally {
+        setFormLoading(false)
       }
     }
     loadUser()
@@ -187,8 +190,16 @@ export default function Form() {
     }
   }
 
+  if (isEdit && formLoading) return (
+    <div className="flex flex-col gap-3 justify-center items-center h-full">
+      <SpinnerIcon size={32} color="#122A48" />
+      <p>Loading...</p>
+    </div>
+  )
+
   return (
     <>
+
       <div className="hidden md:flex flex-col">
         
         {/* header */}

@@ -15,16 +15,16 @@ import { useToast } from "@/components/hooks/useToast";
 import { Toast } from "@/components/Toast";
 
 // component
-import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { UsersSkeleton } from "@/components/Skeleton/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
 
-// constant
+// table pagination
+import { usePagination } from "@/components/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
+
+// lib
 import { DIALOG_COLOR } from "@/lib/constant";
-
-// utils
 import { ROLE_DISPLAY } from "@/lib/utils";
-
-// api + auth
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 
@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // type for states
 type User = {
@@ -103,7 +104,10 @@ export default function Users() {
     setFetchError(false)
     try {
       const token = getAccessToken()
-      const data = await api.get('/api/users/', token ?? undefined)
+      const [data] = await Promise.all([
+        api.get('/api/users/', token ?? undefined),
+        new Promise(resolve => setTimeout(resolve, 3000)) // minimum 800ms
+      ])
       setUsers((data.results as User[]).filter(u => u.user_role !== 'Admin'))
     } catch (err) {
       setFetchError(true)
@@ -117,6 +121,8 @@ export default function Users() {
   }, [])
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 4)
 
   // summary cards
   const total    = users.length
@@ -155,6 +161,8 @@ export default function Users() {
     }
 
   }
+
+  if (loading) return <UsersSkeleton />
 
   return (
     <>
@@ -256,7 +264,7 @@ export default function Users() {
             </div>
           </div>
 
-          {/* total barangay personnel */}
+          {/* total barangay officer */}
           <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#DACDE3] rounded-lg p-2">
@@ -265,16 +273,16 @@ export default function Users() {
 
             <div className="flex flex-col">
               <span className="text-2xl font-bold text-[#122A48] leading-tight">{barangay}</span>
-              <p className="text-sm text-[#122A48]">Barangay Personnel</p>
+              <p className="text-sm text-[#122A48]">Barangay Officer</p>
             </div>
           </div>
         </div>
         
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-[435px]">
           <p className="text-[#122A48] font-bold mx-3 mb-2">User Accounts</p>
 
-          <div className="h-95">
+          <div className="h-84">
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
@@ -301,14 +309,30 @@ export default function Users() {
                 
                 // loading state
                 ) : loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-30">
-                      <div className="flex flex-col items-center gap-3 text-[#122A48]">
-                        <SpinnerIcon size={32} color="#122A48" />
-                        <span className="text-sm font-medium">Loading Users...</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    {[...Array(5)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-center py-6"><Skeleton className="h-6 w-8 mx-auto" /></TableCell>
+                        <TableCell>
+                          <div className="flex gap-3 justify-center items-center">
+                            <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                            <div className="flex flex-col gap-1.5">
+                              <Skeleton className="h-3.5 w-32" />
+                              <Skeleton className="h-3 w-40" />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center"><Skeleton className="h-4 w-24 mx-auto" /></TableCell>
+                        <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto rounded-full" /></TableCell>
+                        <TableCell>
+                          <div className="flex gap-2 justify-center">
+                            <Skeleton className="h-9 w-16 rounded-lg" />
+                            <Skeleton className="h-9 w-24 rounded-lg" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </>
 
                   // no user state
                   ) : filteredUsers.length === 0 ? (
@@ -334,7 +358,7 @@ export default function Users() {
 
                   // with user state
                   ) : (
-                    filteredUsers.map(user => (
+                    paginated.map(user => (
                       <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
                         <TableCell className="text-[#122A48] text-center h-18">{user.user_id}</TableCell>
 
@@ -402,6 +426,14 @@ export default function Users() {
               </TableBody>
             </Table>
           </div>
+  
+          <TablePagination
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+          />
+
         </div>
 
       </div>
@@ -485,7 +517,7 @@ export default function Users() {
             </div>
           </div>
 
-          {/* total barangay personnel */}
+          {/* total barangay officer */}
           <div className="rounded-lg border border-[#C6C6C8] h-18 w-85 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#DACDE3] rounded-lg p-2">
@@ -494,7 +526,7 @@ export default function Users() {
 
             <div className="flex flex-col">
               <span className="text-lg font-bold text-[#122A48] leading-tight">{barangay}</span>
-              <p className="text-xs text-[#122A48]">Barnagay Personnel</p>
+              <p className="text-xs text-[#122A48]">Barnagay Officer</p>
             </div>
           </div>
 
@@ -513,13 +545,6 @@ export default function Users() {
               <Button onClick={fetchUsers} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
             </div>
   
-          // loading state
-          ) : loading ? (
-            <div className="flex flex-col justify-center items-center gap-2 py-30 text-[#122A48]">
-              <SpinnerIcon size={24} color="#122A48" />
-              <span className="text-xs font-medium">Loading Users...</span>
-            </div>
-
           /* empty */
           ) : filteredUsers.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-18">
