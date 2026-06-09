@@ -33,7 +33,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
 
 // type for states
 type User = {
@@ -87,7 +86,7 @@ export default function Users() {
   // table states
   const [users, setUsers]     = useState<User[]>([])
   const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState(false)
+  const [fetchError, setFetchError] = useState<boolean>(false)
 
   // dialog states
   const [reactivateDialog, setReactivateDialog] = useState<DialogState>({
@@ -106,7 +105,7 @@ export default function Users() {
       const token = getAccessToken()
       const [data] = await Promise.all([
         api.get('/api/users/', token ?? undefined),
-        new Promise(resolve => setTimeout(resolve, 3000)) // minimum 800ms
+        new Promise(resolve => setTimeout(resolve, 800)) // minimum 800ms
       ])
       setUsers((data.results as User[]).filter(u => u.user_role !== 'Admin'))
     } catch (err) {
@@ -139,7 +138,13 @@ export default function Users() {
       const token = getAccessToken()
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' }, token ?? undefined)
       addToast(`${user.first_name} ${user.last_name} has been activated.`)
-      fetchUsers()
+      setUsers(prev =>
+        prev.map(u =>
+          u.user_id === user.user_id
+            ? { ...u, status: "Active" }
+            : u
+        )
+      )
     } catch (err) {
       console.log(err)
       addToast('Failed to activate user', 'error')
@@ -153,13 +158,18 @@ export default function Users() {
     try {
       const token = getAccessToken()
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' }, token ?? undefined)
-      addToast(`${user.first_name} ${user.last_name} has been deactivated`)
-      fetchUsers()
+      addToast(`${user.first_name} ${user.last_name} has been deactivated.`)
+      setUsers(prev =>
+        prev.map(u =>
+          u.user_id === user.user_id
+            ? { ...u, status: "Inactive" }
+            : u
+        )
+      )
     } catch (err) {
       console.log(err)
       addToast('Failed to deactivate user.', 'error')
     }
-
   }
 
   if (loading) return <UsersSkeleton />
@@ -201,10 +211,10 @@ export default function Users() {
 
             {/* user status filter */}
             <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="w-27 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="w-30 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent position="popper" className='w-27 min-w-0'>
+              <SelectContent position="popper" className='w-30 min-w-0'>
                 <SelectItem className="p-2 text-[#122A48]" value="All">All Status</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
@@ -286,11 +296,11 @@ export default function Users() {
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
-                  <TableHead className="text-[#727272] text-center font-semibold">ID</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold">User</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold">Role</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold">Status</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold">Actions</TableHead>
+                  <TableHead className="text-[#727272] text-center font-semibold w-12">ID</TableHead>
+                  <TableHead className="text-[#727272] text-center font-semibold w-2/5">USER</TableHead>
+                  <TableHead className="text-[#727272] text-center font-semibold w-1/5">ROLE</TableHead>
+                  <TableHead className="text-[#727272] text-center font-semibold w-1/6">STATUS</TableHead>
+                  <TableHead className="text-[#727272] text-center font-semibold w-1/5">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -305,34 +315,6 @@ export default function Users() {
                       </div>
                     </TableCell>
                   </TableRow>
-
-                
-                // loading state
-                ) : loading ? (
-                  <>
-                    {[...Array(5)].map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-center py-6"><Skeleton className="h-6 w-8 mx-auto" /></TableCell>
-                        <TableCell>
-                          <div className="flex gap-3 justify-center items-center">
-                            <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
-                            <div className="flex flex-col gap-1.5">
-                              <Skeleton className="h-3.5 w-32" />
-                              <Skeleton className="h-3 w-40" />
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center"><Skeleton className="h-4 w-24 mx-auto" /></TableCell>
-                        <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto rounded-full" /></TableCell>
-                        <TableCell>
-                          <div className="flex gap-2 justify-center">
-                            <Skeleton className="h-9 w-16 rounded-lg" />
-                            <Skeleton className="h-9 w-24 rounded-lg" />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </>
 
                   // no user state
                   ) : filteredUsers.length === 0 ? (
@@ -533,7 +515,7 @@ export default function Users() {
           </div>
         </div>
 
-        {/* users table */}
+        {/* users cards */}
         <div className="rounded-lg bg-[#FAFAFA] overflow-y-auto h-90 mt-3 border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
           <p className="font-semibold text-sm p-3">User Accounts</p>
           <hr />
