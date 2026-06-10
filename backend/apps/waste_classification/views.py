@@ -1,10 +1,9 @@
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from .models import WasteClassification
 from .serializers import WasteClassificationSerializer
-from apps.users.permissions import IsAdmin, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
+from apps.users.permissions import IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import sys
 import os
@@ -16,7 +15,7 @@ class WasteClassificationListView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdminOrMENROOrBarangay()]
-        return [IsAdmin()] 
+        return [IsIoTDevice()]
 
     def get_queryset(self):
         user = self.request.user
@@ -36,57 +35,37 @@ class WasteClassificationDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class ClassifyWasteView(APIView):
     """
-    Receives an image from ESP32-CAM
+    Receives an image from ESP32-CAM (as bytes or file)
     Runs it through the AI model
     Saves the classification result
     """
     authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsIoTDevice]
 
     def post(self, request):
         image_file = request.FILES.get('image')
-        node_id = request.data.get('node_id')
+        node_id    = request.data.get('node_id')
         reading_id = request.data.get('reading_id')
         estimated_volume = request.data.get('estimated_volume', 0.0)
 
         if not image_file:
-            return Response(
-                {'error': 'No image provided'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not node_id or not reading_id:
-            return Response(
-                {'error': 'node_id and reading_id are required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'node_id and reading_id are required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Save image temporarily
-            temp_path = f'media/temp_{image_file.name}'
-            with open(temp_path, 'wb') as f:
-                for chunk in image_file.chunks():
-                    f.write(chunk)
-
             # Load classifier
             ai_model_path = os.path.join(
-                os.path.dirname(
-                    os.path.dirname(
-                        os.path.dirname(
-                            os.path.dirname(__file__)
-                        )
-                    )
-                ),
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
                 'ai_model'
             )
-            sys.path.append(ai_model_path)
-            from classifier import classify_waste
+            if ai_model_path not in sys.path:
+                sys.path.append(ai_model_path)
+            from classifier import classify_waste_from_bytes
 
-            # Run classification
-            result = classify_waste(temp_path)
-
-            # Clean up temp file
-            os.remove(temp_path)
+            image_bytes = image_file.read()
+            result = classify_waste_from_bytes(image_bytes)
 
             if not result['success']:
                 return Response(
@@ -98,15 +77,14 @@ class ClassifyWasteView(APIView):
             from apps.sensor_nodes.models import SensorNode
             from apps.sensor_readings.models import SensorReading
 
-            node = SensorNode.objects.get(node_id=node_id)
+            node    = SensorNode.objects.get(node_id=node_id)
             reading = SensorReading.objects.get(reading_id=reading_id)
-
             percentages = result.get('percentages', {})
 
             classification = WasteClassification.objects.create(
                 node=node,
                 reading=reading,
-                dominant_waste_type=result['dominant_waste_type'].capitalize(),
+                dominant_waste_type=result['dominant_waste_type'].replace('_', ' ').title(),
                 recyclable_pct=percentages.get('recyclable', 0),
                 biodegradable_pct=percentages.get('biodegradable', 0),
                 residual_pct=percentages.get('residual', 0),
@@ -122,17 +100,8 @@ class ClassifyWasteView(APIView):
             )
 
         except SensorNode.DoesNotExist:
-            return Response(
-                {'error': 'Sensor node not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Sensor node not found'}, status=status.HTTP_404_NOT_FOUND)
         except SensorReading.DoesNotExist:
-            return Response(
-                {'error': 'Sensor reading not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({'error': 'Sensor reading not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

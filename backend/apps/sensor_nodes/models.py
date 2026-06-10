@@ -14,6 +14,7 @@ class SensorNode(models.Model):
         on_delete=models.CASCADE,
         db_column='barangay_id'
     )
+    node_name = models.CharField(max_length=100, blank=True, default='')
     latitude = models.FloatField()
     longitude = models.FloatField()
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Active')
@@ -23,8 +24,10 @@ class SensorNode(models.Model):
         db_table = 'tbl_sensor_nodes'
 
     def __str__(self):
-        return f"Node {self.node_id} - {self.barangay.barangay_name}"
-    
+        label = self.node_name or f"Node {self.node_id}"
+        return f"{label} - {self.barangay.barangay_name}"
+
+
 class SystemHealthLog(models.Model):
     STATUS_CHOICES = [
         ('Normal', 'Normal'),

@@ -7,6 +7,12 @@ class SensorReading(models.Model):
         ('Abnormal', 'Abnormal'),
     ]
 
+    WATER_FLOW_CHOICES = [
+        ('Normal', 'Normal'),
+        ('Slow', 'Slow'),
+        ('Stagnant', 'Stagnant'),
+    ]
+
     reading_id = models.AutoField(primary_key=True)
     node = models.ForeignKey(
         SensorNode,
@@ -14,7 +20,11 @@ class SensorReading(models.Model):
         db_column='node_id'
     )
     water_level = models.FloatField()
-    water_flow = models.FloatField()
+    water_flow = models.CharField(
+        max_length=10,
+        choices=WATER_FLOW_CHOICES,
+        default='Normal'
+    )
     reading_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Normal')
     timestamp = models.DateTimeField(auto_now_add=True)
 

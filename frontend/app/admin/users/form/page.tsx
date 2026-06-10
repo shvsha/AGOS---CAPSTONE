@@ -98,7 +98,6 @@ export default function Form() {
   useEffect(() => {
     if (!isEdit) return
 
-    // change with api later on
     const loadUser = async () => {
       try {
         const token = getAccessToken()
@@ -147,6 +146,7 @@ export default function Form() {
 
     setConfirmDialog({ open: true })
   }
+  
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
     setLoadingDialog({ open: true })

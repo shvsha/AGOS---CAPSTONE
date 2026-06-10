@@ -8,7 +8,7 @@ from apps.users.models import User
 def create_alerts_on_clog(sender, instance, created, **kwargs):
     if created:
         # Determine alert type
-        alert_type = 'Clog' if instance.severity else 'Abnormal_Water_Level'
+        alert_type = 'Clog'
 
         # Get all users who should be notified
         recipients = []
@@ -33,6 +33,7 @@ def create_alerts_on_clog(sender, instance, created, **kwargs):
         for user in recipients:
             Alert.objects.create(
                 event=instance,
+                node=instance.node,
                 user=user,
                 alert_type=alert_type
             )
