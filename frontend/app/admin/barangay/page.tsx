@@ -17,6 +17,7 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { DialogModal } from "@/components/DialogModal";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 import { BarangaySkeleton } from "@/components/Skeleton/BarangaySkeleton"
+import BarangayMapWrapper from "@/components/Map/BarangayMapWrapper"
 
 // react
 import { useState, useEffect } from "react"
@@ -54,6 +55,14 @@ function getFilteredBarangay(barangays: Barangay[], status: string, search: stri
     .sort((a, b) => b.barangay_id - a.barangay_id)
 }
 
+// open maps redirect to google map
+const openInGoogleMaps = (latitude: number, longitude: number) => {
+  window.open(
+    `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`,
+    "_blank"
+  );
+};
+
 
 export default function Barangay() {
   // us
@@ -71,6 +80,12 @@ export default function Barangay() {
 
   // toast
   const {toasts, addToast, removeToast } = useToast()
+
+  // view map dialog state
+  const [viewMapDialog, setViewMapDialog] = useState<DialogState>({
+    open: false,
+    barangay: null,
+  })
 
   // dialog states
   const [restoreDialog, setRestoreDialog] = useState<DialogState>({
@@ -105,8 +120,7 @@ export default function Barangay() {
   // form us
   const [barangay, setBarangay] = useState<string>('')
   const [latitude, setLatitude] = useState<string>('')
-  const [longtitude, setLongtitude] = useState<string>('')
-  const [mapLoading, setMapLoading] = useState(false)
+  const [longitude, setLongitude] = useState<string>('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const fetchBarangay = async () => {
@@ -134,11 +148,11 @@ export default function Barangay() {
     if (barangayFormDialog.barangay) {
       setBarangay(barangayFormDialog.barangay.barangay_name)
       setLatitude(String(barangayFormDialog.barangay.latitude))
-      setLongtitude(String(barangayFormDialog.barangay.longitude))
+      setLongitude(String(barangayFormDialog.barangay.longitude))
     } else {
       setBarangay('')
       setLatitude('')
-      setLongtitude('')
+      setLongitude('')
       setFieldErrors({})
     }
   }, [barangayFormDialog.open])
@@ -200,7 +214,7 @@ export default function Barangay() {
     const errors: Record<string, string> = {}
     if (!barangay.trim())        errors.barangay         = 'This field is required.'
     if (!latitude.trim())        errors.latitude         = 'This field is required.'
-    if (!longtitude.trim())     errors.longtitude      = 'This field is required.'
+    if (!longitude.trim())     errors.longitude      = 'This field is required.'
 
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
@@ -213,37 +227,36 @@ export default function Barangay() {
     setBarangayFormDialog({ open: false, barangay: null})
     setBarangay('')
     setLatitude('')
-    setLongtitude('')
+    setLongitude('')
     setFieldErrors({})
   }
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
-    setLoadingDialog({ open: true })
 
     try {
       const token = getAccessToken()
       const payload = {
         barangay_name: barangay,
         latitude: parseFloat(latitude),
-        longitude: parseFloat(longtitude),
+        longitude: parseFloat(longitude),
       }
 
       if (isEdit) {
         const id = barangayFormDialog.barangay!.barangay_id
-        await api.patch(`/api/barangays/${id}/`, payload, token ?? undefined)
+        const updated = await api.patch(`/api/barangays/${id}/`, payload, token ?? undefined)
+        setBarangays(prev =>
+          prev.map(b => b.barangay_id === id ? { ...b, ...updated } : b)
+        )
       } else {
-        await api.post('/api/barangays/', payload, token ?? undefined)
+        const created = await api.post('/api/barangays/', payload, token ?? undefined)
+        setBarangays(prev => [created, ...prev])
       }
 
-      setLoadingDialog({ open: false })
       setBarangayFormDialog({ open: false, barangay: null })
       addToast(isEdit ? `${barangay} has been updated.` : `${barangay} has been added.`, 'success')
-      fetchBarangay()
 
     } catch (err: any) {
-      setLoadingDialog({ open: false })
-
       if (err && typeof err === 'object') {
         const backendErrors: Record<string, string> = {}
         for (const key in err) {
@@ -251,7 +264,6 @@ export default function Barangay() {
         }
         setFieldErrors(backendErrors)
       }
-
       addToast(isEdit ? 'Failed to save changes.' : 'Failed to add barangay.', 'error')
     }
   }
@@ -404,7 +416,10 @@ export default function Barangay() {
                       <TableCell className="text-[#122A48] text-center h-18">{barangay.barangay_name}</TableCell>
 
                       <TableCell className="text-[#122A48] text-center h-18">
-                        <Button className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-4.5 px-3">
+                        <Button
+                          onClick={() => setViewMapDialog({ open: true, barangay: barangay })}
+                          className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-4.5 px-3"
+                        >
                           <Map size={16}/>
                           View on map
                         </Button>
@@ -452,8 +467,6 @@ export default function Barangay() {
             />
           </div>
         </div>
-
-
 
       </div>
 
@@ -594,7 +607,10 @@ export default function Barangay() {
                     </div>
 
                     <div className="flex gap-3 mt-3">
-                      <Button className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] h-11 w-25 text-xs">
+                      <Button
+                        onClick={() => setViewMapDialog({ open: true, barangay: barangay })}
+                        className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] h-11 w-25 text-xs"
+                        >
                           <Map size={16}/>
                           View on <br /> map
                         </Button>
@@ -696,6 +712,55 @@ export default function Barangay() {
 
       {/* Dialog */}
 
+      {/* View on Map Dialog */}
+      <Dialog open={viewMapDialog.open}>
+        <DialogContent className="[&>button]:hidden p-4 md:p-6 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-150">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex gap-2 items-center">
+                <p className="font-bold text-base md:text-lg">Brgy. {viewMapDialog.barangay?.barangay_name}</p>
+              </div>
+              <button className="cursor-pointer" onClick={() => setViewMapDialog({ open: false, barangay: null })}>
+                <X size={18} />
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
+            <BarangayMapWrapper
+              latitude={viewMapDialog.barangay?.latitude}
+              longitude={viewMapDialog.barangay?.longitude}
+              label={viewMapDialog.barangay?.barangay_name}
+              zoom={16}
+            />
+          </div>
+          <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">
+            <div className="flex flex-col md:flex-row gap-3 items-center">
+              <p className="text-xs md:text-sm">{viewMapDialog.barangay?.latitude}</p>
+              <p className="text-xs md:text-sm">{viewMapDialog.barangay?.longitude}</p>
+            </div>
+            <Button 
+              disabled={
+                viewMapDialog.barangay?.latitude == null ||
+                viewMapDialog.barangay?.longitude == null
+              }
+              onClick={() => {
+                const barangay = viewMapDialog.barangay;
+                if (!barangay) return;
+
+                openInGoogleMaps(
+                  barangay.latitude,
+                  barangay.longitude
+                );
+              }}
+              className="cursor-pointer rounded-lg border border-[#C6C6C8] bg-[#FAFCFD] hover:bg-[#d6e4eb] px-3 py-2 md:px-4 md:py-3 text-[#727272]"
+            >
+              <Map />
+              Open in Maps
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Restore Dialog */}
       <DialogModal
         open={restoreDialog.open}
@@ -737,7 +802,7 @@ export default function Barangay() {
 
       {/* Brangay Form Dialog */}
       <Dialog open={barangayFormDialog.open}>
-        <DialogContent className="[&>button]:hidden p-0 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] min-w-80 md:min-w-180">
+        <DialogContent className="overflow-y-auto [&>button]:hidden p-0 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] min-w-80 md:min-w-180 max-h-150">
           <DialogHeader>
             <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5">
               <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? 'bg-[#FF9705] mt-0.5' : 'bg-[#1565BC] mt-1.5 md:mt-0.5'}`}>
@@ -813,7 +878,7 @@ export default function Barangay() {
                     </div>
                   </div>
 
-                  {/* latitude & longtitude inputs */}
+                  {/* latitude & longitude inputs */}
                   <div className="border-t border-[#C6C6C8] p-2.5 md:p-4">
                     <div className="flex gap-3 w-full -mt-3">
                       <div className="mt-3 flex-1">
@@ -840,21 +905,21 @@ export default function Barangay() {
                       <div className="mt-3 flex-1">
                         {/* latitude */}
                         <Field className="flex gap-1.5 flex-col">
-                          <FieldLabel className="text-[#122A48] text-[11px] md:text-xs">LONGTITUDE <span className="text-[#FF0000]">*</span></FieldLabel>
+                          <FieldLabel className="text-[#122A48] text-[11px] md:text-xs">LONGITUDE <span className="text-[#FF0000]">*</span></FieldLabel>
                             <Input
                               type="number"
-                              name="longtitude"
-                              value={longtitude}
+                              name="longitude"
+                              value={longitude}
                               onChange={(e) => {
-                                setLongtitude(e.target.value)
+                                setLongitude(e.target.value)
                               }}
                               placeholder="e.g. 10.000000000000000"
                               className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h- md:h-9 bg-[#1565BC05] ${
-                                fieldErrors.longtitude ? 'border-[#FF0000]' : 'border-[#727272]'
+                                fieldErrors.longitude ? 'border-[#FF0000]' : 'border-[#727272]'
                               }`}
                             />
                             <div className="flex justify-between items-center">
-                            <FieldError className="text-xs">{fieldErrors.longtitude}</FieldError>
+                            <FieldError className="text-xs">{fieldErrors.longitude}</FieldError>
                           </div>
                         </Field>
                       </div>
@@ -867,9 +932,12 @@ export default function Barangay() {
                       <div className="p-2.5 md:p-3 ">
                         <p className="font-semibold text-xs md:text-sm">Map Preview</p>
                       </div>
-                      {/* here the map later on */}
-                      <div className="p-3 border-t border-[#C6C6C8]">
-
+                      <div className="h-70 md:h-110 border-t border-[#C6C6C8] rounded-b-lg overflow-hidden">
+                        <BarangayMapWrapper
+                          latitude={latitude ? parseFloat(latitude) : undefined}
+                          longitude={longitude ? parseFloat(longitude) : undefined}
+                          label={barangay}
+                        />
                       </div>
                     </div>
                   </div>
