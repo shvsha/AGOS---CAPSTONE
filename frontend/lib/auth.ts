@@ -1,33 +1,50 @@
+// cookie helpers
+
+function setCookie(name: string, value: string, days=7) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString()
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`
+}
+
+function deleteCookie(name: string) {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
+}
+
+// public api
+
 export const getAccessToken = (): string | null => {
-  return sessionStorage.getItem("access_token")
+  return localStorage.getItem("access_token")
 }
 
 export const getRefreshToken = (): string | null => {
-  return sessionStorage.getItem("refresh_token")
-}
+  return localStorage.getItem("refresh_token")
+} 
 
 export const getUser = () => {
-  const user = sessionStorage.getItem("user")
+  const user = localStorage.getItem("user")
   return user ? JSON.parse(user) : null
 }
 
 export const setTokens = (access: string, refresh: string) => {
-  sessionStorage.setItem("access_token", access)
-  sessionStorage.setItem("refresh_token", refresh)
+  localStorage.setItem("access_token", access)
+  localStorage.setItem("refresh_token", refresh)
+  setCookie("access_token", access)
 }
 
 export const setUser = (user: object) => {
-  sessionStorage.setItem("user", JSON.stringify(user))
+  localStorage.setItem("user", JSON.stringify(user))
+  setCookie("user", JSON.stringify(user))
 }
 
 export const clearAuth = () => {
-  sessionStorage.removeItem("access_token")
-  sessionStorage.removeItem("refresh_token")
-  sessionStorage.removeItem("user")
+  localStorage.removeItem("access_token")
+  localStorage.removeItem("refresh_token")
+  localStorage.removeItem("user")
+  deleteCookie("access_token")
+  deleteCookie("user")
 }
 
 export const isAuthenticated = (): boolean => {
-  return !!sessionStorage.getItem("access_token")
+  return !!localStorage.getItem("access_token")
 }
 
 export const getUserRole = (): string | null => {

@@ -2,9 +2,9 @@
 
 import React from 'react'
 
-export default function page() {
+export default function Map() {
   return (
-    <div>page</div>
+    <div>Map</div>
   )
 }
 

@@ -66,6 +66,7 @@ export default function NavBar() {
 
   useEffect(() => {
     const role = getUserRole()
+    console.log('role:', role)
     if (role) {
       setUserRole(role)
     }
