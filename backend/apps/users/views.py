@@ -8,6 +8,8 @@ from .models import User
 from apps.users.permissions import IsAdmin
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 from apps.audit_logs.utils import log_action
+import json
+from django.conf import settings
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -39,7 +41,11 @@ class LoginView(APIView):
                     {'error': 'Account is inactive'},
                     status=status.HTTP_403_FORBIDDEN
                 )
+            
             refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+            user_data = UserSerializer(user).data
 
             # Log the login action
             log_action(
@@ -47,12 +53,27 @@ class LoginView(APIView):
                 action='Login',
                 ip_address=request.META.get('REMOTE_ADDR')
             )
+        
+            is_secure = not settings.DEBUG
 
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': UserSerializer(user).data
+            response = Response({
+                'access': access_token,
+                'refresh': refresh_token,
+                'user': user_data
             })
+
+            response.set_cookie(
+                key='user',
+                value=json.dumps(dict(user_data)),
+                max_age=7 * 24 * 60 * 60,
+                httponly=False,
+                secure=is_secure,
+                samesite='Lax',
+                path='/',
+            )
+
+            return response
+
         return Response(
             {'error': 'Invalid credentials'},
             status=status.HTTP_401_UNAUTHORIZED
@@ -73,7 +94,12 @@ class LogoutView(APIView):
                 ip_address=request.META.get('REMOTE_ADDR')
             )
 
-            return Response({'message': 'Logged out successfully'})
+            response = Response({'message': 'Logged out successfully'})
+            response.delete_cookie('access_token', path='/')
+            response.delete_cookie('user', path='/')
+
+            return response
+
         except Exception:
             return Response(
                 {'error': 'Invalid token'},

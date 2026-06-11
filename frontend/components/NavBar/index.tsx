@@ -6,7 +6,8 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
 // lib
-import { getUserRole, clearAuth } from "@/lib/auth"
+import { api } from "@/lib/api"
+import { getUserRole, clearAuth, getRefreshToken, getAccessToken } from "@/lib/auth"
 import { useDrawer } from "@/lib/drawer-context"
 import { DIALOG_COLOR } from "@/lib/constant"
 
@@ -20,6 +21,9 @@ import {
   Map, Package, FileBarChart, CalendarDays,
   MapPin, FileUp, LogOut, MoreHorizontal, X,
 } from "lucide-react"
+
+// lib
+
 
 // logo
 import Image from "next/image"
@@ -66,7 +70,6 @@ export default function NavBar() {
 
   useEffect(() => {
     const role = getUserRole()
-    console.log('role:', role)
     if (role) {
       setUserRole(role)
     }
@@ -80,9 +83,18 @@ export default function NavBar() {
   const hasOverflow = overflowItems.length > 0
   const overflowActive = overflowItems.some((item) => pathname === item.href)
 
-  const handleLogout = () => {
-    clearAuth()
-    router.push("/login")
+  const handleLogout = async () => {
+    try {
+      const token = getRefreshToken()
+      if (token) {
+        await api.post('/api/auth/logout/', { refresh: token }, getAccessToken() ?? undefined)
+      }
+    } catch (err) {
+      console.log(err)
+    } finally {
+      clearAuth()
+      router.push("/login")
+    }
   }
 
   return (  
