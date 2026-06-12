@@ -30,11 +30,6 @@ class Alert(models.Model):
         null=True,
         blank=True,
     )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        db_column='user_id'
-    )
     alert_type = models.CharField(max_length=25, choices=ALERT_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -42,4 +37,17 @@ class Alert(models.Model):
         db_table = 'tbl_alerts'
 
     def __str__(self):
-        return f"Alert {self.alert_id} - {self.alert_type} - {self.user.username}"
+        return f"Alert {self.alert_id} - {self.alert_type}"
+
+class AlertRead(models.Model):
+    read_id  = models.AutoField(primary_key=True)
+    alert = models.ForeignKey(Alert, on_delete=models.CASCADE, related_name='reads', db_column='alert_id')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, db_column='user_id')
+    read_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tbl_alert_reads'
+        unique_together = ('alert', 'user')
+
+    def __str__(self):
+        return f"Read - Alert {self.alert_id} by {self.user.username}"

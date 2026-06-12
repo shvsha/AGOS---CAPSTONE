@@ -10,8 +10,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+
 // lib
-import { getUserRole } from '@/lib/auth'
+import { fetchWithAuth, getUserRole } from '@/lib/auth'
 import { useDrawer } from '@/lib/drawer-context' 
 
 // map pathnames to page titles
@@ -40,19 +41,37 @@ const pageTitles: Record<string, string> = {
 
 // notification route per role
 const alertRoutes: Record<string, string> = {
-  admin: "/admin/alerts",
-  menro: "/menro/alerts",
-  barangay: "/barangay/alerts",
+  Admin: "/admin/alerts",
+  MENRO: "/menro/alerts",
+  Barangay: "/barangay/alerts",
 }
 
 export default function Header() {
   const pathname = usePathname()
   const [alertHref, setAlertHref] = useState("#")
+  const [unreadCount, setUnreadCount] = useState(0)
   const { setDrawerOpen } = useDrawer()
 
   useEffect(() => {
     const role = getUserRole()
     if (role) setAlertHref(alertRoutes[role] ?? "#")
+  }, [])
+
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/unread-count/`)
+        if (!res.ok) return
+        const data = await res.json()
+        setUnreadCount(data.unread_count)
+      } catch {
+      }
+    }
+
+    fetchUnread()
+    // poll every 30 seconds for live updates
+    const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const title = pageTitles[pathname] ?? "AGOS"
@@ -77,9 +96,11 @@ export default function Header() {
       {/* notification bell */}
       <Link href={alertHref} className="relative inline-flex items-center">
         <FaBell size={17} color="white" />
-        <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-          3
-        </span>
+        {unreadCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
       </Link>
 
     </header>

@@ -41,3 +41,59 @@ export const getAuthHeaders = (): HeadersInit => {
   const token = getAccessToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getAccessToken()
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  })
+
+  if (res.status === 401) {
+    // try silent refresh
+    const refresh = getRefreshToken()
+    if (!refresh) {
+      clearAuth()
+      window.location.href = '/login'
+      throw new Error('Session expired.')
+    }
+
+    try {
+      const refreshRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+      })
+
+      if (!refreshRes.ok) {
+        clearAuth()
+        window.location.href = '/login'
+        throw new Error('Session expired.')
+      }
+
+      const data = await refreshRes.json()
+      setTokens(data.access, data.refresh ?? refresh)
+
+      // retry original request with new token
+      return fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+          Authorization: `Bearer ${data.access}`,
+        },
+      })
+    } catch {
+      clearAuth()
+      window.location.href = '/login'
+      throw new Error('Session expired.')
+    }
+  }
+
+  return res
+}

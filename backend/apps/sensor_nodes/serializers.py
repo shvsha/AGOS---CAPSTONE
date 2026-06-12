@@ -43,7 +43,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
 
     def get_condition(self, obj):
         r = self._latest(obj)
-        return r.reading_status if r else "Inactive"
+        return r.reading_status if r else None
 
 class SystemHealthLogSerializer(serializers.ModelSerializer):
     class Meta:

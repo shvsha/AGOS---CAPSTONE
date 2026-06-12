@@ -13,7 +13,7 @@ import { SearchFilter } from '@/components/SearchFilter'
 
 // lib
 import { getConditionClass, getStatusClass, getDotClass, ALERT_STYLE } from "@/lib/constant"
-import { getAuthHeaders } from "@/lib/auth"
+import { fetchWithAuth } from "@/lib/auth"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -39,10 +39,11 @@ type Alert = {
   node_name: string | null
   barangay_name: string | null
   timestamp: string
+  is_read: boolean
 }
 
 // constants
-const CONDITIONS = ["All", "Overflow", "Warning", "Normal", "Inactive"]
+const CONDITIONS = ["All", "Overflow", "Warning", "Normal"]
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
   Overflow_Detected:  <Waves size={18} />,
@@ -77,13 +78,17 @@ export default function Monitoring() {
   const [condition, setCondition] = useState("All")
 
   const filtered = getFilteredNode(nodes, condition, search)
-const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
 
   // summary cards
   const total    = nodes.length
   const overflow = nodes.filter(n => n.condition === 'Overflow').length
   const warning  = nodes.filter(n => n.condition === 'Warning').length
   const normal   = nodes.filter(n => n.condition === 'Normal').length
+
+  const activeCount      = nodes.filter(n => n.status === 'Active').length
+  const inactiveCount    = nodes.filter(n => n.status === 'Inactive').length
+  const maintenanceCount = nodes.filter(n => n.status === 'Maintenance').length
 
   // clock
   useEffect(() => {
@@ -100,14 +105,17 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
         setFetchError(false)
 
         const [nodesRes, alertsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`, { headers: getAuthHeaders() }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/all/`, { headers: getAuthHeaders() }),
+          fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`),
+          fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`),
         ])
 
         if (!nodesRes.ok || !alertsRes.ok) throw new Error()
 
         const nodesData  = await nodesRes.json()
         const alertsData = await alertsRes.json()
+
+        console.log(nodesData)
+        console.log(alertsData)
 
         setNodes(nodesData.results ?? nodesData)
         setAlerts(alertsData.results ?? alertsData)
@@ -169,7 +177,7 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
                 <Button
                   key={c}
                   onClick={() => setCondition(c)}
-                  className={`cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-colors
+                  className={`cursor-pointer rounded-full border px-7 py-2 text-sm font-medium transition-colors
                     ${condition === c
                       ? "bg-[#1565BC] hover:bg-[#135aa6] text-white"
                       : "bg-transparent text-[#122A48] border-[#C6C6C8] hover:bg-[#c3dffe]"
@@ -234,7 +242,7 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
                       <TableCell className='text-center'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
                       <TableCell className='text-center'>{node.water_flow_rate != null ? `${node.water_flow_rate} m/s` : "—"}</TableCell>
                       <TableCell className='text-center'>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
-                      <TableCell className={`text-center font-semibold ${getConditionClass(node.condition)}`}>{node.condition}</TableCell>
+                      <TableCell className={`text-center font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
                       <TableCell className='text-center'>
                         <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${getStatusClass(node.status)}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${getDotClass(node.status)}`} />
@@ -266,7 +274,7 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
               {alerts.slice(0, 6).map(alert => {
                 const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                 return (
-                  <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.shadow} ${style.border} bg-white`}>
+                  <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}>
                     <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                       {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
                     </div>
@@ -292,9 +300,9 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
               </div>
               <div className='flex flex-col'>
                 {[
-                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', count: total,    label: "Active" },
-                  { color: 'text-[#727272]', dotColor: 'bg-[#727272]', count: overflow,  label: "Inactive" },
-                  { color: 'text-[#582579]', dotColor: 'bg-[#582579]', count: warning, label: "Maintenance" },
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', count: activeCount,    label: "Active" },
+                  { color: 'text-[#727272]', dotColor: 'bg-[#727272]', count: inactiveCount,  label: "Inactive" },
+                  { color: 'text-[#582579]', dotColor: 'bg-[#582579]', count: maintenanceCount, label: "Maintenance" },
                 ].map(status => (
                   <div key={status.label} className="flex justify-between items-center py-2.5 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">
@@ -309,7 +317,7 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
                   <hr />
                   <div className='flex justify-between mt-2 font-semibold text-[#122A48]'>
                     <p>Total</p>
-                    <span>{total}</span>
+                    <span>{nodes.length}</span>
                   </div>
                 </div>
 
