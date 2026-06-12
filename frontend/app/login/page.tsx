@@ -98,7 +98,6 @@ export default function Login() {
 
   const handleLogin = async (e: React.MouseEvent) => {
     e.preventDefault()
-    console.log('handleLogin called')
     setLoginError("")
     setFieldError("")
 
@@ -110,7 +109,6 @@ export default function Login() {
     setIsLoadingLogin(true)
     try {
       const data = await api.post("/api/auth/login/", { username, password })
-      console.log('login response:', data)
       setTokens(data.access, data.refresh)
       setUser(data.user)
 
@@ -120,7 +118,6 @@ export default function Login() {
       else if (userRole === "Barangay") router.replace("/barangay/map")
       else setLoginError("Unknown user role.")
     } catch (err) {
-      console.log('login error:', err)
       setLoginError(getErrorMessage(err))
     } finally {
       setIsLoadingLogin(false)

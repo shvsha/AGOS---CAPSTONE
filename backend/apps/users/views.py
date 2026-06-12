@@ -24,7 +24,6 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Find user by username first
         try:
             user_obj = User.objects.get(username=username)
         except User.DoesNotExist:
@@ -41,19 +40,18 @@ class LoginView(APIView):
                     {'error': 'Account is inactive'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
-            user_data = UserSerializer(user).data
 
-            # Log the login action
+            refresh = RefreshToken.for_user(user)
+            access_token  = str(refresh.access_token)
+            refresh_token = str(refresh)
+            user_data     = UserSerializer(user).data
+
             log_action(
-                user=user,  
+                user=user,
                 action='Login',
                 ip_address=request.META.get('REMOTE_ADDR')
             )
-        
+
             is_secure = not settings.DEBUG
 
             response = Response({
@@ -61,6 +59,16 @@ class LoginView(APIView):
                 'refresh': refresh_token,
                 'user': user_data
             })
+
+            response.set_cookie(
+                key='access_token',
+                value=access_token,
+                max_age=7 * 24 * 60 * 60,
+                httponly=True,
+                secure=is_secure,
+                samesite='Lax',
+                path='/',
+            )
 
             response.set_cookie(
                 key='user',

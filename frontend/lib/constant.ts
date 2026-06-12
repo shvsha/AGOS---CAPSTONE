@@ -12,3 +12,43 @@ export const DIALOG_COLOR = {
   blue: '#1565BC',
   lightblue: '#1565BC29'
 }
+
+// alert styles
+export const ALERT_STYLE: Record<string, { border: string; icon: string }> = {
+  Overflow_Detected:  { border: "border-[#FFD6D6]", icon: "bg-[#FFE5E5] text-[#D81010]" },
+  Water_Level_Rising: { border: "border-[#FFD6A0]", icon: "bg-[#FFF0D6] text-[#FF9705]" },
+  High_Clog_Index:    { border: "border-[#F4E4A7]", icon: "bg-[#FFF9DC] text-[#FF9705]" },
+  Node_Offline:       { border: "border-[#FFD6D6]", icon: "bg-[#FFE5E5] text-[#D81010]" },
+  Low_Battery:        { border: "border-[#F4E4A7]", icon: "bg-[#FFF9DC] text-[#FF9705]" },
+  Weak_Signal:        { border: "border-[#F4E4A7]", icon: "bg-[#FFF9DC] text-[#FF9705]" },
+  Sensor_Failure:     { border: "border-[#FFD6D6]", icon: "bg-[#FFE5E5] text-[#D81010]" },
+  default:            { border: "border-[#C6C6C8]", icon: "bg-[#E5E5E6] text-[#727272]" },
+}
+
+export function getConditionClass(condition: string) {
+  switch (condition) {
+    case "Overflow": return "text-[#D81010]"
+    case "Warning":  return "text-[#FF9705]"
+    case "Normal":   return "text-[#1565BC]"
+    case "Inactive": return "text-[#727272]"
+    default:         return "text-[#727272]"
+  }
+}
+
+export function getStatusClass(status: string) {
+  switch (status) {
+    case "Active":      return "text-[#2C7B3C] bg-[#58D07159]"
+    case "Inactive":    return "text-[#727272] bg-[#D9D9D9]"
+    case "Maintenance": return "text-[#582579] bg-[#DACDE3]"
+    default:            return "text-[#2C7B3C] bg-[#58D07159]"
+  }
+}
+
+export function getDotClass(status: string) {
+  switch (status) {
+    case "Active":      return "bg-[#2C7B3C]"
+    case "Inactive":    return "bg-[#727272]"
+    case "Maintenance": return "bg-[#582579]"
+    default:            return "bg-[#2C7B3C]"
+  }
+}

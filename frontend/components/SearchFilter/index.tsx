@@ -20,7 +20,7 @@ export function SearchFilter({ value, onChange, placeholder = "Search..." }: Sea
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-9 w-150"
+        className="bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-9 w-80"
       />
     </div>
   )

@@ -1,3 +1,5 @@
+"use client"
+
 export const getAccessToken = (): string | null => {
   return localStorage.getItem("access_token")
 }
@@ -33,4 +35,9 @@ export const isAuthenticated = (): boolean => {
 export const getUserRole = (): string | null => {
   const user = getUser()
   return user ? user.user_role : null
+}
+
+export const getAuthHeaders = (): HeadersInit => {
+  const token = getAccessToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }

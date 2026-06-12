@@ -2,33 +2,44 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import SensorReading
 from apps.clog_events.models import ClogEvent
+from apps.alerts.models import Alert
+from apps.users.models import User
 
 @receiver(post_save, sender=SensorReading)
-def create_clog_event_on_abnormal(sender, instance, created, **kwargs):
-    if not created or instance.reading_status != 'Abnormal':
+def handle_abnormal_reading(sender, instance, created, **kwargs):
+    if not created or instance.reading_status == 'Normal':
         return
 
-    # Severity based on water level + water flow combined
-    # Water level thresholds (in cm — adjust to your canal depth)
-    if instance.water_level >= 90:
-        base_severity = 'High'
-    elif instance.water_level >= 70:
-        base_severity = 'Medium'
+    # Determine alert type — NOT clog related
+    if instance.reading_status == 'Overflow':
+        alert_type = 'Overflow_Detected'
     else:
-        base_severity = 'Low'
+        alert_type = 'Water_Level_Rising'
 
-    # Escalate severity if flow is stagnant (water not moving = worse blockage)
-    if instance.water_flow == 'Stagnant':
-        if base_severity == 'Low':
-            severity = 'Medium'   # escalate
-        elif base_severity == 'Medium':
-            severity = 'High'     # escalate
-        else:
-            severity = 'High'     # already max
-    elif instance.water_flow == 'Slow':
-        severity = base_severity  # no escalation, already noted
+    # Fire alert
+    recipients = list(User.objects.filter(user_role__in=['Admin', 'MENRO'], status='Active'))
+    recipients += list(User.objects.filter(user_role='Barangay', barangay=instance.node.barangay, status='Active'))
+
+    for user in recipients:
+        Alert.objects.create(
+            node=instance.node,
+            user=user,
+            alert_type=alert_type
+        )
+
+    # Create ClogEvent only if actual blockage
+    if not instance.clog_pct or instance.clog_pct < 30:
+        return
+
+    if instance.water_level >= 90:
+        severity = 'High'
+    elif instance.water_level >= 70:
+        severity = 'Medium'
     else:
-        severity = base_severity  # Normal flow but still abnormal reading
+        severity = 'Low'
+
+    if instance.water_flow == 'Stagnant' and severity != 'High':
+        severity = 'High' if severity == 'Medium' else 'Medium'
 
     ClogEvent.objects.create(
         node=instance.node,

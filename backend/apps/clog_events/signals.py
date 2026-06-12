@@ -6,34 +6,16 @@ from apps.users.models import User
 
 @receiver(post_save, sender=ClogEvent)
 def create_alerts_on_clog(sender, instance, created, **kwargs):
-    if created:
-        # Determine alert type
-        alert_type = 'Clog'
+    if not created:
+        return
 
-        # Get all users who should be notified
-        recipients = []
+    recipients = list(User.objects.filter(user_role__in=['Admin', 'MENRO'], status='Active'))
+    recipients += list(User.objects.filter(user_role='Barangay', barangay=instance.barangay, status='Active'))
 
-        # All Admin users
-        admins = User.objects.filter(user_role='Admin', status='Active')
-        recipients.extend(admins)
-
-        # All MENRO users
-        menro_users = User.objects.filter(user_role='MENRO', status='Active')
-        recipients.extend(menro_users)
-
-        # Barangay Personnel of the affected barangay
-        barangay_users = User.objects.filter(
-            user_role='Barangay',
-            barangay=instance.barangay,
-            status='Active'
+    for user in recipients:
+        Alert.objects.create(
+            event=instance,
+            node=instance.node,
+            user=user,
+            alert_type='High_Clog_Index'
         )
-        recipients.extend(barangay_users)
-
-        # Create alert for each recipient
-        for user in recipients:
-            Alert.objects.create(
-                event=instance,
-                node=instance.node,
-                user=user,
-                alert_type=alert_type
-            )

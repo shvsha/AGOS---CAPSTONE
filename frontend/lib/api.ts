@@ -9,6 +9,7 @@ export const api = {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "POST",
       headers,
+      credentials: "include",
       body: JSON.stringify(data),
     })
     const result = await response.json()
@@ -24,6 +25,7 @@ export const api = {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "GET",
       headers,
+      credentials: "include",
     })
     const result = await response.json()
     if (!response.ok) throw result
@@ -38,6 +40,7 @@ export const api = {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "PUT",
       headers,
+      credentials: "include",
       body: JSON.stringify(data),
     })
     const result = await response.json()
@@ -53,6 +56,7 @@ export const api = {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "PATCH",
       headers,
+      credentials: "include",
       body: JSON.stringify(data),
     })
     const result = await response.json()
@@ -68,6 +72,8 @@ export const api = {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "DELETE",
       headers,
+      credentials: "include",
+      body: undefined,
     })
     if (!response.ok) {
       const result = await response.json()

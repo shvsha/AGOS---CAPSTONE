@@ -34,6 +34,7 @@ const navItems = {
     { label: "Dashboard",      href: "/admin/dashboard",    icon: <LayoutDashboard size={18} /> },
     { label: "Users",          href: "/admin/users",        icon: <Users size={18} /> },
     { label: "Barangay",          href: "/admin/barangay",     icon: <MapPin size={18} /> },
+    { label: "Node",          href: "/admin/node",     icon: <MapPin size={18} /> },
     { label: "Monitoring",     href: "/admin/monitoring",   icon: <ChartNoAxesCombined size={18} /> },
     { label: "Alerts",         href: "/admin/alerts",       icon: <Siren size={18} /> },
     { label: "IoT Health",     href: "/admin/health",       icon: <Activity size={18} /> },

@@ -4,7 +4,8 @@ from apps.sensor_nodes.models import SensorNode
 class SensorReading(models.Model):
     STATUS_CHOICES = [
         ('Normal', 'Normal'),
-        ('Abnormal', 'Abnormal'),
+        ('Warning', 'Warning'),
+        ('Overflow', 'Overflow')
     ]
 
     WATER_FLOW_CHOICES = [
@@ -20,12 +21,31 @@ class SensorReading(models.Model):
         db_column='node_id'
     )
     water_level = models.FloatField()
+
+    water_flow_rate = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Calculated flow rate in m/s from camera analysis"
+    )
+
     water_flow = models.CharField(
         max_length=10,
         choices=WATER_FLOW_CHOICES,
         default='Normal'
     )
-    reading_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Normal')
+
+    reading_status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='Normal'
+    )
+    
+    clog_pct = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Calculated clog percentage base on water level and water flow rate"
+    )
+
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
