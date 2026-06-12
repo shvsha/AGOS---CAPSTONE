@@ -158,10 +158,10 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
         </div>
 
         {/* body */}
-        <div className='flex gap-5 mt-3'>
+        <div className='flex gap-4 mt-3'>
 
           {/* table */}
-          <div className='rounded-lg bg-[#FAFCFD] shadow-2xl border border-[#C6C6C8] flex-1 flex flex-col'>
+          <div className='rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] border border-[#C6C6C8] flex-1 flex flex-col '>
             {/* filters */}
             <div className='flex gap-3 items-center p-4'>
               <SearchFilter value={search} onChange={setSearch} placeholder='Search sensor node or barangay...' />
@@ -169,7 +169,7 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
                 <Button
                   key={c}
                   onClick={() => setCondition(c)}
-                  className={`cursor-pointer rounded-full border px-5 py-2 text-sm font-medium transition-colors
+                  className={`cursor-pointer rounded-full border px-4 py-2 text-sm font-medium transition-colors
                     ${condition === c
                       ? "bg-[#1565BC] hover:bg-[#135aa6] text-white"
                       : "bg-transparent text-[#122A48] border-[#C6C6C8] hover:bg-[#c3dffe]"
@@ -246,25 +246,27 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
                 )}
               </TableBody>
             </Table>
-            <TablePagination
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-            />
+            <div className='mt-auto'>
+              <TablePagination
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           </div>
 
           {/* live alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
             <div className='flex items-center justify-between p-3'>
               <p className='font-semibold text-[#122A48]'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-2 p-2 overflow-y-auto'>
+            <div className='flex flex-col gap-3 p-3 overflow-y-auto'>
               {alerts.slice(0, 6).map(alert => {
                 const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                 return (
-                  <div key={alert.alert_id} className={`flex items-center gap-3 p-2 rounded-lg border ${style.border} bg-white`}>
+                  <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.shadow} ${style.border} bg-white`}>
                     <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                       {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
                     </div>
@@ -283,8 +285,35 @@ const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = use
           </div>
 
           {/* device status */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-50 rounded-lg flex flex-col'>
+              <div className='p-3 flex flex-col gap-2 '>
+                <p className='font-semibold text-[#122A48]'>Device Status</p>
+                <hr />
+              </div>
+              <div className='flex flex-col'>
+                {[
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', count: total,    label: "Active" },
+                  { color: 'text-[#727272]', dotColor: 'bg-[#727272]', count: overflow,  label: "Inactive" },
+                  { color: 'text-[#582579]', dotColor: 'bg-[#582579]', count: warning, label: "Maintenance" },
+                ].map(status => (
+                  <div key={status.label} className="flex justify-between items-center py-2.5 px-3 bg-[#FAFCFD] -mt-2">
+                    <div className="flex gap-3 items-center">
+                      <span className={`w-2 h-2 rounded-full ${status.dotColor} `}/>
+                      <p className="text-sm font-medium">{status.label}</p>
+                    </div>
+                    <span className={`text-sm font-bold leading-tight ${status.color}`}>{status.count}</span>
+                  </div>
+                ))}
 
+                <div className='p-3 -mt-2'>
+                  <hr />
+                  <div className='flex justify-between mt-2 font-semibold text-[#122A48]'>
+                    <p>Total</p>
+                    <span>{total}</span>
+                  </div>
+                </div>
+
+              </div>
           </div>
 
         </div>

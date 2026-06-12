@@ -14,15 +14,54 @@ export const DIALOG_COLOR = {
 }
 
 // alert styles
-export const ALERT_STYLE: Record<string, { border: string; icon: string }> = {
-  Overflow_Detected:  { border: "border-[#FFD6D6]", icon: "bg-[#FFE5E5] text-[#D81010]" },
-  Water_Level_Rising: { border: "border-[#FFD6A0]", icon: "bg-[#FFF0D6] text-[#FF9705]" },
-  High_Clog_Index:    { border: "border-[#F4E4A7]", icon: "bg-[#FFF9DC] text-[#FF9705]" },
-  Node_Offline:       { border: "border-[#FFD6D6]", icon: "bg-[#FFE5E5] text-[#D81010]" },
-  Low_Battery:        { border: "border-[#F4E4A7]", icon: "bg-[#FFF9DC] text-[#FF9705]" },
-  Weak_Signal:        { border: "border-[#F4E4A7]", icon: "bg-[#FFF9DC] text-[#FF9705]" },
-  Sensor_Failure:     { border: "border-[#FFD6D6]", icon: "bg-[#FFE5E5] text-[#D81010]" },
-  default:            { border: "border-[#C6C6C8]", icon: "bg-[#E5E5E6] text-[#727272]" },
+export const ALERT_STYLE: Record<string, { border: string; icon: string; shadow: string }> = {
+  Overflow_Detected: {
+    border: "border-[#FFD6D6]",
+    icon: "bg-[#FFE5E5] text-[#D81010]",
+    shadow: "shadow-[0_0_3px_rgba(216,16,16,0.35)]"
+  },
+
+  Water_Level_Rising: {
+    border: "border-[#FFD6A0]",
+    icon: "bg-[#FFF0D6] text-[#FF9705]",
+    shadow: "shadow-[0_0_3px_rgba(255,151,5,0.57)]"
+  },
+
+  High_Clog_Index: {
+    border: "border-[#F4E4A7]",
+    icon: "bg-[#FFF9DC] text-[#FF9705]",
+    shadow: "shadow-[0_0_3px_rgba(255,151,5,1)]"
+  },
+
+  Node_Offline: {
+    border: "border-[#FFD6D6]",
+    icon: "bg-[#FFE5E5] text-[#D81010]",
+    shadow: "shadow-[0_0_3px_rgba(216,16,16,0.50)]"
+  },
+
+  Low_Battery: {
+    border: "border-[#F4E4A7]",
+    icon: "bg-[#FFF9DC] text-[#FF9705]",
+    shadow: "shadow-[0_0_3px_rgba(255,151,5,0.75)]"
+  },
+
+  Weak_Signal: {
+    border: "border-[#F4E4A7]",
+    icon: "bg-[#FFF9DC] text-[#FF9705]",
+    shadow: "shadow-[0_0_3px_rgba(255,151,5,0.45)]"
+  },
+
+  Sensor_Failure: {
+    border: "border-[#FFD6D6]",
+    icon: "bg-[#FFE5E5] text-[#D81010]",
+    shadow: "shadow-[0_0_3px_rgba(216,16,16,0.60)]"
+  },
+
+  default: {
+    border: "border-[#C6C6C8]",
+    icon: "bg-[#E5E5E6] text-[#727272]",
+    shadow: "shadow-[0_0_3px_rgba(114,114,114,0.25)]"
+  },
 }
 
 export function getConditionClass(condition: string) {
