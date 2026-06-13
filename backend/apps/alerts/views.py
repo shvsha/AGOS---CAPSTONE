@@ -5,6 +5,9 @@ from .models import Alert, AlertRead
 from .serializers import AlertSerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENROOrBarangay
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
+from datetime import timedelta
+
 
 class AlertListView(generics.ListAPIView):
     serializer_class = AlertSerializer
@@ -14,12 +17,31 @@ class AlertListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        qs = Alert.objects.all().order_by('-timestamp')
+        
         if user.user_role == 'Barangay':
-            return Alert.objects.filter(
-                node__barangay=user.barangay
-            ).order_by('-timestamp')
-        # Admin and MENRO see all
-        return Alert.objects.all().order_by('-timestamp')
+            qs = qs.filter(node__barangay=user.barangay)
+
+        # barangay filter
+        barangay_id = self.request.query_params.get('barangay')
+        if barangay_id:
+            qs = qs.filter(node__barangay__barangay_id=barangay_id)
+
+        # alert type filter
+        alert_type = self.request.query_params.get('alert_type')
+        if alert_type:
+            qs = qs.filter(alert_type=alert_type)
+
+        # date filter
+        date_filter = self.request.query_params.get('date')
+        if date_filter == 'Today':
+            qs = qs.filter(timestamp__date=timezone.now().date())
+        elif date_filter == '7Days':
+            qs = qs.filter(timestamp__gte=timezone.now() - timedelta(days=7))
+        elif date_filter == '30Days':
+            qs = qs.filter(timestamp__gte=timezone.now() - timedelta(days=30))
+
+        return qs
     
 
 class AlertMarkReadView(APIView):
