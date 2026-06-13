@@ -5,7 +5,7 @@ class SensorReading(models.Model):
     STATUS_CHOICES = [
         ('Normal', 'Normal'),
         ('Warning', 'Warning'),
-        ('Overflow', 'Overflow')
+        ('Critical', 'Critical')
     ]
 
     WATER_FLOW_CHOICES = [

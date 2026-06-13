@@ -14,6 +14,11 @@ class SensorReadingListView(generics.ListCreateAPIView):
         if self.request.method == 'GET':
             return [IsAdminOrMENRO()]
         return [IsIoTDevice()]
+    
+    # def get_permissions(self):
+    #     if self.request.method == 'GET':
+    #         return [IsAdminOrMENRO()]
+    #     return [IsAdmin()]  # temporary for testing
 
 class SensorReadingByNodeView(generics.ListAPIView):
     serializer_class = SensorReadingSerializer

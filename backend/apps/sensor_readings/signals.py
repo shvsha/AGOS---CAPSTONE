@@ -10,16 +10,11 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
         return
 
     # Determine alert type
-    if instance.reading_status == 'Overflow':
-        alert_type = 'Overflow_Detected'
-    else:
-        alert_type = 'Water_Level_Rising'
+    if instance.reading_status == 'Warning':
+        Alert.objects.create(node=instance.node, alert_type='Water_Level_Rising')
 
-    # Fire alert
-    Alert.objects.create(
-        node=instance.node,
-        alert_type=alert_type
-    )
+    elif instance.reading_status == 'Critical':
+        Alert.objects.create(node=instance.node, alert_type='Critical_Clog')
 
     # Create ClogEvent only if actual blockage
     if not instance.clog_pct or instance.clog_pct < 30:

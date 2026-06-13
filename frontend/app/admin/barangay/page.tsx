@@ -17,7 +17,7 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { DialogModal } from "@/components/DialogModal";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 import { BarangaySkeleton } from "@/components/Skeleton/BarangaySkeleton"
-import BarangayMapWrapper from "@/components/Map/BarangayMapWrapper"
+import BarangayMapWrapper from "@/components/Map/AgosMapWrapper"
 
 // react
 import { useState, useEffect } from "react"

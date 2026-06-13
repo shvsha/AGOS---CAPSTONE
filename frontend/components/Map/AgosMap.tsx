@@ -1,0 +1,188 @@
+"use client"
+
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
+import "leaflet/dist/leaflet.css"
+import L from "leaflet"
+import { useEffect } from "react"
+
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+})
+
+const CONDITION_COLORS: Record<string, string> = {
+  Critical: "#D81010",
+  Warning:  "#FF9705",
+  Normal:   "#1565BC",
+  default:  "#727272",
+}
+
+function createColoredIcon(color: string, label?: string, condition?: string) {
+  const animation =
+    condition === 'Critical'
+      ? 'agos-pulse 0.5s ease-out infinite'
+      : condition === 'Warning'
+      ? 'agos-pulse 1.5s ease-out infinite'
+      : 'none'
+
+  const dotSize = 14
+  const half = dotSize / 2
+
+  const pulseRing = animation !== 'none' ? `
+    <div style="
+      position: absolute;
+      width: ${dotSize}px;
+      height: ${dotSize}px;
+      border-radius: 50%;
+      background: ${color};
+      opacity: 0.4;
+      top: -${half}px;
+      left: -${half}px;
+      animation: ${animation};
+      pointer-events: none;
+    "></div>` : ''
+
+  const labelTag = label ? `
+    <div style="
+      position: absolute;
+      top: -${half + 16}px;
+      left: ${half + 4}px;
+      background: white;
+      color: #122A48;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      border: 1px solid #e0e0e0;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 10;
+      animation: none !important;
+    ">${label}</div>` : ''
+
+  const dot = `
+    <div style="
+      position: absolute;
+      width: ${dotSize}px;
+      height: ${dotSize}px;
+      background: ${color};
+      border: 2.5px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      top: -${half}px;
+      left: -${half}px;
+      z-index: 2;
+      animation: none !important;
+    "></div>`
+
+  return L.divIcon({
+    className: '',
+    html: `
+      <style>
+        @keyframes agos-pulse {
+          0%   { transform: scale(1);   opacity: 0.6; }
+          70%  { transform: scale(4.5); opacity: 0;   }
+          100% { transform: scale(1);   opacity: 0;   }
+        }
+      </style>
+      <div style="position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: visible;">
+        ${pulseRing}
+        ${dot}
+        ${labelTag}
+      </div>
+    `,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    popupAnchor: [0, -(half + 2)],
+  })
+}
+
+const ROSARIO_BOUNDS: L.LatLngBoundsExpression = [
+  [16.15, 120.40],
+  [16.60, 120.55],
+]
+
+const ROSARIO_CENTER: [number, number] = [16.38, 120.478]
+
+function RecenterMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
+  const map = useMap()
+  useEffect(() => {
+    map.setView([lat, lng], zoom)
+  }, [lat, lng, zoom])
+  return null
+}
+
+export type MapMarker = {
+  latitude: number
+  longitude: number
+  label?: string
+  condition?: string 
+  sublabel?: string 
+}
+
+type Props = {
+  latitude?: number
+  longitude?: number
+  label?: string
+  zoom?: number
+  markers?: MapMarker[]
+}
+
+export default function AgosMap({ latitude, longitude, label, zoom = 14, markers }: Props) {
+  const hasMultiple = markers && markers.length > 0
+  const hasSingle   = !!latitude && !!longitude
+
+  const center: [number, number] = hasMultiple
+    ? [
+        markers.reduce((sum, m) => sum + m.latitude, 0) / markers.length,
+        markers.reduce((sum, m) => sum + m.longitude, 0) / markers.length,
+      ]
+    : hasSingle
+      ? [latitude, longitude]
+      : ROSARIO_CENTER
+
+  return (
+    <MapContainer
+      center={center}
+      zoom={zoom}
+      maxBounds={ROSARIO_BOUNDS}
+      maxBoundsViscosity={1.0}
+      minZoom={15}
+      style={{ height: "100%", width: "100%" }}
+      className="rounded-lg z-0"
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {!hasMultiple && hasSingle && (
+        <>
+          <RecenterMap lat={latitude} lng={longitude} zoom={zoom} />
+          <Marker position={[latitude, longitude]}>
+            <Popup>{label ?? "Location"}</Popup>
+          </Marker>
+        </>
+      )}
+
+      {hasMultiple && markers.map((m, i) => {
+        const color = CONDITION_COLORS[m.condition ?? "default"] ?? CONDITION_COLORS.default
+        return (
+          <Marker
+            key={i}
+            position={[m.latitude, m.longitude]}
+            icon={createColoredIcon(color, m.label, m.condition)}
+          >
+            <Popup>
+              <div className="text-xs font-semibold">{m.label ?? "Node"}</div>
+              {m.sublabel && <div className="text-xs text-gray-500 mt-0.5">{m.sublabel}</div>}
+            </Popup>
+          </Marker>
+        )
+      })}
+    </MapContainer>
+  )
+}

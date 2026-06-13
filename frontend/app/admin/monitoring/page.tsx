@@ -4,15 +4,19 @@ import { useState, useEffect } from 'react'
 import { useRouter } from "next/navigation"
 
 // icons
-import { RadioTower, Activity, TriangleAlert, Waves } from "lucide-react"
+import { RadioTower, Activity, TriangleAlert, Waves, Map, X, Siren  } from "lucide-react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { SearchFilter } from '@/components/SearchFilter'
+import { Dialog, DialogContent, DialogHeader, } from "@/components/ui/dialog"
+
+// component
+import BarangayMapWrapper from "@/components/Map/AgosMapWrapper"
 
 // lib
-import { getConditionClass, getStatusClass, getDotClass, ALERT_STYLE } from "@/lib/constant"
+import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
 
 // table pagination
@@ -42,13 +46,24 @@ type Alert = {
   is_read: boolean
 }
 
-// constants
-const CONDITIONS = ["All", "Overflow", "Warning", "Normal"]
+type DialogState = {
+  open: boolean;
+  node?: Nodes | null;
+};
+
+const CONDITIONS = ["All", "Critical", "Warning", "Normal"]
+
+// open maps redirect to google map
+const openInGoogleMaps = (latitude: number, longitude: number) => {
+  window.open(
+    `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`,
+    "_blank"
+  );
+};
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
-  Overflow_Detected:  <Waves size={18} />,
   Water_Level_Rising: <Activity size={18} />,
-  High_Clog_Index:    <RadioTower size={18} />,
+  Critical_Clog:      <RadioTower size={18} />,
   Node_Offline:       <TriangleAlert size={18} />,
   Low_Battery:        <TriangleAlert size={18} />,
   Weak_Signal:        <Activity size={18} />,
@@ -69,11 +84,22 @@ function getFilteredNode(nodes: Nodes[], condition: string, search: string) {
 export default function Monitoring() {
   const router = useRouter()
 
+  // dialog state
+  const [viewMapDialog, setViewMapDialog] = useState<DialogState>({
+    open: false,
+    node: null,
+  })
+
+  // date and time state
   const [dateTime, setDateTime]   = useState<Date | null>(null)
+
+  // table state
   const [nodes, setNodes]         = useState<Nodes[]>([])
   const [alerts, setAlerts]       = useState<Alert[]>([])
   const [loading, setLoading]     = useState(true)
   const [fetchError, setFetchError] = useState(false)
+
+  // filter state
   const [search, setSearch]       = useState('')
   const [condition, setCondition] = useState("All")
 
@@ -197,11 +223,11 @@ export default function Monitoring() {
                 <TableRow>
                   <TableHead className='font-semibold text-center text-[#727272]'>NODE ID</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>BARANGAY</TableHead>
+                  <TableHead className='font-semibold text-center text-[#727272]'>LOCATION</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>WATER LEVEL</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>FLOW RATE</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>CLOG</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>CONDITION</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>STATUS</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -239,16 +265,19 @@ export default function Monitoring() {
                     <TableRow key={node.node_id} className='font-medium text-[#122A48]'>
                       <TableCell className='text-center h-14'>{node.node_id}</TableCell>
                       <TableCell className='text-center'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
+                      <TableCell className='text-center'>
+                        <Button
+                          onClick={() => setViewMapDialog({ open: true, node: node })}
+                          className="text-[13px] rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-2.5 px-2"
+                        >
+                         <Map size={16}/>
+                          View on map
+                        </Button>
+                      </TableCell>
                       <TableCell className='text-center'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
                       <TableCell className='text-center'>{node.water_flow_rate != null ? `${node.water_flow_rate} m/s` : "—"}</TableCell>
                       <TableCell className='text-center'>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
                       <TableCell className={`text-center font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
-                      <TableCell className='text-center'>
-                        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${getStatusClass(node.status)}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${getDotClass(node.status)}`} />
-                          {node.status}
-                        </span>
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -266,8 +295,15 @@ export default function Monitoring() {
 
           {/* live alerts */}
           <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
-            <div className='flex items-center justify-between p-3'>
+            <div className='flex justify-between items-center justify-between p-3'>
               <p className='font-semibold text-[#122A48]'>Live Alerts</p>
+              <Button
+                onClick={() => router.push('/admin/alerts')}
+                className='rounded-lg shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] flex gap-2 bg-white hover:bg-white/50 cursor-pointer border border-[#C9C9C9]'
+              >
+                <Siren size={20} className='text-[#D81010]' />
+                View Alerts
+              </Button>
             </div>
             <hr className='border-[#C6C6C8]' />
             <div className='flex flex-col gap-3 p-3 overflow-y-auto'>
@@ -326,6 +362,60 @@ export default function Monitoring() {
 
         </div>
       </div>
+
+      {/* Dialog */}
+            {/* View on Map Dialog */}
+      <Dialog open={viewMapDialog.open}>
+        <DialogContent className="[&>button]:hidden p-4 md:p-6 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-150">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex gap-2 items-center">
+                <p className="font-bold text-base md:text-lg">{viewMapDialog.node?.node_name}</p>
+              </div>
+              <button className="cursor-pointer" onClick={() => setViewMapDialog({ open: false, node: null })}>
+                <X size={18} />
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
+            <BarangayMapWrapper
+              markers={nodes.map(n => ({
+                latitude:  n.latitude,
+                longitude: n.longitude,
+                label:     n.node_name,
+                condition: n.condition,
+                sublabel:  `Water: ${n.water_level ?? "—"}cm | Clog: ${n.clog_pct ?? "—"}%`,
+              }))}
+              zoom={13}
+            />
+          </div>
+          <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">
+            <div className="flex flex-col md:flex-row gap-3 items-center">
+              <p className="text-xs md:text-sm">{viewMapDialog.node?.latitude}</p>
+              <p className="text-xs md:text-sm">{viewMapDialog.node?.longitude}</p>
+            </div>
+            <Button 
+              disabled={
+                viewMapDialog.node?.latitude == null ||
+                viewMapDialog.node?.longitude == null
+              }
+              onClick={() => {
+                const node = viewMapDialog.node;
+                if (!node) return;
+
+                openInGoogleMaps(
+                  node.latitude,
+                  node.longitude
+                );
+              }}
+              className="cursor-pointer rounded-lg border border-[#C6C6C8] bg-[#FAFCFD] hover:bg-[#d6e4eb] px-3 py-2 md:px-4 md:py-3 text-[#727272]"
+            >
+              <Map />
+              Open in Maps
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
