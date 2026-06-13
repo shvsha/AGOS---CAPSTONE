@@ -3,7 +3,7 @@
 // icons
 import { FaSearch } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
-import { MapPinned, CheckCircle, Archive, BadgeCheck, CircleOff, Map, UserRound, SquarePen, UserMinus, UserPlus, SlidersHorizontal, X, MapPinPlus, MapPin, Navigation, MapPinPen, Check   } from "lucide-react";
+import { MapPinned, CheckCircle, BadgeCheck, Map, UserRound, SquarePen, X, MapPinPlus, MapPin, Navigation, MapPinPen, Check, MapPinOff  } from "lucide-react";
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,7 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 import { DialogModal } from "@/components/DialogModal";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 import { BarangaySkeleton } from "@/components/Skeleton/BarangaySkeleton"
-import BarangayMapWrapper from "@/components/Map/AgosMapWrapper"
+import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 
 // react
 import { useState, useEffect } from "react"
@@ -40,7 +40,7 @@ type Barangay = {
   barangay_name: string
   latitude: number
   longitude: number
-  status: string
+  is_registered: boolean
 }
 
 type DialogState = {
@@ -48,9 +48,44 @@ type DialogState = {
   barangay?: Barangay | null;
 };
 
-function getFilteredBarangay(barangays: Barangay[], status: string, search: string) {
+const ROSARIO_BARANGAYS: Record<string, { latitude: number; longitude: number }> = {
+  "Alipang":          { latitude: 16.237563348508555, longitude: 120.48637936638994 },
+  "Ambangonan":       { latitude: 16.292460715471893, longitude: 120.47254696630522 },
+  "Amlang":           { latitude: 16.232497453085085, longitude: 120.43466542161482 },
+  "Bacani":           { latitude: 16.227960590897286, longitude: 120.45908781096342 },
+  "Bangar":           { latitude: 16.233168462097932, longitude: 120.50676904750539 },
+  "Bani":             { latitude: 16.228692313942197, longitude: 120.40806646632088 },
+  "Barangay 33":      { latitude: 16.244843676617254, longitude: 120.5047149069639  },
+  "Benteng-Sapilang": { latitude: 16.21819520751035,  longitude: 120.43736327943758 },
+  "Cadumanian":       { latitude: 16.26039269741374,  longitude: 120.46787713615653 },
+  "Camp One":         { latitude: 16.22577927235166,  longitude: 120.50505399696874 },
+  "Carunuan East":    { latitude: 16.255406250860535, longitude: 120.45979379191249 },
+  "Carunuan West":    { latitude: 16.24926800248152,  longitude: 120.4470866964297  },
+  "Casilagan":        { latitude: 16.246289176295925, longitude: 120.48937441464953 },
+  "Cataguingtingan":  { latitude: 16.218856437099763, longitude: 120.45488956809203 },
+  "Concepcion":       { latitude: 16.223520531758066, longitude: 120.47094021121745 },
+  "Damortis":         { latitude: 16.235333285005968, longitude: 120.40821970123413 },
+  "Gumot-Nagcolaran": { latitude: 16.20972828736014,  longitude: 120.44126290490958 },
+  "Inabaan Norte":    { latitude: 16.27935310104418,  longitude: 120.46937538164347 },
+  "Inabaan Sur":      { latitude: 16.261125995284832, longitude: 120.48248267944999 },
+  "Macabiag":         { latitude: 16.22500368189042,  longitude: 120.42614432607613 },
+  "Nagtagaan":        { latitude: 16.231960515743467, longitude: 120.42077254190475 },
+  "Nangcamotian":     { latitude: 16.21566034042685,  longitude: 120.49918352512054 },
+  "Parasapas":        { latitude: 16.282538433938228, longitude: 120.44915952159705 },
+  "Poblacion East":   { latitude: 16.23031273833657,  longitude: 120.48632076236241 },
+  "Poblacion West":   { latitude: 16.227638647861806, longitude: 120.48095231205696 },
+  "Puzon":            { latitude: 16.20926183980217,  longitude: 120.48274297369922 },
+  "Rabon":            { latitude: 16.210217097047543, longitude: 120.4230186691575  },
+  "San Jose":         { latitude: 16.277599265755292, longitude: 120.48246615780911 },
+  "Subusub":          { latitude: 16.22859926246851,  longitude: 120.49339297539025 },
+  "Tabtabungao":      { latitude: 16.21304287483186,  longitude: 120.46884813326288 },
+  "Tay-ac":           { latitude: 16.219891888227306, longitude: 120.4916033586235  },
+  "Udiao":            { latitude: 16.217334096835422, longitude: 120.50315253374364 },
+  "Vila":             { latitude: 16.242923828018533, longitude: 120.46385169704709 },
+}
+
+function getFilteredBarangay(barangays: Barangay[], search: string) {
   return barangays
-    .filter(b => status === "All" || b.status === status)
     .filter(b => b.barangay_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.barangay_id - a.barangay_id)
 }
@@ -72,11 +107,6 @@ export default function Barangay() {
 
   // filter states
   const [search, setSearch] = useState<string>('')
-  const [barangayStatus, setBarangayStatus] = useState<string>('Active')
-
-  // mobile filters
-  const [tempStatus, setTempStatus] = useState<string>(barangayStatus)
-  const [filterOpen, setFilterOpen] = useState<boolean>(false)
 
   // toast
   const {toasts, addToast, removeToast } = useToast()
@@ -88,13 +118,14 @@ export default function Barangay() {
   })
 
   // dialog states
-  const [restoreDialog, setRestoreDialog] = useState<DialogState>({
+  const [unregisterDialog, setUnregisterDialog] = useState<DialogState>({
     open: false,
     barangay: null,
   })
-  const [archiveDialog, setArchiveDialog] = useState<DialogState>({
+  const [blockedDialog, setBlockedDialog] = useState<{ open: boolean; message: string; issues: string[] }>({
     open: false,
-    barangay: null,
+    message: '',
+    issues: [],
   })
 
   // barangay form state
@@ -114,6 +145,7 @@ export default function Barangay() {
     open: false,
   })
 
+  const addedBarangayNames = new Set(barangays.map(b => b.barangay_name))
 
   const isEdit = !!barangayFormDialog.barangay
 
@@ -123,17 +155,22 @@ export default function Barangay() {
   const [longitude, setLongitude] = useState<string>('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
+
   const fetchBarangay = async () => {
     setLoading(true)
     setFetchError(false)
     try {
       const token = getAccessToken()
-      const [data] = await Promise.all([
+      const [registered, all] = await Promise.all([
         api.get('/api/barangays/', token ?? undefined),
-        new Promise(resolve => setTimeout(resolve, 800)) // minimum 800ms
+        api.get('/api/barangays/all/', token ?? undefined),
+        new Promise(resolve => setTimeout(resolve, 800))
       ])
-      setBarangays((data.results as Barangay[]).filter(u => u.barangay_name !== 'Admin'))
-    } catch (err) {
+      console.log('all barangays:', all)
+      setBarangays((registered.results ?? registered).filter((b: Barangay) => b.barangay_name !== 'Admin'))
+      setAllBarangays((all.results ?? all).filter((b: Barangay) => b.barangay_name !== 'Admin'))
+    } catch {
       setFetchError(true)
     } finally {
       setLoading(false)
@@ -157,55 +194,41 @@ export default function Barangay() {
     }
   }, [barangayFormDialog.open])
 
-  const filteredBarangay = getFilteredBarangay(barangays, barangayStatus, search)
+  const filteredBarangay = getFilteredBarangay(barangays, search)
 
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, 4)
 
   // summary cards
-  const total    = barangays.length
-  const active = barangays.filter(u => u.status === 'Active').length
-  const archived   = barangays.filter(u => u.status === 'Archived').length
+  const total = allBarangays.length
+  const registered   = allBarangays.filter(b => b.is_registered).length
+  const unregistered = allBarangays.filter(b => !b.is_registered).length
 
   // handlers
-  const handleArchive = async () => {
-    const barangay = archiveDialog.barangay
-    if (!barangay) return
-    setArchiveDialog({ open: false, barangay: null})
+  const handleUnregisterClick = async (b: Barangay) => {
     try {
       const token = getAccessToken()
-      await api.patch(`/api/barangays/${barangay.barangay_id}/`, { status: 'Archived'}, token ?? undefined)
-      addToast(`${barangay.barangay_name} has been archived.`)
-      setBarangays(prev =>
-        prev.map(u =>
-          u.barangay_id === barangay.barangay_id
-            ? { ...u, status: "Archived" }
-            : u
-        )
-      )
-    } catch (err) {
-      console.log(err)
-      addToast('Failed to archive barangay', 'error')
+      const result = await api.get(`/api/barangays/${b.barangay_id}/check/`, token ?? undefined)
+      if (!result.can_unregister) {
+        setBlockedDialog({ open: true, message: result.detail, issues: result.issues ?? [] })
+      } else {
+        setUnregisterDialog({ open: true, barangay: b })
+      }
+    } catch {
+      addToast('Failed to check barangay status.', 'error')
     }
   }
 
-  const handleRestore = async () => {
-    const barangay = restoreDialog.barangay
-    if (!barangay) return
-    setRestoreDialog({ open: false, barangay: null})
+  const handleUnregister = async () => {
+    const b = unregisterDialog.barangay
+    if (!b) return
+    setUnregisterDialog({ open: false, barangay: null })
     try {
       const token = getAccessToken()
-      await api.patch(`/api/barangays/${barangay.barangay_id}/`, { status: 'Active'}, token ?? undefined)
-      addToast(`${barangay.barangay_name} has been restored.`)
-      setBarangays(prev =>
-        prev.map(u =>
-          u.barangay_id === barangay.barangay_id
-            ? { ...u, status: "Active" }
-            : u
-        )
-      )
-    } catch (err) {
-      console.log(err)
-      addToast('Fialed to restore barangay.', 'error')
+      await api.patch(`/api/barangays/${b.barangay_id}/unregister/`, {}, token ?? undefined)
+      setBarangays(prev => prev.filter(u => u.barangay_id !== b.barangay_id))
+      addToast(`${b.barangay_name} has been unregistered.`, 'success')
+    } catch (err: any) {
+      addToast(err?.detail ?? 'Failed to unregister barangay.', 'error')
     }
   }
 
@@ -292,24 +315,12 @@ export default function Barangay() {
               />
             </div>
 
-            {/* barangay status filter */}
-            <Select value={barangayStatus} onValueChange={setBarangayStatus}>
-              <SelectTrigger className="w-30 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-30 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All">All Status</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* add barangay */}
+            {/* register barangay */}
             <Button
               onClick={() => setBarangayFormDialog({ open: true, barangay: null})}
               className="p-5 py-5.5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
-              <FaPlus color="white" /> Add Barangay
+              <FaPlus color="white" /> Register Barangay
             </Button>
 
           </div>
@@ -317,45 +328,19 @@ export default function Barangay() {
 
         {/* total cards */}
         <div className="flex justify-between w-full text-[#122A48]">
-          {/* total barangay */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#CDE3DE] rounded-lg p-2">
-              <MapPinned  size={20} color={"#1565BC"} />
+          {[
+            { icon: <MapPinned size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Barangay"   },
+            { icon: <CheckCircle size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: registered,   label: "All Registered"     },
+            { icon: <MapPinOff size={20} color="#FF0101" />,  bg: "bg-[#FFE5E5]", count: unregistered, label: "All Unregistered"   },
+          ].map(card => (
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-sm text-[#122A48]">{card.label}</p>
+              </div>
             </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{total}</span>
-              <p className="text-sm text-[#122A48]">Total Barangay</p>
-            </div>
-          </div>
-
-          {/* total active barangay */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#B2FBC1] rounded-lg p-2">
-              <CheckCircle  size={20} color={"#2C7B3C"} />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{active}</span>
-              <p className="text-sm text-[#122A48]">Active</p>
-            </div>
-          </div>
-
-          {/* total archived barangay */}
-            <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#FFE5E5] rounded-lg p-2">
-              <Archive size={20} color={"#FF0101"} />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{archived}</span>
-              <p className="text-sm text-[#122A48]">Archived</p>
-            </div>
-          </div>
-
+          ))}
         </div>
 
         {/* table */}
@@ -426,31 +411,20 @@ export default function Barangay() {
                       </TableCell>
 
                       <TableCell className="text-[#122A48] flex gap-3 justify-center items-center h-18">
-                        <Button 
+                        <Button
                           onClick={() => setBarangayFormDialog({ open: true, barangay: barangay })}
                           className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
                         >
                           <SquarePen size={16} />
                           Edit
                         </Button>
-
-                        {barangay.status === 'Active' ? (
-                          <Button 
-                            onClick={() => setArchiveDialog({ open: true, barangay: barangay})}
-                            className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
-                          >
-                            <UserMinus size={16} />
-                            Archived
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => setRestoreDialog({ open: true, barangay: barangay })}
-                            className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
-                          >
-                            <UserPlus size={16} />
-                            Restore
-                          </Button>
-                        )}
+                        <Button
+                          onClick={() => handleUnregisterClick(barangay)}
+                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                        >
+                          <MapPinOff size={16} />
+                          Unregister
+                        </Button>
                       </TableCell>
                       
                     </TableRow>
@@ -478,10 +452,10 @@ export default function Barangay() {
         <div className="flex justify-between items-center">
           <p className="font-bold">Barangay</p>
           <Button
-            onClick={() => setBarangayFormDialog({ open: true, barangay: null})}
+            onClick={() => setBarangayFormDialog({ open: true, barangay: null })}
             className="p-5 py-5 rounded-lg cursor-pointer bg-[#1565BC] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
           >
-            <FaPlus color="white" /> Add Barngay
+            <FaPlus color="white" /> Register Barangay
           </Button>
         </div>
 
@@ -495,57 +469,32 @@ export default function Barangay() {
               className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-50"
             />
           </div>
-          <Button
-            onClick={() => {
-              setTempStatus(barangayStatus)
-              setFilterOpen(true)
-            }}
-            className="bg-[#FAFAFA] text-[#122A48] !border border-[#C6C6C8] text-[12px]"
-          >
-            <SlidersHorizontal /> Filter
-          </Button>
         </div>
 
         {/* Cards */}
-        <div className="flex flex-col gap-3 w-full text-[#122A48] mt-3">
-          <div className="flex gap-2">
-            {/* total users */}
-            <div className="rounded-lg border border-[#C6C6C8] h-18 w-26 flex items-center p-2 gap-2 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-              <div className="bg-[#CDE3DE] rounded-lg p-1.5">
-                <MapPinned size={16} color={"#1565BC"} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-[#122A48] leading-tight">{total}</span>
-                <p className="text-[11px] text-[#122A48]">Total</p>
-              </div>
+        <div className="flex gap-2 w-full text-[#122A48] mt-3">
+          <div className="rounded-lg border border-[#C6C6C8] h-18 flex-1 flex items-center p-2 gap-2 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className="bg-[#CDE3DE] rounded-lg p-1.5"><MapPinned size={16} color="#1565BC" /></div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold leading-tight">{total}</span>
+              <p className="text-[11px]">Total</p>
             </div>
-
-            {/* total active */}
-            <div className="rounded-lg border border-[#C6C6C8] h-18 w-26 flex items-center p-2 gap-2 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-              <div className="bg-[#B2FBC1] rounded-lg p-1.5">
-                <BadgeCheck size={16} color={"#2C7B3C"} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-[#122A48] leading-tight">{active}</span>
-                <p className="text-[11px] text-[#122A48]">Active</p>
-              </div>
-            </div>
-
-            {/* total archived */}
-            <div className="rounded-lg border border-[#C6C6C8] h-18 w-26 flex items-center p-2 gap-2 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-              {/* icon */}
-              <div className="bg-[#FFE5E5] rounded-lg p-1.5">
-                <CircleOff size={16} color={"#FF0101"} />
-              </div>
-
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-[#122A48] leading-tight">{archived}</span>
-                <p className="text-[11px] text-[#122A48]">Archived</p>
-              </div>
-            </div>
-
           </div>
-        </div>       
+          <div className="rounded-lg border border-[#C6C6C8] h-18 flex-1 flex items-center p-2 gap-2 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className="bg-[#B2FBC1] rounded-lg p-1.5"><BadgeCheck size={16} color="#2C7B3C" /></div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold leading-tight">{registered}</span>
+              <p className="text-[11px]">Registered</p>
+            </div>
+          </div>
+          <div className="rounded-lg border border-[#C6C6C8] h-18 flex-1 flex items-center p-2 gap-2 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className="bg-[#FFE5E5] rounded-lg p-1.5"><MapPinOff size={16} color="#FF0101" /></div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold leading-tight">{unregistered}</span>
+              <p className="text-[11px]">Unregistered</p>
+            </div>
+          </div>
+        </div>    
 
         {/* Barangay Cards */}
         <div className="rounded-lg h-150 mt-3">
@@ -581,131 +530,42 @@ export default function Barangay() {
             <div className="flex flex-col">
               {filteredBarangay.map(barangay => (
                 <div key={barangay.barangay_id} className="flex gap-3 mb-3">
-
-                  <div className="p-2 rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-                    <div className="flex justify-between w-77 border-b border-[#C6C6C8[">
-
-                      <div className="flex gap-2 pb-2 pt-1">
+                  <div className="p-2 rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full">
+                    <div className="flex justify-between w-full border-b border-[#C6C6C8] pb-2 pt-1">
+                      <div className="flex gap-2">
                         <div className="p-1 px-1.5 bg-[#1565BC29] rounded-lg">
                           <p className="text-[10px]">#{barangay.barangay_id}</p>
                         </div>
                         <p className="font-medium text-[13px]">{barangay.barangay_name}</p>
                       </div>
-
-                      <div>
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                          barangay.status === 'Active'
-                            ? 'bg-[#B2FBC173] text-[#2C7B3C]'
-                            : 'bg-[#FFE5E5] text-[#D81010]'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            barangay.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
-                          }`} />
-                          {barangay.status}
-                        </span>
-                      </div>
                     </div>
-
                     <div className="flex gap-3 mt-3">
                       <Button
                         onClick={() => setViewMapDialog({ open: true, barangay: barangay })}
                         className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] h-11 w-25 text-xs"
-                        >
-                          <Map size={16}/>
-                          View on <br /> map
-                        </Button>
-                        <Button 
-                          onClick={() => setBarangayFormDialog({ open: true, barangay: barangay })}
-                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] h-11 w-23 text-xs"
-                        >
-                          <SquarePen size={16} />
-                          Edit
-                        </Button>
-                        {barangay.status === 'Active' ? (
-                          <Button 
-                            onClick={() => setArchiveDialog({ open: true, barangay: barangay})}
-                            className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] h-11 w-23 text-xs"
-                          >
-                            <UserMinus size={16} />
-                            Archived
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => setRestoreDialog({ open: true, barangay: barangay })}
-                            className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] h-11 w-23 text-xs"
-                          >
-                            <UserPlus size={16} />
-                            Restore
-                          </Button>
-                        )}
+                      >
+                        <Map size={16}/> View on <br /> map
+                      </Button>
+                      <Button
+                        onClick={() => setBarangayFormDialog({ open: true, barangay: barangay })}
+                        className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] h-11 w-23 text-xs"
+                      >
+                        <SquarePen size={16} /> Edit
+                      </Button>
+                      <Button
+                        onClick={() => setUnregisterDialog({ open: true, barangay: barangay })}
+                        className="flex gap-2 text-[#582579] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#C6C6C8] h-11 w-23 text-xs"
+                      >
+                        <MapPinOff size={16} /> Unregister
+                      </Button>
                     </div>
-
                   </div>
-
                 </div>
               ))}
 
             </div>
           )}
 
-        </div>
-
-        {/* filter backdrop */}
-        {filterOpen && (
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setFilterOpen(false)} />
-        )}
-
-        {/* filter bottom sheet */}
-        <div className={`
-          fixed bottom-0 left-0 right-0 z-50 bg-[#FAFCFD] rounded-t-2xl shadow-xl
-          transition-transform duration-300 ease-in-out
-          ${filterOpen ? 'translate-y-0' : 'translate-y-full'}
-        `}>
-          <div className="w-10 h-1 rounded-full bg-[#C6C6C8] mx-auto mt-3" />
-          <div className="px-5 pt-4 pb-6">
-            <div className="flex justify-between items-center mb-5">
-              <p className="font-semibold text-[14px] text-[#122A48]">Filters</p>
-              <button onClick={() => setFilterOpen(false)}>
-                <X size={18} className="text-[#122A48]" />
-              </button>
-            </div>
-
-            {/* Status */}
-            <p className="text-[11px] font-medium text-[#6B7A90] uppercase tracking-wide mb-2">Status</p>
-            <div className="flex gap-2 flex-wrap mb-6">
-              {["All", "Active", "Archived"].map(status => (
-                <button
-                  key={status}
-                  onClick={() => setTempStatus(status)}
-                  className={`px-4 py-1.5 rounded-full text-[12px] font-medium border transition-colors
-                    ${tempStatus === status
-                      ? 'bg-[#122A48] text-white border-[#122A48]'
-                      : 'bg-white text-[#122A48] border-[#C6C6C8]'
-                    }`}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                onClick={() => setTempStatus("All")}
-                className="flex-1 bg-white text-[#122A48] border border-[#C6C6C8] text-[13px]"
-              >
-                Clear
-              </Button>
-              <Button
-                onClick={() => {
-                  setBarangayStatus(tempStatus)
-                  setFilterOpen(false)
-                }}
-                className="flex-1 bg-[#122A48] text-white text-[13px]"
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
         </div>
 
       </div>
@@ -726,7 +586,7 @@ export default function Barangay() {
             </div>
           </DialogHeader>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
-            <BarangayMapWrapper
+            <AgosMapWrapper
               latitude={viewMapDialog.barangay?.latitude}
               longitude={viewMapDialog.barangay?.longitude}
               label={viewMapDialog.barangay?.barangay_name}
@@ -761,42 +621,46 @@ export default function Barangay() {
         </DialogContent>
       </Dialog>
 
-      {/* Restore Dialog */}
       <DialogModal
-        open={restoreDialog.open}
-        onClose={() => setRestoreDialog({open: false, barangay: null})}
-        onConfirm={handleRestore}
-        color={DIALOG_COLOR.lightgreen}
-        icon={MapPinned}
-        iconColor={DIALOG_COLOR.green}
-        title="Reactivate Barangay"
+        open={unregisterDialog.open}
+        onClose={() => setUnregisterDialog({ open: false, barangay: null })}
+        onConfirm={handleUnregister}
+        color={DIALOG_COLOR.lightred}
+        icon={MapPinOff}
+        iconColor={DIALOG_COLOR.red}
+        title="Unregister Barangay"
         description={
-          <>
-            Are you sure you want to activate{" "}
-            <strong>{restoreDialog.barangay?.barangay_name}</strong>?
-          </>
+          <div className="text-justify">
+            Are you sure you want to unregister{" "}
+            <strong>{unregisterDialog.barangay?.barangay_name}</strong>? Make sure all sensor nodes and barangay users are decommissioned first.
+          </div>
         }
-        cancelLabel='Cancel'
-        confirmLabel='Activate Barangay'
+        cancelLabel="Cancel"
+        confirmLabel="Unregister"
       />
 
-      {/* Archived dialog */}
       <DialogModal
-        open={archiveDialog.open}
-        onClose={() => setArchiveDialog({open: false, barangay: null})}
-        onConfirm={handleArchive}
-        color={DIALOG_COLOR.lightred}
-        icon={Archive}
-        iconColor={DIALOG_COLOR.red}
-        title="Deactivate Barangay"
+        open={blockedDialog.open}
+        onClose={() => setBlockedDialog({ open: false, message: '', issues: [] })}
+        onConfirm={() => setBlockedDialog({ open: false, message: '', issues: [] })}
+        color={DIALOG_COLOR.lightorange}
+        icon={MapPinOff}
+        iconColor={DIALOG_COLOR.orange}
+        title="Cannot Unregister Barangay"
         description={
-          <>
-            Are you sure you want to deactivate{" "}
-            <strong>{archiveDialog.barangay?.barangay_name} </strong>?
-          </>
+          <span className="text-justify block">
+            {blockedDialog.message}
+            {blockedDialog.issues.length > 0 && (
+              <ul className="mt-2 list-disc list-inside">
+                {blockedDialog.issues.map((issue, i) => (
+                  <li key={i}><strong>{issue}</strong></li>
+                ))}
+              </ul>
+            )}
+          </span>
         }
-        cancelLabel='Cancel'
-        confirmLabel='Deactivate Barangay'
+        cancelLabel="Close"
+        confirmLabel="Okay"
       />
 
 
@@ -845,18 +709,35 @@ export default function Barangay() {
                             value={barangay}
                             onValueChange={(value) => {
                               setBarangay(value)
-                              if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, role: '' }))
+                              const found = allBarangays.find(b => b.barangay_name === value)
+                              if (found) {
+                                setLatitude(String(found.latitude))
+                                setLongitude(String(found.longitude))
+                              }
+                              if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: '' }))
                             }}
                           >
                           <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                             <SelectValue placeholder="Select Barangay..." />
                           </SelectTrigger>
-                          <SelectContent position="popper">
-                            <SelectItem className="text-[#122A48] p-1 md:p-2" value="Udiao">Udiao</SelectItem>
-                            <SelectItem className="text-[#122A48] p-1 md:p-2" value="Tay-ac">Tay-ac</SelectItem>
-                            <SelectItem className="text-[#122A48] p-1 md:p-2" value="Subusub">Subusub</SelectItem>
-                            <SelectItem className="text-[#122A48] p-1 md:p-2" value="Nangcamotian">Nangcamotian</SelectItem>
-                            <SelectItem className="text-[#122A48] p-1 md:p-2" value="Poblacion East">Poblacion East</SelectItem>
+                          <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+                            {[...allBarangays]
+                              .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
+                              .map(b => {
+                                const isAdded = addedBarangayNames.has(b.barangay_name)
+                                const isCurrentlyEditing = isEdit && barangayFormDialog.barangay?.barangay_name === b.barangay_name
+                                const disabled = isAdded && !isCurrentlyEditing
+                                return (
+                                  <SelectItem
+                                    key={b.barangay_id}
+                                    value={b.barangay_name}
+                                    disabled={disabled}
+                                    className={`p-1 md:p-2 ${disabled ? 'opacity-40 cursor-not-allowed text-[#727272]' : 'text-[#122A48]'}`}
+                                  >
+                                    {b.barangay_name} {disabled ? '— already added' : ''}
+                                  </SelectItem>
+                                )
+                              })}
                           </SelectContent>
                         </Select>
                         <FieldError className="text-xs">{fieldErrors.barangay}</FieldError>
@@ -929,14 +810,21 @@ export default function Barangay() {
                   {/* Map preview */}
                   <div className="p-2.5 md:p-3 -mt-4">
                     <div className="rounded-lg bg-[#726D7814] border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-                      <div className="p-2.5 md:p-3 ">
+                      <div className="p-2.5 md:p-3">
                         <p className="font-semibold text-xs md:text-sm">Map Preview</p>
+                        <p className="text-[10px] text-[#727272] mt-0.5">
+                          Click anywhere on the map to set coordinates.
+                        </p>
                       </div>
                       <div className="h-70 md:h-110 border-t border-[#C6C6C8] rounded-b-lg overflow-hidden">
-                        <BarangayMapWrapper
+                        <AgosMapWrapper
                           latitude={latitude ? parseFloat(latitude) : undefined}
                           longitude={longitude ? parseFloat(longitude) : undefined}
                           label={barangay}
+                          onMapClick={(lat, lng) => {
+                            setLatitude(lat.toFixed(15))
+                            setLongitude(lng.toFixed(15))
+                          }}
                         />
                       </div>
                     </div>

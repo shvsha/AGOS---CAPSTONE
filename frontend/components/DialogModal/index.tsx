@@ -29,7 +29,7 @@ export function DialogModal({
 }: DialogModalProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={`!max-w-[300px] sm:!max-w-[350px] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)] ${!onClose ? '[&>button]:hidden' : '[&>button]:cursor-pointer'}`}>
+      <DialogContent className={`!max-w-[300px] sm:!max-w-[380px] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)] ${!onClose ? '[&>button]:hidden' : '[&>button]:cursor-pointer'}`}>
         <DialogHeader>
           <div className="flex items-center gap-3 ">
             <div className="p-2 rounded-lg" style={{ backgroundColor: color }}>

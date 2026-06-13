@@ -10,7 +10,9 @@ export const DIALOG_COLOR = {
   yellow: '#D27000',
   lightyellow: '#EE9E4342',
   blue: '#1565BC',
-  lightblue: '#1565BC29'
+  lightblue: '#1565BC29',
+  lightorange: '#FFF3E0',
+  orange: '#E65100',
 }
 
 // alert styles

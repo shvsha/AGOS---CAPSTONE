@@ -1,6 +1,6 @@
 "use client"
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents  } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import { useEffect } from "react"
@@ -17,6 +17,15 @@ const CONDITION_COLORS: Record<string, string> = {
   Warning:  "#FF9705",
   Normal:   "#1565BC",
   default:  "#727272",
+}
+
+function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onMapClick?.(e.latlng.lat, e.latlng.lng)
+    }
+  })
+  return null
 }
 
 function createColoredIcon(color: string, label?: string, condition?: string) {
@@ -129,9 +138,10 @@ type Props = {
   label?: string
   zoom?: number
   markers?: MapMarker[]
+  onMapClick?: (lat: number, lng: number) => void
 }
 
-export default function AgosMap({ latitude, longitude, label, zoom = 14, markers }: Props) {
+export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick }: Props) {
   const hasMultiple = markers && markers.length > 0
   const hasSingle   = !!latitude && !!longitude
 
@@ -150,7 +160,7 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       zoom={zoom}
       maxBounds={ROSARIO_BOUNDS}
       maxBoundsViscosity={1.0}
-      minZoom={15}
+      minZoom={13}
       style={{ height: "100%", width: "100%" }}
       className="rounded-lg z-0"
     >
@@ -158,6 +168,7 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
         attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapClickHandler onMapClick={onMapClick} />
 
       {!hasMultiple && hasSingle && (
         <>
