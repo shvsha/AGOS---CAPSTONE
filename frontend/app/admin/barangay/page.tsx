@@ -460,13 +460,13 @@ export default function Barangay() {
         </div>
 
         <div className="flex gap-2 justify-between mt-3">
-          <div className="flex items-center bg-[#FAFCFD] border-1 border-[#C6C6C8] rounded-lg px-3 gap-2 h-8">
+          <div className="flex items-center bg-[#FAFCFD] border-1 border-[#C6C6C8] rounded-lg px-3 h-8">
             <FaSearch size={13} className="text-[#C6C6C8]" />
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search Barangay..."
-              className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-50"
+              className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-73.5"
             />
           </div>
         </div>
@@ -542,7 +542,7 @@ export default function Barangay() {
                     <div className="flex gap-3 mt-3">
                       <Button
                         onClick={() => setViewMapDialog({ open: true, barangay: barangay })}
-                        className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] h-11 w-25 text-xs"
+                        className="rounded-lg text-[#2C7B3C] border border-[#73b780] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] h-11 w-25 text-xs"
                       >
                         <Map size={16}/> View on <br /> map
                       </Button>
@@ -553,8 +553,8 @@ export default function Barangay() {
                         <SquarePen size={16} /> Edit
                       </Button>
                       <Button
-                        onClick={() => setUnregisterDialog({ open: true, barangay: barangay })}
-                        className="flex gap-2 text-[#582579] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#C6C6C8] h-11 w-23 text-xs"
+                        onClick={() => handleUnregisterClick(barangay)}
+                        className="flex gap-2 text-[#582579] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#b294c6] h-11 w-23 text-xs"
                       >
                         <MapPinOff size={16} /> Unregister
                       </Button>
