@@ -192,7 +192,7 @@ export default function Monitoring() {
         </div>
 
         {/* body */}
-        <div className='flex gap-4 mt-3'>
+        <div className='flex gap-4 mt-3 h-115'>
 
           {/* table */}
           <div className='rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] border border-[#C6C6C8] flex-1 flex flex-col '>

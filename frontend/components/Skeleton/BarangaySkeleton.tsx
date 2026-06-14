@@ -38,23 +38,11 @@ export function BarangaySkeleton() {
               />
             </div>
 
-            {/* barangay status filter */}
-            <Select value={barangayStatus} onValueChange={setBarangayStatus}>
-              <SelectTrigger className="w-30 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-30 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All">All Status</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-
             {/* add barangay */}
             <Button
               className="p-5 py-5.5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
-              <FaPlus color="white" /> Add Barangay
+              <FaPlus color="white" /> Register Barangay
             </Button>
 
           </div>

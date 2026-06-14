@@ -12,10 +12,16 @@ import os
 class WasteClassificationListView(generics.ListCreateAPIView):
     serializer_class = WasteClassificationSerializer
 
+    # def get_permissions(self):
+    #     if self.request.method == 'GET':
+    #         return [IsAdminOrMENROOrBarangay()]
+    #     return [IsIoTDevice()]
+
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdminOrMENROOrBarangay()]
-        return [IsIoTDevice()]
+        # Allow both IoT device AND Admin (for testing)
+        return [IsIoTDevice() if self.request.auth is None else IsAdminOrMENROOrBarangay()]
 
     def get_queryset(self):
         user = self.request.user

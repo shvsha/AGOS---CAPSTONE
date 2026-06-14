@@ -39,13 +39,34 @@ class AlertSerializer(serializers.ModelSerializer):
         t = obj.alert_type
 
         if t == 'Critical_Clog':
-            if obj.event and obj.event.classification:
-                c = obj.event.classification
-                return {
-                    'dominant_waste_type': c.dominant_waste_type,
-                    'estimated_volume': round(c.estimated_volume, 2),
-                    'confidence': round(c.confidence, 2),
-                }
+            if obj.node:
+                reading = obj.node.sensorreading_set.order_by('-timestamp').first()
+                if reading:
+                    return {
+                        'water_level': reading.water_level,
+                        'water_flow': reading.water_flow,
+                        'water_flow_rate': reading.water_flow_rate,
+                        'clog_pct': reading.clog_pct,
+                    }
+            return {}
+                
+        if t == 'High_Clog_Index':
+            if obj.node:
+                classification = (
+                    obj.node.wasteclassification_set
+                    .order_by('-timestamp')
+                    .first()
+                )
+                if classification:
+                    return {
+                        'dominant_waste_type': classification.dominant_waste_type,
+                        'recyclable_pct': classification.recyclable_pct,
+                        'biodegradable_pct': classification.biodegradable_pct,
+                        'residual_pct': classification.residual_pct,
+                        'special_waste_pct': classification.special_waste_pct,
+                        'confidence': classification.confidence,
+                        'estimated_volume': classification.estimated_volume,
+                    }
             return {}
 
         if t == 'Water_Level_Rising':
@@ -65,20 +86,19 @@ class AlertSerializer(serializers.ModelSerializer):
 
         # Node health alerts
         if t in ('Node_Offline', 'Low_Battery', 'Weak_Signal', 'Sensor_Failure'):
-            if obj.node:
-                health = (
-                    obj.node.systemhealthlog_set
-                    .order_by('-checked_at')
-                    .first()
-                )
-                if health:
-                    return {
-                        'battery_voltage': health.battery_voltage,
-                        'signal_strength': health.signal_strength,
-                        'sensor_continuity': health.sensor_continuity,
-                        'health_status': health.status,
-                        'checked_at': health.checked_at,
-                    }
+            health = obj.health_log
+            
+            if not health and obj.node:
+              health = obj.node.systemhealthlog_set.order_by('-checked_at').first()
+
+            if health:
+                return {
+                    'battery_voltage': health.battery_voltage,
+                    'signal_strength': health.signal_strength,
+                    'sensor_continuity': health.sensor_continuity,
+                    'health_status': health.status,
+                    'checked_at': health.checked_at,
+                }
             return {}
 
         return {}

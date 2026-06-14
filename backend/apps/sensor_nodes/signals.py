@@ -30,5 +30,6 @@ def create_health_alert(sender, instance, created, **kwargs):
     if alert_type:
         Alert.objects.create(
             node=instance.node,
+            health_log=instance,
             alert_type=alert_type
         )

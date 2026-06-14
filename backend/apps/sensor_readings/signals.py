@@ -9,30 +9,34 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
     if not created or instance.reading_status == 'Normal':
         return
 
-    # Determine alert type
     if instance.reading_status == 'Warning':
-        Alert.objects.create(node=instance.node, alert_type='Water_Level_Rising')
-
-    elif instance.reading_status == 'Critical':
-        Alert.objects.create(node=instance.node, alert_type='Critical_Clog')
-
-    # Create ClogEvent only if actual blockage
-    if not instance.clog_pct or instance.clog_pct < 30:
+        Alert.objects.create(
+            node=instance.node,
+            alert_type='Water_Level_Rising'
+        )
         return
 
-    if instance.water_level >= 90:
-        severity = 'High'
-    elif instance.water_level >= 70:
-        severity = 'Medium'
-    else:
-        severity = 'Low'
+    if instance.reading_status == 'Critical':
+        Alert.objects.create(
+            node=instance.node,
+            alert_type='Critical_Clog'
+        )
 
-    if instance.water_flow == 'Stagnant' and severity != 'High':
-        severity = 'High' if severity == 'Medium' else 'Medium'
+        # Determine severity
+        if instance.water_level >= 90:
+            severity = 'High'
+        elif instance.water_level >= 70:
+            severity = 'Medium'
+        else:
+            severity = 'Low'
 
-    ClogEvent.objects.create(
-        node=instance.node,
-        barangay=instance.node.barangay,
-        severity=severity,
-        status='Detected'
-    )
+        # Upgrade severity if stagnant
+        if instance.water_flow == 'Stagnant' and severity != 'High':
+            severity = 'High' if severity == 'Medium' else 'Medium'
+
+        ClogEvent.objects.create(
+            node=instance.node,
+            barangay=instance.node.barangay,
+            severity=severity,
+            status='Detected'
+        )

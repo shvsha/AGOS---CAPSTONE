@@ -6,6 +6,7 @@ import { FaWater, FaExclamationTriangle, FaPlug, FaBatteryQuarter, FaSignal, FaE
 import { api } from "@/lib/api"
 import { getAccessToken } from "@/lib/auth"
 import { ALERT_STYLE } from "@/lib/constant"
+import { Signal } from "lucide-react"
 
 
 type ClogContext = {
@@ -28,6 +29,16 @@ type HealthContext = {
   checked_at?: string
 }
 
+type HighClogContext = {
+  dominant_waste_type?: string
+  recyclable_pct?: number
+  biodegradable_pct?: number
+  residual_pct?: number
+  special_waste_pct?: number
+  confidence?: number
+  estimated_volume?: number
+}
+
 type AlertContext = ClogContext | WaterContext | HealthContext | Record<string, never>
 
 export type Alert = {
@@ -40,14 +51,31 @@ export type Alert = {
   alert_context: AlertContext
 }
 
+function getBatteryLevel(voltage: number): string {
+  if (voltage >= 4.1) return `Full (${voltage}V)`
+  if (voltage >= 3.9) return `Good (${voltage}V)`
+  if (voltage >= 3.7) return `Medium (${voltage}V)`
+  if (voltage >= 3.5) return `Low (${voltage}V)`
+  return `Critical (${voltage}V)`
+}
+
+function getSignalLevel(dbm: number): string {
+  if (dbm >= -65) return `Excellent (${dbm}DBM)`
+  if (dbm >= -75) return `Good (${dbm}DBM)`
+  if (dbm >= -85) return `Fair (${dbm}DBM)`
+  if (dbm >= -95) return `Weak (${dbm}DBM)`
+  return `No Signal`
+}
+
 
 const ALERT_META: Record<string, { label: string; Icon: React.ElementType }> = {
-  Water_Level_Rising: { label: "Abnormal Water Level",  Icon: FaWater             },
+  Water_Level_Rising: { label: "Water Level Rising",    Icon: FaWater              },
   Critical_Clog:      { label: "Critical Clog Detected", Icon: FaExclamationTriangle },
-  Node_Offline:       { label: "Node Offline",           Icon: FaPlug              },
-  Low_Battery:        { label: "Low Battery",            Icon: FaBatteryQuarter    },
-  Weak_Signal:        { label: "Weak Signal",            Icon: FaSignal            },
-  Sensor_Failure:     { label: "Sensor Failure",         Icon: FaExclamationCircle },
+  High_Clog_Index:    { label: "High Clog Index",        Icon: FaExclamationTriangle },
+  Node_Offline:       { label: "Node Offline",           Icon: FaPlug               },
+  Low_Battery:        { label: "Low Battery",            Icon: FaBatteryQuarter     },
+  Weak_Signal:        { label: "Weak Signal",            Icon: FaSignal             },
+  Sensor_Failure:     { label: "Sensor Failure",         Icon: FaExclamationCircle  },
 }
 
 
@@ -70,19 +98,19 @@ function formatDate(ts: string) {
 
 function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }) {
   if (alertType === "Critical_Clog") {
-    const c = ctx as ClogContext
-    if (!c.dominant_waste_type && c.estimated_volume == null) return null
+    const c = ctx as WaterContext & { clog_pct?: number }
+    if (c.water_level == null) return null
     return (
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-[#727272]">
-        {c.dominant_waste_type && <span>{c.dominant_waste_type}</span>}
-        {c.estimated_volume != null && (
-          <span>
-            Estimated Volume:{" "}
-            <span className="font-semibold text-[#122A48]">{c.estimated_volume} kg</span>
-          </span>
+        <span>Water Level: <span className="font-semibold text-[#122A48]">{c.water_level} cm</span></span>
+        {c.water_flow_rate != null && (
+          <span>Flow Rate: <span className="font-semibold text-[#122A48]">{c.water_flow_rate} m/s</span></span>
         )}
-        {c.confidence != null && (
-          <span className="text-xs">Confidence: {Math.round(c.confidence * 100)}%</span>
+        {c.water_flow && (
+          <span>Flow: <span className="font-semibold text-[#122A48]">{c.water_flow}</span></span>
+        )}
+        {c.clog_pct != null && (
+          <span>Clog: <span className="font-semibold text-[#D81010]">{c.clog_pct}%</span></span>
         )}
       </div>
     )
@@ -112,6 +140,38 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
     )
   }
 
+  if (alertType === "High_Clog_Index") {
+    const c = ctx as HighClogContext
+    if (!c.dominant_waste_type) return null
+    return (
+      <div className="flex flex-col gap-1 text-sm text-[#727272]">
+        <div className="flex flex-wrap gap-x-4">
+          {c.dominant_waste_type && (
+            <span>
+              Dominant: <span className="font-semibold text-[#122A48]">{c.dominant_waste_type}</span>
+            </span>
+          )}
+          {c.estimated_volume != null && (
+            <span>
+              Est. Volume: <span className="font-semibold text-[#122A48]">{c.estimated_volume} kg</span>
+            </span>
+          )}
+          {c.confidence != null && (
+            <span>
+              Confidence: <span className="font-semibold text-[#122A48]">{Math.round(c.confidence)}%</span>
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-x-3 text-xs">
+          {c.recyclable_pct != null && <span>Recyclable: {c.recyclable_pct}%</span>}
+          {c.biodegradable_pct != null && <span>Biodegradable: {c.biodegradable_pct}%</span>}
+          {c.residual_pct != null && <span>Residual: {c.residual_pct}%</span>}
+          {c.special_waste_pct != null && <span>Special: {c.special_waste_pct}%</span>}
+        </div>
+      </div>
+    )
+  }
+
   if (["Node_Offline", "Low_Battery", "Weak_Signal", "Sensor_Failure"].includes(alertType)) {
     const c = ctx as HealthContext
     if (!Object.keys(c).length) return null
@@ -119,42 +179,28 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-[#727272]">
         {alertType === "Low_Battery" && c.battery_voltage != null && (
           <span>
-            Battery:{" "}
-            <span className="font-semibold text-[#122A48]">{c.battery_voltage.toFixed(2)} V</span>
+            Battery: <span className="font-semibold text-[#122A48]">{getBatteryLevel(c.battery_voltage)}</span>
           </span>
         )}
         {alertType === "Weak_Signal" && c.signal_strength != null && (
           <span>
-            Signal:{" "}
-            <span className="font-semibold text-[#122A48]">{c.signal_strength.toFixed(0)} dBm</span>
+            Signal: <span className="font-semibold text-[#122A48]">{getSignalLevel(c.signal_strength)}</span>
           </span>
         )}
         {alertType === "Sensor_Failure" && c.sensor_continuity != null && (
           <span>
-            Sensor:{" "}
-            <span className={`font-semibold ${c.sensor_continuity ? "text-[#347D43]" : "text-[#CC251F]"}`}>
-              {c.sensor_continuity ? "OK" : "Disconnected"}
+            Sensor: <span className={`font-semibold ${c.sensor_continuity ? "text-[#347D43]" : "text-[#CC251F]"}`}>
+              {c.sensor_continuity ? "Connected" : "Disconnected"}
             </span>
           </span>
         )}
         {alertType === "Node_Offline" && (
           <>
-            {c.health_status && (
-              <span>
-                Status: <span className="font-semibold text-[#CC251F]">{c.health_status}</span>
-              </span>
-            )}
             {c.battery_voltage != null && (
-              <span>
-                Battery:{" "}
-                <span className="font-semibold text-[#122A48]">{c.battery_voltage.toFixed(2)} V</span>
-              </span>
+              <span>Battery: <span className="font-semibold text-[#122A48]">{getBatteryLevel(c.battery_voltage)}</span></span>
             )}
             {c.signal_strength != null && (
-              <span>
-                Signal:{" "}
-                <span className="font-semibold text-[#122A48]">{c.signal_strength.toFixed(0)} dBm</span>
-              </span>
+              <span>Signal: <span className="font-semibold text-[#122A48]">{getSignalLevel(c.signal_strength)}</span></span>
             )}
           </>
         )}

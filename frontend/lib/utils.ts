@@ -52,7 +52,7 @@ export const getErrorMessage = (error: unknown): string => {
   return "Something went wrong. Please try again."
 }
 
-// Role display mapping (backend value -> friendly UI name)
+// Role display mapping
 export const ROLE_DISPLAY: Record<string, string> = {
   MENRO: 'MENRO Officer',
   Barangay: 'Barangay Personnel',
@@ -64,5 +64,25 @@ export const ROLE_VALUE: Record<string, string> = {
   'MENRO Officer': 'MENRO',
   'Barangay Personnel': 'Barangay',
   Admin: 'Admin',
+}
+
+export function getBatteryLevel(voltage: number): string {
+  if (voltage >= 4.1) return `Full (${voltage}V)`
+  if (voltage >= 3.9) return `Good (${voltage}V)`
+  if (voltage >= 3.7) return `Medium (${voltage}V)`
+  if (voltage >= 3.5) return `Low (${voltage}V)`
+  return `Critical (${voltage}V)`
+}
+
+export function getSignalLevel(dbm: number): string {
+  if (dbm >= -65) return `Excellent (${dbm} dBm)`
+  if (dbm >= -75) return `Good (${dbm} dBm)`
+  if (dbm >= -85) return `Fair (${dbm} dBm)`
+  if (dbm >= -95) return `Weak (${dbm} dBm)`
+  return `No Signal (${dbm} dBm)`
+}
+
+export function getSensorStatus(continuity: boolean): string {
+  return continuity ? '✓ Connected' : '✗ Disconnected'
 }
 

@@ -7,9 +7,3 @@ from apps.alerts.models import Alert
 def create_alerts_on_clog(sender, instance, created, **kwargs):
     if not created:
         return
-
-    Alert.objects.create(
-        event=instance,
-        node=instance.node,
-        alert_type='High_Clog_Index'
-    )

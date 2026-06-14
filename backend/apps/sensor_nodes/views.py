@@ -46,17 +46,11 @@ class SystemHealthLogListView(generics.ListCreateAPIView):
     queryset = SystemHealthLog.objects.all().order_by('-checked_at')
     serializer_class = SystemHealthLogSerializer
     authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
-    
-    # def get_permissions(self):
-    #     if self.request.method == 'GET':
-    #             return [IsAdmin()]
-    #     return [IsIoTDevice()]
 
-    # after (temp for testing)
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdmin()]
-        return [IsAdmin()]  # temp
+        return [IsIoTDevice()]
 
 
 class SystemHealthLogByNodeView(generics.ListAPIView):

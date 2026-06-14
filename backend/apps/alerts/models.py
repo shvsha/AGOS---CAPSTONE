@@ -6,6 +6,7 @@ class Alert(models.Model):
     ALERT_TYPE_CHOICES = [
         ('Water_Level_Rising', 'Water Level Rising'),
         ('Critical_Clog',      'Critical Clog'),
+        ('High_Clog_Index',    'High Clog Index'),
         ('Node_Offline',       'Node Offline'),
         ('Low_Battery',        'Low Battery'),
         ('Weak_Signal',        'Weak Signal'),
@@ -26,6 +27,12 @@ class Alert(models.Model):
         db_column='node_id',
         null=True,
         blank=True,
+    )
+    health_log = models.ForeignKey(
+        'sensor_nodes.SystemHealthLog',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        db_column='health_log_id'
     )
     alert_type = models.CharField(max_length=25, choices=ALERT_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)

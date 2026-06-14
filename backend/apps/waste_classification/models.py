@@ -41,4 +41,4 @@ class WasteClassification(models.Model):
         db_table = 'tbl_waste_classification'
 
     def __str__(self):
-        return f"{self.waste_type} - Reading {self.reading.reading_id}"
+        return f"{self.dominant_waste_type} - Reading {self.reading.reading_id}"
