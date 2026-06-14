@@ -2,7 +2,14 @@
 
 export default function Health() {
    return (
-     <div>Health</div>
+     <>
+      <div className="hidden md:flex flex-col">
+        
+
+        
+        
+      </div>
+     </>
    )
  }
  
