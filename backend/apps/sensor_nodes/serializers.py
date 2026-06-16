@@ -6,7 +6,7 @@ from apps.sensor_readings.models import SensorReading
 
 class SensorNodeSerializer(serializers.ModelSerializer):
     barangay_details = serializers.SerializerMethodField()
-    barangay = serializers.PrimaryKeyRelatedField(queryset=Barangay.objects.all(), write_only=True)  # add this
+    barangay = serializers.PrimaryKeyRelatedField(queryset=Barangay.objects.all(), write_only=True)
     water_level      = serializers.SerializerMethodField()
     water_flow_rate  = serializers.SerializerMethodField()
     clog_pct         = serializers.SerializerMethodField()
@@ -16,9 +16,12 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         model  = SensorNode
         fields = [
             'node_id', 'node_name', 'barangay', 'barangay_details',
-            'latitude', 'longitude', 'status',
+            'latitude', 'longitude', 'status', 'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
         ]
+        extra_kwargs = {
+            'installed_at': {'required': False}
+        }
 
     def _latest(self, obj):
         return SensorReading.objects.filter(node=obj).order_by('-timestamp').first()

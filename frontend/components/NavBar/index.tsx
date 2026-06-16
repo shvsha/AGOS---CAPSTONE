@@ -19,27 +19,48 @@ import {
   LayoutDashboard, Users, ChartNoAxesCombined,
   Siren, Activity, History, Stamp,
   Map, Package, FileBarChart, CalendarDays,
-  MapPin, FileUp, LogOut, RadioTower
+  MapPin, FileUp, LogOut, RadioTower, ChevronDown,
+  SlidersHorizontal,
 } from "lucide-react"
-
-// lib
-
 
 // logo
 import Image from "next/image"
 import AgosLogo from '../../public/agos-test-logo.png'
 
-const navItems = {
+
+type NavItem = {
+  label: string
+  href?: string
+  icon: React.ReactNode
+  children?: { label: string; href: string; icon: React.ReactNode }[]
+}
+
+const navItems: Record<string, NavItem[]> = {
   Admin: [
-    { label: "Dashboard",      href: "/admin/dashboard",    icon: <LayoutDashboard size={18} /> },
-    { label: "Users",          href: "/admin/users",        icon: <Users size={18} /> },
-    { label: "Barangay",          href: "/admin/barangay",     icon: <MapPin size={18} /> },
-    { label: "Node",          href: "/admin/node",     icon: <RadioTower size={18} /> },
-    { label: "Monitoring",     href: "/admin/monitoring",   icon: <ChartNoAxesCombined size={18} /> },
-    { label: "Alerts",         href: "/admin/alerts",       icon: <Siren size={18} /> },
-    { label: "IoT Health",     href: "/admin/health",       icon: <Activity size={18} /> },
-    { label: "History",        href: "/admin/history",      icon: <History size={18} /> },
-    { label: "Audit Logs",     href: "/admin/audit",        icon: <Stamp size={18} /> },
+    { label: "Dashboard",  href: "/admin/dashboard",  icon: <LayoutDashboard size={18} /> },
+    { label: "Monitoring", href: "/admin/monitoring",  icon: <ChartNoAxesCombined size={18} /> },
+    { label: "Alerts",     href: "/admin/alerts",      icon: <Siren size={18} /> },
+    { label: "Node Management",       href: "/admin/node",        icon: <RadioTower size={18} /> },
+    {
+      label: "History",
+      icon: <History size={18} />,
+      children: [
+        { label: "Clog Events",              href: "/admin/history/clog-events",      icon: <RadioTower size={14} /> },
+        { label: "Waste Classification",     href: "/admin/history/waste",            icon: <Package size={14} /> },
+        { label: "Barangay Monthly Reports", href: "/admin/history/barangay-reports", icon: <FileBarChart size={14} /> },
+        { label: "Monthly Reports",          href: "/admin/history/monthly-reports",  icon: <CalendarDays size={14} /> },
+      ]
+    },
+    {
+      label: "Utilities",
+      icon: <SlidersHorizontal size={18} />,
+      children: [
+        { label: "User Management",     href: "/admin/users",   icon: <Users size={14} /> },
+        { label: "Barangay Management", href: "/admin/barangay",icon: <MapPin size={14} /> },
+        { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
+        { label: "Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
+      ]
+    },
   ],
   MENRO: [
     { label: "Centralized Map",  href: "/menro/map",              icon: <Map size={18} /> },
@@ -60,14 +81,20 @@ const navItems = {
 
 export default function NavBar() {
   // us
-  const [expanded, setExpanded] = useState<boolean>(false)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const [moreOpen, setMoreOpen] = useState<boolean>(false)
   const [logoutDialog, setLogoutDialog] = useState<boolean>(false)
+  
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
 
   const pathname = usePathname()
   const router = useRouter()
   const { drawerOpen, setDrawerOpen } = useDrawer()
+
+  const toggleDropdown = (label: string) => {
+    setOpenDropdowns(prev => ({ ...prev, [label]: !prev[label] }))
+  }
+
+  const items = userRole ? navItems[userRole as keyof typeof navItems] ?? [] : []
 
   useEffect(() => {
     const role = getUserRole()
@@ -75,14 +102,17 @@ export default function NavBar() {
       setUserRole(role)
     }
   }, [])
-
-  const items = userRole ? navItems[userRole as keyof typeof navItems] ?? [] : []
-
-  const MAX_VISIBLE = 4
-  const visibleItems = items.slice(0, MAX_VISIBLE)
-  const overflowItems = items.slice(MAX_VISIBLE)
-  const hasOverflow = overflowItems.length > 0
-  const overflowActive = overflowItems.some((item) => pathname === item.href)
+  
+  useEffect(() => {
+    items.forEach(item => {
+      if (item.children) {
+        const isChildActive = item.children.some(child => pathname === child.href)
+        if (isChildActive) {
+          setOpenDropdowns(prev => ({ ...prev, [item.label]: true }))
+        }
+      }
+    })
+  }, [pathname])
 
   const handleLogout = async () => {
     try {
@@ -101,12 +131,7 @@ export default function NavBar() {
   return (  
     <>
       <aside
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
-        className={`
-          relative hidden md:flex flex-col h-screen bg-[#FAFCFD] transition-all duration-300 ease-in-out z-50 border-1 border-[#C6C6C8]
-          ${expanded ? 'w-54' : 'w-19'}
-        `}
+        className='relative hidden md:flex flex-col h-screen bg-[#FAFCFD] z-50 border-1 border-[#C6C6C8] w-54'
       >
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-4 py-5 pb-3 overflow-hidden h-18">
@@ -117,26 +142,79 @@ export default function NavBar() {
             height={40}
             className="rounded-full flex-shrink-0 bg-[#CDE3DE]"
           />
-          {expanded && (
-            <div className="whitespace-nowrap overflow-hidden">
-              <p className="text-[#122A48] font-bold text-[13px] leading-tight">AGOS</p>
-              <p className="text-[#122A48] text-[9px] leading-tight mt-1">
-                Automated Geo-Based <br /> Obstruction Sensing System
-              </p>
-            </div>
-          )}
+          <div className="whitespace-nowrap overflow-hidden">
+            <p className="text-[#122A48] font-bold text-[13px] leading-tight">AGOS</p>
+            <p className="text-[#122A48] text-[9px] leading-tight mt-1">
+              Autmated Geospatial Canal <br /> Obstruction Sensing System
+            </p>
+          </div>
+          
         </div>
 
-        {/* Navigation */}
-        <nav className="flex flex-col mt-9 flex-1">
-          {items.map(({ href, label, icon }) => {
+        {/* Desktop Navigation */}
+        <nav className="flex flex-col mt-7 overflow-y-auto flex-1">
+          {items.map(({ href, label, icon, children }) => {
             const isActive = pathname === href
+            const isChildActive = children?.some(c => pathname === c.href)
+            const isOpen = openDropdowns[label] ?? false
+
+            // Has children
+            if (children) {
+              return (
+                <div key={label}>
+                  {/* Dropdown trigger */}
+                  <button
+                    onClick={() => toggleDropdown(label)}
+                    className={`
+                      flex items-center gap-3 px-[13px] py-2.5 mx-3.5 my-0.5 text-[12px] font-medium
+                      w-[calc(100%-28px)] rounded-lg
+                      ${isChildActive
+                        ? 'bg-[#58D07159] text-[#122A48]'
+                        : 'text-[#122A48] hover:bg-[#eaedf2]'
+                      }
+                    `}
+                  >
+                    <span className="flex-shrink-0 w-5 flex items-center justify-center">{icon}</span>
+                    <span className="flex-1 text-left">{label}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {/* Dropdown children */}
+                  {isOpen && (
+                    <div className="flex flex-col ml-6 mr-3.5 mb-1">
+                      {children.map(child => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={`
+                            flex items-center gap-2.5 px-3 py-2 my-0.5 text-[11px] font-medium
+                            transition-all duration-200 rounded-lg
+                            ${pathname === child.href
+                              ? 'bg-[#58D07159] text-[#122A48]'
+                              : 'text-[#727272] hover:bg-[#eaedf2] hover:text-[#122A48]'
+                            }
+                          `}
+                        >
+                          <span className="flex-shrink-0">{child.icon}</span>
+                          <span>{child.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            // No children
             return (
               <Link
-                key={href}
-                href={href}
+                key={label}
+                href={href!}
                 className={`
-                  flex items-center gap-3 px-[13px] py-3 mx-3.5 my-1 text-[12px] font-medium
+                  flex items-center gap-3 px-[13px] py-2.5 mx-3.5 my-0.5 text-[12px] font-medium
                   transition-all duration-200 rounded-lg overflow-hidden whitespace-nowrap
                   ${isActive
                     ? 'bg-[#58D07159] text-[#122A48]'
@@ -145,7 +223,7 @@ export default function NavBar() {
                 `}
               >
                 <span className="flex-shrink-0 w-5 flex items-center justify-center">{icon}</span>
-                {expanded && <span>{label}</span>}
+                <span>{label}</span>
               </Link>
             )
           })}
@@ -156,16 +234,14 @@ export default function NavBar() {
           <button
             suppressHydrationWarning
             onClick={() => setLogoutDialog(true)}
-            className={`
+            className='
               flex items-center w-full cursor-pointer py-3 text-[#122A48] hover:bg-[#eaedf2]
-              rounded transition-all duration-200 overflow-hidden whitespace-nowrap
-              ${expanded ? 'px-[13px] gap-3' : 'px-[13px]'}
-            `}
+              rounded transition-all duration-200 overflow-hidden whitespace-nowrap px-[13px] gap-3'
           >
             <span className="flex-shrink-0 w-5 flex items-center justify-center">
               <LogOut size={20} />
             </span>
-            {expanded && <span className="text-sm font-medium">Logout</span>}
+            <span className="text-sm font-medium">Logout</span>
           </button>
         </div>
 
@@ -202,12 +278,62 @@ export default function NavBar() {
 
         {/* Nav items */}
         <nav className="flex flex-col mt-6 flex-1">
-          {items.map(({ href, label, icon }) => {
+          {items.map(({ href, label, icon, children }) => {
             const isActive = pathname === href
+            const isChildActive = children?.some(c => pathname === c.href)
+            const isOpen = openDropdowns[label] ?? false
+
+            // Has children
+            if (children) {
+              return (
+                <div key={label}>
+                  <button
+                    onClick={() => toggleDropdown(label)}
+                    className={`
+                      flex items-center gap-3 px-4 py-3 mx-3 my-0.5 text-[13px] font-medium
+                      w-[calc(100%-24px)] rounded-lg transition-colors
+                      ${isChildActive ? 'bg-[#58D07159] text-[#122A48]' : 'text-[#122A48] hover:bg-[#eaedf2]'}
+                    `}
+                  >
+                    <span className="w-5 flex items-center justify-center">{icon}</span>
+                    <span className="flex-1 text-left">{label}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {isOpen && (
+                    <div className="flex flex-col ml-6 mr-3 mb-1">
+                      {children.map(child => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={() => setDrawerOpen(false)}
+                          className={`
+                            flex items-center gap-2.5 px-3 py-2 my-0.5 text-[11px] font-medium
+                            rounded-lg transition-colors
+                            ${pathname === child.href
+                              ? 'bg-[#58D07159] text-[#122A48]'
+                              : 'text-[#727272] hover:bg-[#eaedf2] hover:text-[#122A48]'
+                            }
+                          `}
+                        >
+                          <span className="flex-shrink-0">{child.icon}</span>
+                          <span>{child.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            // No children
             return (
               <Link
-                key={href}
-                href={href}
+                key={label}
+                href={href!}
                 onClick={() => setDrawerOpen(false)}
                 className={`
                   flex items-center gap-3 px-4 py-3 mx-3 my-0.5 text-[13px] font-medium

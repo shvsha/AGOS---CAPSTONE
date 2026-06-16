@@ -1,11 +1,13 @@
 from django.db import models
 from apps.barangay.models import Barangay
+from django.utils import timezone
 
 class SensorNode(models.Model):
     STATUS_CHOICES = [
         ('Active', 'Active'),
         ('Inactive', 'Inactive'),
         ('Maintenance', 'Maintenance'),
+        ('Decommissioned', 'Decommissioned')
     ]
 
     node_id = models.AutoField(primary_key=True)
@@ -18,7 +20,7 @@ class SensorNode(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Active')
-    installed_at = models.DateTimeField(auto_now_add=True)
+    installed_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'tbl_sensor_nodes'

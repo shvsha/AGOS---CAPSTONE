@@ -10,10 +10,10 @@ import { RadioTower, Activity, TriangleAlert, Waves, Map, X, Siren  } from "luci
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { SearchFilter } from '@/components/SearchFilter'
-import { Dialog, DialogContent, DialogHeader, } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // component
-import BarangayMapWrapper from "@/components/Map/AgosMapWrapper"
+import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 
 // lib
 import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
@@ -61,6 +61,12 @@ const openInGoogleMaps = (latitude: number, longitude: number) => {
   );
 };
 
+const getClogPctColor = (value: number) => {
+  if (value < 34) return 'text-[#2C7B3C]' 
+  if (value < 67) return 'text-[#E4B600]'
+  return 'text-[#D81010]'
+}
+
 const ALERT_ICONS: Record<string, JSX.Element> = {
   Water_Level_Rising: <Activity size={18} />,
   Critical_Clog:      <RadioTower size={18} />,
@@ -94,13 +100,13 @@ export default function Monitoring() {
   const [dateTime, setDateTime]   = useState<Date | null>(null)
 
   // table state
-  const [nodes, setNodes]         = useState<Nodes[]>([])
-  const [alerts, setAlerts]       = useState<Alert[]>([])
-  const [loading, setLoading]     = useState(true)
+  const [nodes, setNodes] = useState<Nodes[]>([])
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
 
   // filter state
-  const [search, setSearch]       = useState('')
+  const [search, setSearch] = useState('')
   const [condition, setCondition] = useState("All")
 
   const filtered = getFilteredNode(nodes, condition, search)
@@ -140,9 +146,6 @@ export default function Monitoring() {
         const nodesData  = await nodesRes.json()
         const alertsData = await alertsRes.json()
 
-        console.log(nodesData)
-        console.log(alertsData)
-
         setNodes(nodesData.results ?? nodesData)
         setAlerts(alertsData.results ?? alertsData)
       } catch {
@@ -154,6 +157,16 @@ export default function Monitoring() {
 
     fetchData()
   }, [])
+
+  const todayAlerts = alerts.filter(alert => {
+    const alertDate = new Date(alert.timestamp)
+    const today = new Date()
+    return (
+      alertDate.getFullYear() === today.getFullYear() &&
+      alertDate.getMonth() === today.getMonth() &&
+      alertDate.getDate() === today.getDate()
+    )
+  })
 
   return (
     <>
@@ -181,7 +194,7 @@ export default function Monitoring() {
             { icon: <TriangleAlert size={20} color="#FF9705" />, bg: "bg-[#F4E4A7]", count: warning, label: "Warning"           },
             { icon: <Waves      size={20} color="#1868A9" />, bg: "bg-[#1868A929]", count: normal,  label: "Normal"             },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-2xl font-bold leading-tight">{card.count}</span>
@@ -195,7 +208,7 @@ export default function Monitoring() {
         <div className='flex gap-4 mt-3 h-115'>
 
           {/* table */}
-          <div className='rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] border border-[#C6C6C8] flex-1 flex flex-col '>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-187 rounded-lg flex flex-col'>
             {/* filters */}
             <div className='flex gap-3 items-center p-4'>
               <SearchFilter value={search} onChange={setSearch} placeholder='Search sensor node or barangay...' />
@@ -203,7 +216,7 @@ export default function Monitoring() {
                 <Button
                   key={c}
                   onClick={() => setCondition(c)}
-                  className={`cursor-pointer rounded-full border px-7 py-2 text-sm font-medium transition-colors
+                  className={`cursor-pointer rounded-full border px-5 py-2 text-sm font-medium transition-colors
                     ${condition === c
                       ? "bg-[#1565BC] hover:bg-[#135aa6] text-white"
                       : "bg-transparent text-[#122A48] border-[#C6C6C8] hover:bg-[#c3dffe]"
@@ -276,7 +289,7 @@ export default function Monitoring() {
                       </TableCell>
                       <TableCell className='text-center'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
                       <TableCell className='text-center'>{node.water_flow_rate != null ? `${node.water_flow_rate} m/s` : "—"}</TableCell>
-                      <TableCell className='text-center'>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
+                      <TableCell className={`text-center ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
                       <TableCell className={`text-center font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
                     </TableRow>
                   ))
@@ -307,29 +320,38 @@ export default function Monitoring() {
             </div>
             <hr className='border-[#C6C6C8]' />
             <div className='flex flex-col gap-3 p-3 overflow-y-auto'>
-              {alerts.slice(0, 6).map(alert => {
-                const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
-                return (
-                  <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}>
-                    <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
-                      {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
+              {todayAlerts.length === 0 ? (
+                <div className='flex flex-col items-center justify-center h-full py-37 gap-2'>
+                  <Siren size={28} color="#C6C6C8" />
+                  <p className='text-xs text-[#727272] text-center'>No alerts today</p>
+                </div>
+              ) : (
+                todayAlerts.slice(0, 6).map(alert => {
+                  const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
+                  return (
+                    <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}>
+                      <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
+                        {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
+                      </div>
+                      <div className='flex flex-col'>
+                        <p className='text-xs font-semibold text-[#122A48] leading-tight'>
+                          {alert.alert_type.replace(/_/g, ' ')} — {alert.node_name ?? 'Unknown Node'}
+                        </p>
+                        <p className='text-xs text-[#727272]'>
+                          {new Date(alert.timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })} | {alert.barangay_name ?? '—'}
+                        </p>
+                      </div>
                     </div>
-                    <div className='flex flex-col'>
-                      <p className='text-xs font-semibold text-[#122A48] leading-tight'>
-                        {alert.alert_type.replace(/_/g, ' ')} — {alert.node_name ?? 'Unknown Node'}
-                      </p>
-                      <p className='text-xs text-[#727272]'>
-                        {new Date(alert.timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })} | {alert.barangay_name ?? '—'}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </div>
 
-          {/* device status */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-50 rounded-lg flex flex-col'>
+          {/* device and clog level legend */}
+          <div className='flex flex-col gap-3'>
+            {/* device status */}
+            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
                 <p className='font-semibold text-[#122A48]'>Device Status</p>
                 <hr />
@@ -340,10 +362,10 @@ export default function Monitoring() {
                   { color: 'text-[#727272]', dotColor: 'bg-[#727272]', count: inactiveCount,  label: "Inactive" },
                   { color: 'text-[#582579]', dotColor: 'bg-[#582579]', count: maintenanceCount, label: "Maintenance" },
                 ].map(status => (
-                  <div key={status.label} className="flex justify-between items-center py-2.5 px-3 bg-[#FAFCFD] -mt-2">
+                  <div key={status.label} className="flex justify-between items-center py-3.5 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">
                       <span className={`w-2 h-2 rounded-full ${status.dotColor} `}/>
-                      <p className="text-sm font-medium">{status.label}</p>
+                      <p className={`text-sm font-semibold ${status.color}`}>{status.label}</p>
                     </div>
                     <span className={`text-sm font-bold leading-tight ${status.color}`}>{status.count}</span>
                   </div>
@@ -358,13 +380,40 @@ export default function Monitoring() {
                 </div>
 
               </div>
+            </div>
+
+            {/* clog level legend */}
+            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
+              <div className='p-3 flex flex-col gap-2 '>
+                <p className='font-semibold text-[#122A48]'>Clog Level Legend</p>
+                <hr />
+              </div>
+              <div className='flex flex-col'>
+                {[
+                  { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', percent: "67-100%", label: "High" },
+                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '34-66%',  label: "Moderate" },
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-33%', label: "Low" },
+                ].map(status => (
+                  <div key={status.label} className="flex justify-between items-center py-5 px-3 bg-[#FAFCFD] -mt-2">
+                    <div className="flex gap-3 items-center">
+                      <span className={`w-2 h-2 rounded-full ${status.dotColor} `}/>
+                      <p className={`text-sm font-semibold ${status.color}`}>{status.label}</p>
+                    </div>
+                    <span className={`text-sm font-medium leading-tight ${status.color}`}>{status.percent}</span>
+                  </div>
+                ))}
+
+              </div>
+            </div>
+
+
           </div>
 
         </div>
       </div>
 
       {/* Dialog */}
-            {/* View on Map Dialog */}
+      {/* View on Map Dialog */}
       <Dialog open={viewMapDialog.open}>
         <DialogContent className="[&>button]:hidden p-4 md:p-6 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-150">
           <DialogHeader>
@@ -377,8 +426,12 @@ export default function Monitoring() {
               </button>
             </div>
           </DialogHeader>
+          {/* hiddent title to remove error */}
+          <DialogTitle className="sr-only">
+            Map
+          </DialogTitle>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
-            <BarangayMapWrapper
+            <AgosMapWrapper
               markers={nodes.map(n => ({
                 latitude:  n.latitude,
                 longitude: n.longitude,

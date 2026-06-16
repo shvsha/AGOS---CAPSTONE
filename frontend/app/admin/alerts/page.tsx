@@ -15,6 +15,7 @@ import { useEffect, useState, useMemo  } from "react"
 // auth
 import { getAccessToken } from "@/lib/auth"
 import { api } from "@/lib/api"
+import { fetchWithAuth } from "@/lib/auth"
 
 // component
 import { AlertCard } from "@/components/Alerts/AlertCard"
@@ -65,15 +66,20 @@ export default function Alerts() {
     setLoading(true)
     setFetchError(false)
     try {
-      const token = getAccessToken()
       const params = new URLSearchParams()
       if (barangay !== 'All Barangay') params.append('barangay', barangay)
       if (alertType !== 'All Alert') params.append('alert_type', alertType)
       if (dateFilter) params.append('date', dateFilter)
 
       const query = params.toString()
-      const data = await api.get(`/api/alerts/${query ? `?${query}` : ''}`, token ?? undefined)
-      setAlerts(data.results ?? data)
+
+      const alertsRes = await fetchWithAuth(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/alerts/${query ? `?${query}` : ''}`
+      )
+      if (!alertsRes.ok) throw new Error()
+      const alertsData = await alertsRes.json()
+
+      setAlerts(alertsData.results ?? alertsData)
       setCurrentPage(1)
     } catch {
       setFetchError(true)
@@ -188,9 +194,9 @@ export default function Alerts() {
                 <div className="rounded-full bg-[#E5E5E6] p-4">
                   <Siren size={36} color="#727272" />
                 </div>
-                <p className="text-[#122A48] font-bold">No alerts found</p>
+                <p className="text-[#122A48] font-bold">No alerts today</p>
                 <p className="text-[#727272] text-sm">
-                  No alerts have been added created yet.
+                  No alerts have been added today yet.
                 </p>
               </div>
 

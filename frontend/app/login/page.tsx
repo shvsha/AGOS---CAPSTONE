@@ -266,7 +266,7 @@ export default function Login() {
           <CardHeader className="items-center justify-center">
             <img className='w-12 h-12 sm:w-20 sm:h-20 mx-auto mb-1 bg-[#CDE3DE] rounded-full' />
             <CardTitle className='text-black text-xs sm:text-sm text-center'>AGOS</CardTitle>
-            <CardTitle className='text-[#1565BC] font-bold text-sm sm:text-lg text-center'>Automated Geo-Based Obstruction Sensing System</CardTitle>
+            <CardTitle className='text-[#1565BC] font-bold text-sm sm:text-lg text-center'>Automated Geospatial Canal Obstruction Sensing System</CardTitle>
           </CardHeader>
           <CardContent className='text-center'>
             <FieldGroup>

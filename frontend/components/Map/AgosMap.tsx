@@ -114,7 +114,7 @@ const ROSARIO_BOUNDS: L.LatLngBoundsExpression = [
   [16.60, 120.55],
 ]
 
-const ROSARIO_CENTER: [number, number] = [16.38, 120.478]
+const ROSARIO_CENTER: [number, number] = [16.23031273833657, 120.48632076236241]
 
 function RecenterMap({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }) {
   const map = useMap()

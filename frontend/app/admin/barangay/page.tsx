@@ -18,6 +18,7 @@ import { DialogModal } from "@/components/DialogModal";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 import { BarangaySkeleton } from "@/components/Skeleton/BarangaySkeleton"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
+import { SearchFilter } from "@/components/SearchFilter";
 
 // react
 import { useState, useEffect } from "react"
@@ -235,9 +236,9 @@ export default function Barangay() {
   // handlers for form
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!barangay.trim())        errors.barangay         = 'This field is required.'
-    if (!latitude.trim())        errors.latitude         = 'This field is required.'
-    if (!longitude.trim())     errors.longitude      = 'This field is required.'
+    if (!barangay.trim()) errors.barangay = 'This field is required.'
+    if (!latitude.trim()) errors.latitude = 'This field is required.'
+    if (!longitude.trim()) errors.longitude = 'This field is required.'
 
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
@@ -305,15 +306,7 @@ export default function Barangay() {
 
           <div className="flex gap-3">
             {/* search filter */}
-            <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-11">
-              <FaSearch size={18} className="text-[#C6C6C8]" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search Barangay..."
-                className="bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-[200px]"
-              />
-            </div>
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-11" />
 
             {/* register barangay */}
             <Button
@@ -333,7 +326,7 @@ export default function Barangay() {
             { icon: <CheckCircle size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: registered,   label: "All Registered"     },
             { icon: <MapPinOff size={20} color="#FF0101" />,  bg: "bg-[#FFE5E5]", count: unregistered, label: "All Unregistered"   },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-95 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-2xl font-bold text-[#122A48] leading-tight">{card.count}</span>

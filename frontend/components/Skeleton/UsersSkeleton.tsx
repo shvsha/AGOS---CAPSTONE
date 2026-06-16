@@ -75,7 +75,7 @@ export function UsersSkeleton() {
         {/* header total cards */}
         <div className="flex justify-between w-full">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 bg-[#FAFCFD]">
+            <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 bg-[#FAFCFD]">
               <Skeleton className="h-10 w-10 rounded-lg" />
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-6 w-10" />

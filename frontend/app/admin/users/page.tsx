@@ -17,6 +17,7 @@ import { Toast } from "@/components/Toast";
 // component
 import { UsersSkeleton } from "@/components/Skeleton/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
+import { SearchFilter } from "@/components/SearchFilter";
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -187,15 +188,7 @@ export default function Users() {
           <div className="flex gap-3">
 
             {/* search filter */}
-            <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-11">
-              <FaSearch size={18} className="text-[#C6C6C8]" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search Users..."
-                className="bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-[200px]"
-              />
-            </div>
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-11" />
 
             {/* user role filter */}
             <Select value={userRole} onValueChange={setUserRole}>
@@ -211,7 +204,7 @@ export default function Users() {
 
             {/* user status filter */}
             <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="w-30 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="w-27 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-30 min-w-0'>
@@ -236,7 +229,7 @@ export default function Users() {
         {/* header total cards */}
         <div className="flex justify-between w-full text-[#122A48]">
           {/* total users */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#CDE3DE] rounded-lg p-2">
               <FaUsers size={20} color={"#1565BC"} />
@@ -249,7 +242,7 @@ export default function Users() {
           </div>
 
           {/* total active */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#B2FBC1] rounded-lg p-2">
               <BadgeCheck size={20} color={"#2C7B3C"} />
@@ -262,7 +255,7 @@ export default function Users() {
           </div>
 
           {/* total inactive */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#FFE5E5] rounded-lg p-2">
               <CircleOff size={20} color={"#FF0101"} />
@@ -275,7 +268,7 @@ export default function Users() {
           </div>
 
           {/* total barangay officer */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-85 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             {/* icon */}
             <div className="bg-[#DACDE3] rounded-lg p-2">
               <ShieldCheck size={20} color={"#582579"} />

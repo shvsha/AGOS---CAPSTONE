@@ -9,7 +9,7 @@ const ROLE_ROUTES: Record<string, string> = {
 
 const PROTECTED_PREFIXES = ['/admin', '/menro', '/barangay']
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (
