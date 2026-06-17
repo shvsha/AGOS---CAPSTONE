@@ -59,6 +59,7 @@ class ReportMediaUploadView(APIView):
     def post(self, request):
         file = request.FILES.get('file')
         media_type = request.data.get('media_type')
+        media_category = request.data.get('media_category', 'Sensor_Detection')
         clog_event_id = request.data.get('clog_event_id')
         monthly_report_id = request.data.get('monthly_report_id')
 
@@ -79,12 +80,12 @@ class ReportMediaUploadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        media = ReportMedia(file=file, media_type=media_type)
+        media = ReportMedia(file=file, media_type=media_type, media_category=media_category, uploaded_by=request.user)
 
         if clog_event_id:
             from apps.clog_events.models import ClogEvent
             try:
-                media.clog_event = ClogEvent.objects.get(event_id=clog_event_id)
+                media.clog_event_id = ClogEvent.objects.get(event_id=clog_event_id)
             except ClogEvent.DoesNotExist:
                 pass
 
@@ -101,6 +102,15 @@ class ReportMediaUploadView(APIView):
             ReportMediaSerializer(media, context={'request': request}).data,
             status=status.HTTP_201_CREATED
         )
+    
+
+class ReportMediaByClogEventView(generics.ListAPIView):
+    serializer_class = ReportMediaSerializer
+    permission_classes = [IsAdminOrMENROOrBarangay]
+
+    def get_queryset(self):
+        event_id = self.kwargs['event_id']
+        return ReportMedia.objects.filter(clog_event_id=event_id)
 
 
 class MunicipalMonthlyReportListView(generics.ListAPIView):

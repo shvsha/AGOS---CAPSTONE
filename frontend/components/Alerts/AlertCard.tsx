@@ -101,7 +101,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
     const c = ctx as WaterContext & { clog_pct?: number }
     if (c.water_level == null) return null
     return (
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-[#727272]">
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[#727272]">
         <span>Water Level: <span className="font-semibold text-[#122A48]">{c.water_level} cm</span></span>
         {c.water_flow_rate != null && (
           <span>Flow Rate: <span className="font-semibold text-[#122A48]">{c.water_flow_rate} m/s</span></span>
@@ -120,7 +120,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
     const c = ctx as WaterContext
     if (c.water_level == null) return null
     return (
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-[#727272]">
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[#727272]">
         <span>
           Water Level:{" "}
           <span className="font-semibold text-[#122A48]">{c.water_level} cm</span>
@@ -144,7 +144,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
     const c = ctx as HighClogContext
     if (!c.dominant_waste_type) return null
     return (
-      <div className="flex flex-col gap-1 text-sm text-[#727272]">
+      <div className="flex flex-col gap-1 text-xs text-[#727272]">
         <div className="flex flex-wrap gap-x-4">
           {c.dominant_waste_type && (
             <span>
@@ -176,7 +176,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
     const c = ctx as HealthContext
     if (!Object.keys(c).length) return null
     return (
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-[#727272]">
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[#727272]">
         {alertType === "Low_Battery" && c.battery_voltage != null && (
           <span>
             Battery: <span className="font-semibold text-[#122A48]">{getBatteryLevel(c.battery_voltage)}</span>
@@ -259,7 +259,7 @@ export function AlertCard({ alert, onRead }: AlertCardProps) {
 
           {/* top row: label + time + unread dot */}
           <div className="flex justify-between items-start gap-2">
-            <p className="font-bold text-sm text-[#122A48] leading-tight">{meta.label.toUpperCase()}</p>
+            <p className="font-bold text-xs text-[#122A48] leading-tight">{meta.label.toUpperCase()}</p>
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="text-xs text-[#727272]">{formatTime(alert.timestamp)}</span>
               {!isRead && (
@@ -270,7 +270,7 @@ export function AlertCard({ alert, onRead }: AlertCardProps) {
 
           {/* barangay + chevron */}
           <div className="flex justify-between items-center mt-0.5">
-            <p className="font-semibold text-sm text-[#122A48]">
+            <p className="font-semibold text-xs text-[#122A48]">
               {alert.barangay_name ?? "—"}
             </p>
             <FaChevronRight size={11} className="text-[#727272] shrink-0" />

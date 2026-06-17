@@ -63,6 +63,12 @@ class ReportMedia(models.Model):
         ('Video', 'Video'),
     ]
 
+    MEDIA_CATEGORY_CHOICES = [
+        ('Sensor_Detection', 'Sensor Detection'),
+        ('Before_Clearing', 'Before Clearing'),
+        ('After_Clearing', 'After Clearing'),
+    ]
+
     media = models.AutoField(primary_key=True)
     monthly_report = models.ForeignKey(
         BarangayMonthlyReport,
@@ -78,9 +84,17 @@ class ReportMedia(models.Model):
         blank=True,
         db_column='event_id'
     )
+    media_category = models.CharField(max_length=20, choices=MEDIA_CATEGORY_CHOICES, default='Sensor_Detection')
     file = models.FileField(upload_to='report_media/', null=True, blank=True)
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='uploaded_by'
+    )
 
     class Meta:
         db_table = 'tbl_report_media'
