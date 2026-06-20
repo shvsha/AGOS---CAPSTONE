@@ -1,6 +1,6 @@
 import { getAccessToken, getRefreshToken, setTokens, clearAuth } from '@/lib/auth'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 // silent refresh
 async function refreshAccessToken(): Promise<string | null> {
