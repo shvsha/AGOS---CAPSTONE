@@ -6,7 +6,7 @@ from .utils import generate_otp, send_otp_email, store_otp, verify_otp, is_verif
 from django.contrib.auth import authenticate
 from .models import User
 from apps.users.permissions import IsAdmin
-from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
+from .serializers import UserSerializer, RegisterSerializer
 from apps.audit_logs.utils import log_action
 import json
 from django.conf import settings
@@ -71,6 +71,16 @@ class LoginView(APIView):
             )
 
             response.set_cookie(
+                key='refresh_token',
+                value=refresh_token,
+                max_age=7 * 24 * 60 * 60,
+                httponly=True,
+                secure=is_secure,
+                samesite='Lax',
+                path='/',
+            )
+
+            response.set_cookie(
                 key='user',
                 value=json.dumps(dict(user_data)),
                 max_age=7 * 24 * 60 * 60,
@@ -91,11 +101,11 @@ class LoginView(APIView):
 class LogoutView(APIView):
     def post(self, request):
         try:
-            refresh_token = request.data['refresh']
-            token = RefreshToken(refresh_token)
-            token.blacklist()
+            refresh_token = request.COOKIES.get('refresh_token')
+            if refresh_token:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
 
-            # Log the logout action
             log_action(
                 user=request.user,
                 action='Logout',
@@ -104,6 +114,7 @@ class LogoutView(APIView):
 
             response = Response({'message': 'Logged out successfully'})
             response.delete_cookie('access_token', path='/')
+            response.delete_cookie('refresh_token', path='/')
             response.delete_cookie('user', path='/')
 
             return response
@@ -248,6 +259,7 @@ class ResetPasswordView(APIView):
         try:
             user = User.objects.get(email=email)
             user.set_password(password)
+            user.must_change_password = False
             user.save()
             clear_verified(email)
             return Response(
@@ -292,3 +304,47 @@ class InitialSetupView(APIView):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class TokenRefreshView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if not refresh_token:
+            return Response({'error': 'No refresh token provided'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            token = RefreshToken(refresh_token)
+            new_access = str(token.access_token)
+            return Response({'access': new_access})
+        except Exception:
+            return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+
+        if not old_password or not new_password:
+            return Response(
+                {'error': 'Old password and new password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = request.user
+
+        if not user.check_password(old_password):
+            return Response(
+                {'old_password': 'Current password is incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(new_password)
+        user.must_change_password = False
+        user.save()
+
+        return Response({'message': 'Password changed successfully'})

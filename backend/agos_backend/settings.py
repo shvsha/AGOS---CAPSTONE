@@ -209,3 +209,5 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # API key for the IoT
 IOT_API_KEY = os.getenv('IOT_API_KEY')
+
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')

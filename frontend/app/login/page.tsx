@@ -83,6 +83,10 @@ export default function Login() {
     const user = localStorage.getItem("user")
     if (token && user) {
       const parsed = JSON.parse(user)
+      if (parsed.must_change_password) {
+        router.replace("/change-password")
+        return
+      }
       if (parsed.user_role === "Admin") router.replace("/admin/dashboard")
       else if (parsed.user_role === "MENRO") router.replace("/menro/map")
       else if (parsed.user_role === "Barangay") router.replace("/barangay/map")
@@ -109,8 +113,13 @@ export default function Login() {
     setIsLoadingLogin(true)
     try {
       const data = await api.post("/api/auth/login/", { username, password })
-      setTokens(data.access, data.refresh)
+      setTokens(data.access)
       setUser(data.user)
+
+      if (data.user.must_change_password) {
+        router.replace("/change-password")
+        return
+      }
 
       const userRole = data.user.user_role
       if (userRole === "Admin") router.replace("/admin/dashboard")

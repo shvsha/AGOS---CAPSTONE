@@ -4,14 +4,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 // silent refresh
 async function refreshAccessToken(): Promise<string | null> {
-  const refresh = getRefreshToken()
-  if (!refresh) return null
-
   try {
     const res = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh }),
+      credentials: 'include',
     })
 
     if (!res.ok) {
@@ -21,7 +18,7 @@ async function refreshAccessToken(): Promise<string | null> {
     }
 
     const data = await res.json()
-    setTokens(data.access, data.refresh ?? refresh)
+    localStorage.setItem('access_token', data.access)
     return data.access
   } catch {
     clearAuth()
