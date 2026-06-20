@@ -22,7 +22,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { fetchWithAuth } from "@/lib/auth"
 
 // lib
-import { getDuration, formatCooldown, getErrorMessage } from "@/lib/utils"
+import { getDuration } from "@/lib/utils"
 
 type Clogs = {
   event_id: number
@@ -75,19 +75,17 @@ export default function ClogEvents() {
   const [selectedClog, setSelectedClog] = useState<Clogs | null>(null)
   const [clogMedia, setClogMedia] = useState<ClogMedia[]>([])
 
-  console.log(selectedClog)
-
   function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, search: string) {
-  const q = search.toLowerCase()
-  return clogs
-    .filter(b => severity === "All Severity" || b.severity === severity)
-    .filter(b => barangay === "All Barangay" || b.barangay_details?.barangay_name === barangay)
-    .filter(b =>
-      [b.node_details?.node_name, b.barangay_details?.barangay_name, b.severity]
-        .some(field => field?.toLowerCase().includes(q))
-    )
+    const q = search.toLowerCase()
+    return clogs
+      .filter(b => severity === "All Severity" || b.severity === severity)
+      .filter(b => barangay === "All Barangay" || b.barangay_details?.barangay_name === barangay)
+      .filter(b =>
+        [b.node_details?.node_name, b.barangay_details?.barangay_name, b.severity]
+          .some(field => field?.toLowerCase().includes(q))
+      )
     .sort((a, b) => b.event_id - a.event_id)
-}
+  }
 
   const filtered = getFilteredClogs(clogs, severity, barangay, search)
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
@@ -224,10 +222,10 @@ export default function ClogEvents() {
         </div>
 
         {/* table and preview */}
-        <div className="flex gap-3 mt-3 h-full">
+        <div className="flex gap-3 mt-3 ">
 
           {/* Table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-250 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-112 w-250 rounded-lg flex flex-col'>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
@@ -306,9 +304,6 @@ export default function ClogEvents() {
                       </TableRow>
                     ))
                   )}
-
-
-
               </TableBody>
             </Table>
 
@@ -333,7 +328,7 @@ export default function ClogEvents() {
             </div>
 
           ) : (
-            <div className="flex flex-col gap-3 text-[#122A48">
+            <div className="flex flex-col gap-3 text-[#122A48]">
 
               {/* Event details */}
               <div className="p-3 px-4 ull font-medium -mb-3">
@@ -465,11 +460,11 @@ export default function ClogEvents() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 justify-center">
                       {['Sensor_Detection', 'Before_Clearing', 'After_Clearing'].map(category => {
                         const item = clogMedia.find(m => m.media_category === category)
                         return (
-                          <div key={category} className="flex flex-col items-center gap-1">
+                          <div key={category} className="flex flex-col justify-center items-center gap-1">
                             {item ? (
                               <img src={item.file_url} alt={category} className="rounded-lg w-20 h-20 object-cover" />
                             ) : (
@@ -484,7 +479,7 @@ export default function ClogEvents() {
                     </div>
 
                     <div className="mb-3">
-                      <Button className="rounded-lg bg-[#25893ACC] px-3 py-2 text-white">
+                      <Button className="rounded-lg bg-[#25893ACC] hover:bg-[#1f6a2fcc] px-3 py-2 text-white cursor-pointer">
                         <Download size={30}/>
                         Download Attachments
                       </Button>
