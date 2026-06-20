@@ -13,7 +13,7 @@ class AlertListView(generics.ListAPIView):
     serializer_class = AlertSerializer
     permission_classes = [IsAdminOrMENROOrBarangay]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['alert_type']
+    filterset_fields = []
 
     def get_queryset(self):
         user = self.request.user
@@ -30,7 +30,8 @@ class AlertListView(generics.ListAPIView):
         # alert type filter
         alert_type = self.request.query_params.get('alert_type')
         if alert_type:
-            qs = qs.filter(alert_type=alert_type)
+            types = [t.strip() for t in alert_type.split(',')]
+            qs = qs.filter(alert_type__in=types)
 
         # date filter
         date_filter = self.request.query_params.get('date')
