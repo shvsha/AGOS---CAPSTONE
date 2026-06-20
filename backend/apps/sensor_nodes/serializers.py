@@ -11,6 +11,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     water_flow_rate  = serializers.SerializerMethodField()
     clog_pct         = serializers.SerializerMethodField()
     condition        = serializers.SerializerMethodField()
+    health_status    = serializers.SerializerMethodField()
 
     class Meta:
         model  = SensorNode
@@ -18,6 +19,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'node_id', 'node_name', 'barangay', 'barangay_details',
             'latitude', 'longitude', 'status', 'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
+            'health_status',
         ]
         extra_kwargs = {
             'installed_at': {'required': False}
@@ -25,6 +27,9 @@ class SensorNodeSerializer(serializers.ModelSerializer):
 
     def _latest(self, obj):
         return SensorReading.objects.filter(node=obj).order_by('-timestamp').first()
+
+    def _latest_health(self, obj):
+        return SystemHealthLog.objects.filter(node=obj).order_by('-checked_at').first()
 
     def get_barangay_details(self, obj):
         return {
@@ -48,7 +53,19 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         r = self._latest(obj)
         return r.reading_status if r else None
 
+    def get_health_status(self, obj):
+        h = self._latest_health(obj)
+        return h.status if h else None
+    
+
 class SystemHealthLogSerializer(serializers.ModelSerializer):
+    node_details = SensorNodeSerializer(source='node', read_only=True)
+    node = serializers.PrimaryKeyRelatedField(queryset=SensorNode.objects.all(), write_only=True)
+
     class Meta:
         model = SystemHealthLog
-        fields = '__all__'
+        fields = [
+            'health_id', 'node', 'node_details',
+            'battery_voltage', 'signal_strength', 'sensor_continuity',
+            'status', 'status', 'checked_at',
+        ]

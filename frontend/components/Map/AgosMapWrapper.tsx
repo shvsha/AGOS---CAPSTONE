@@ -20,7 +20,9 @@ type Props = {
   zoom?: number
   markers?: MapMarker[]
   onMapClick?: (lat: number, lng: number) => void
+  colorMode?: 'clog' | 'health'
 }
+
 
 export default function AgosMapWrapper(props: Props) {
   return <AgosMapDynamic {...props} />

@@ -19,6 +19,13 @@ const CONDITION_COLORS: Record<string, string> = {
   default:  "#727272",
 }
 
+const HEALTH_COLORS: Record<string, string> = {
+  Critical: "#D81010",
+  Warning:  "#D86610",
+  Normal:   "#2C7B3C",
+  default:  "#727272",
+}
+
 function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -129,7 +136,8 @@ export type MapMarker = {
   longitude: number
   label?: string
   condition?: string 
-  sublabel?: string 
+  sublabel?: string
+  onMarkerClick?: () => void
 }
 
 type Props = {
@@ -139,9 +147,11 @@ type Props = {
   zoom?: number
   markers?: MapMarker[]
   onMapClick?: (lat: number, lng: number) => void
+  colorMode?: 'clog' | 'health'
 }
 
-export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick }: Props) {
+export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick, colorMode = 'clog' }: Props) {
+  const colorMap = colorMode === 'health' ? HEALTH_COLORS : CONDITION_COLORS
   const hasMultiple = markers && markers.length > 0
   const hasSingle   = !!latitude && !!longitude
 
@@ -180,13 +190,16 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       )}
 
       {hasMultiple && markers.map((m, i) => {
-        const color = CONDITION_COLORS[m.condition ?? "default"] ?? CONDITION_COLORS.default
+        const color = colorMap[m.condition ?? "default"] ?? colorMap.default
         return (
           <Marker
-            key={i}
-            position={[m.latitude, m.longitude]}
-            icon={createColoredIcon(color, m.label, m.condition)}
-          >
+              key={i}
+              position={[m.latitude, m.longitude]}
+              icon={createColoredIcon(color, m.label, m.condition)}
+              eventHandlers={{
+                click: () => m.onMarkerClick?.()
+              }}
+            >
             <Popup>
               <div className="text-xs font-semibold">{m.label ?? "Node"}</div>
               {m.sublabel && <div className="text-xs text-gray-500 mt-0.5">{m.sublabel}</div>}
