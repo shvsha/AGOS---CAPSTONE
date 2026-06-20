@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import User
 from apps.barangay.serializers import BarangaySerializer
+import secrets
+import string
+
 
 class UserSerializer(serializers.ModelSerializer):
   barangay_details = BarangaySerializer(source='barangay', read_only=True)
@@ -12,7 +15,8 @@ class UserSerializer(serializers.ModelSerializer):
         'user_id', 'first_name', 'last_name',
         'email', 'username', 'user_role',
         'position', 'barangay_id', 'barangay_details',
-        'status', 'created_at', 'updated_at'
+        'status', 'must_change_password',
+        'created_at', 'updated_at'
     ]
     extra_kwargs = {
         'password': {'write_only': True}
@@ -29,6 +33,11 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
+
+def generate_random_password(length=10):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
     
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -56,21 +65,21 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         barangay_id = validated_data.pop('barangay_id', None)
-        user_role = validated_data.get('user_role')
 
+        generated_password = None
         if not password:
-            if user_role == 'MENRO':
-                password = 'menro123'
-            elif user_role == 'Barangay':
-                password = 'barangay123'
+            generated_password = generate_random_password()
+            password = generated_password
 
         user = User(**validated_data)
         user.set_password(password)
+        user.must_change_password = True
         if barangay_id is not None:
             user.barangay_id = barangay_id
         user.save()
-        return user
 
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+        if generated_password:
+            from .utils import send_credentials_email
+            send_credentials_email(user, generated_password)
+
+        return user

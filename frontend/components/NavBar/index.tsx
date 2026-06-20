@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 
 // lib
 import { api } from "@/lib/api"
-import { getUserRole, clearAuth, getRefreshToken, getAccessToken } from "@/lib/auth"
+import { getUserRole, clearAuth } from "@/lib/auth"
 import { useDrawer } from "@/lib/drawer-context"
 import { DIALOG_COLOR } from "@/lib/constant"
 
@@ -116,15 +116,12 @@ export default function NavBar() {
 
   const handleLogout = async () => {
     try {
-      const token = getRefreshToken()
-      if (token) {
-        await api.post('/api/auth/logout/', { refresh: token }, getAccessToken() ?? undefined)
-      }
+      await api.post('/api/auth/logout/', {})
     } catch (err) {
       console.log(err)
     } finally {
       clearAuth()
-      router.push("/login")
+      window.location.href = "/login"
     }
   }
 

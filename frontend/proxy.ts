@@ -8,6 +8,15 @@ const ROLE_ROUTES: Record<string, string> = {
 }
 
 const PROTECTED_PREFIXES = ['/admin', '/menro', '/barangay']
+const CHANGE_PASSWORD_PATH = '/change-password'
+
+function parseUserCookie(raw: string) {
+  const decoded = decodeURIComponent(raw)
+    .replace(/\\054/g, ',')
+    .replace(/\\"/g, '"')
+    .replace(/^"|"$/g, '')
+  return JSON.parse(decoded)
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -25,36 +34,51 @@ export function proxy(request: NextRequest) {
 
   const isLoginPage = pathname === '/login' || pathname === '/'
   const isProtected = PROTECTED_PREFIXES.some(p => pathname.startsWith(p))
+  const isChangePasswordPage = pathname === CHANGE_PASSWORD_PATH
 
-  if (!token && isProtected) {
+  if (!token && (isProtected || isChangePasswordPage)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (token && isLoginPage && userRaw) {
+  let user: any = null
+  if (userRaw) {
     try {
-      const user = JSON.parse(decodeURIComponent(userRaw))
-      const dashboard = ROLE_ROUTES[user.user_role]
-      if (dashboard) {
-        return NextResponse.redirect(new URL(dashboard, request.url))
-      }
+      user = parseUserCookie(userRaw)
     } catch {
-      return NextResponse.next()
+      user = null
     }
   }
 
-  if (token && isProtected && userRaw) {
-    try {
-      const user = JSON.parse(decodeURIComponent(userRaw))
-      const allowedPrefix = ROLE_ROUTES[user.user_role]?.split('/').slice(0, 2).join('/')
-      
-      const actualPrefix = '/' + pathname.split('/')[1]
+  // force mandatory password change before anything else
+  if (token && user?.must_change_password && !isChangePasswordPage) {
+    return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
+  }
 
-      if (allowedPrefix && actualPrefix !== allowedPrefix) {
-        const dashboard = ROLE_ROUTES[user.user_role]
-        return NextResponse.redirect(new URL(dashboard, request.url))
-      }
-    } catch {
-      return NextResponse.next()
+  // block access to change-password page once it's no longer required
+  if (token && user && !user.must_change_password && isChangePasswordPage) {
+    const dashboard = ROLE_ROUTES[user.user_role]
+    if (dashboard) {
+      return NextResponse.redirect(new URL(dashboard, request.url))
+    }
+  }
+
+  if (token && isLoginPage && user) {
+    if (user.must_change_password) {
+      return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
+    }
+    const dashboard = ROLE_ROUTES[user.user_role]
+    if (dashboard) {
+      return NextResponse.redirect(new URL(dashboard, request.url))
+    }
+  }
+
+  if (token && isProtected && user) {
+    const allowedPrefix = ROLE_ROUTES[user.user_role]?.split('/').slice(0, 2).join('/')
+    const actualPrefix = '/' + pathname.split('/')[1]
+
+    if (allowedPrefix && actualPrefix !== allowedPrefix) {
+      const dashboard = ROLE_ROUTES[user.user_role]
+      return NextResponse.redirect(new URL(dashboard, request.url))
     }
   }
 

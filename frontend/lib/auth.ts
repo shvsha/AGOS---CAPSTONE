@@ -15,7 +15,6 @@ export const getUser = () => {
 
 export const setTokens = (access: string, refresh: string) => {
   localStorage.setItem("access_token", access)
-  localStorage.setItem("refresh_token", refresh)
 }
 
 export const setUser = (user: object) => {
@@ -55,19 +54,11 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
   })
 
   if (res.status === 401) {
-    // try silent refresh
-    const refresh = getRefreshToken()
-    if (!refresh) {
-      clearAuth()
-      window.location.href = '/login'
-      throw new Error('Session expired.')
-    }
-
     try {
       const refreshRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh }),
+        credentials: 'include',
       })
 
       if (!refreshRes.ok) {
@@ -77,9 +68,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
       }
 
       const data = await refreshRes.json()
-      setTokens(data.access, data.refresh ?? refresh)
+      localStorage.setItem('access_token', data.access)
 
-      // retry original request with new token
       return fetch(url, {
         ...options,
         headers: {

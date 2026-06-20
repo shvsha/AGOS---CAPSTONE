@@ -59,6 +59,7 @@ class User(AbstractBaseUser):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    must_change_password = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = [ 'first_name', 'last_name']

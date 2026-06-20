@@ -135,7 +135,7 @@ export default function Form() {
     const errors: Record<string, string> = {}
     if (!fname.trim())        errors.fname         = 'This field is required.'
     if (!lname.trim())        errors.lname         = 'This field is required.'
-    if (!position.trim())     errors.position      = 'This field is required.'
+    if (role !== 'MENRO' && !position.trim()) errors.position = 'This field is required.'
     if (!role) errors.role = 'This field is required.'
     if (role !== 'MENRO' && !barangayId) errors.barangayId = 'This field is required.'
     if (!username.trim())     errors.username      = 'This field is required.'
@@ -329,30 +329,6 @@ export default function Form() {
                   </Field>
                 </div>
 
-                <div className="mt-3">
-                  {/* position/designation */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">POSITION/DESIGNATION <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Input
-                        name="position"
-                        value={position}
-                        maxLength={50}
-                        onChange={(e) => {
-                          setPosition(e.target.value)
-                        }}
-                        placeholder="e.g. Barangay Sanitary Inspector"
-                        className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
-                          fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'
-                        }`}
-                      />
-                      <div className="flex justify-between items-center">
-                      <FieldError className="text-xs">{fieldErrors.position}</FieldError>
-                      <span className={`text-xs ml-auto ${position.length >= 50 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {position.length}/50
-                      </span>
-                    </div>
-                  </Field>
-                </div>
               </div>
 
             </div>
@@ -382,14 +358,14 @@ export default function Form() {
                           value={role}
                           onValueChange={(value) => {
                             setRole(value)
-                            if (value === 'MENRO Officer') {
+                            if (value === 'MENRO') {
                               setBarangayId(null)
-                            }
-                            if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
+                              setPosition('')
+                            } if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
                           }}
                         >
                         <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select Role..." />
+                          <SelectValue placeholder="Select role..." />
                         </SelectTrigger>
                         <SelectContent position="popper">
                           <SelectItem className="text-[#122A48] p-2" value="MENRO">MENRO Officer</SelectItem>
@@ -399,33 +375,60 @@ export default function Form() {
                       <FieldError className="text-xs">{fieldErrors.role}</FieldError>
                   </Field>
                   
-                  {/* office/barangay */}
+                  {/* barangay */}
                   <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">OFFICE/BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
-                        <Select
-                          value={role === 'MENRO' ? MENRO_OFFICE : barangayId ? String(barangayId) : ''}
-                          onValueChange={(value) => {
-                            setBarangayId(Number(value))
-                            if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
-                          }}
-                          disabled={role === 'MENRO'}
-                        >
-                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                            <SelectValue placeholder="Select..." />
-                          </SelectTrigger>
-                          <SelectContent position="popper">
-                            {barangays.map(b => (
-                              <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
-                                {b.barangay_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <Select
+                        value={role === 'MENRO' ? '' : barangayId ? String(barangayId) : ''}
+                        onValueChange={(value) => {
+                          setBarangayId(Number(value))
+                          if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
+                        }}
+                        disabled={role === 'MENRO'}
+                      >
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder={role === 'MENRO' ? MENRO_OFFICE : 'Select...'} />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          {barangays.map(b => (
+                            <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                              {b.barangay_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FieldError className="text-xs">{fieldErrors.barangayId }</FieldError>
                   </Field>
                 </div>
-              </div>
 
+                {/* position/designation */}
+                <div className="mt-3">
+                  <Field className="flex gap-1.5 flex-col w-100">
+                    <FieldLabel className="text-[#122A48] text-sm">POSITION <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <Select
+                        value={position}
+                        onValueChange={(value) => {
+                          setPosition(value)
+                          if (fieldErrors.position) setFieldErrors(prev => ({ ...prev, position: '' }))
+                        }}
+                        disabled={role === 'MENRO'}
+                      >
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder={role === 'MENRO' ? 'MENRO Officer' : 'Select position...'} />
+                        </SelectTrigger>
+                        <SelectContent position="popper" className='w-100 min-w-0'>
+                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Inspector">Barangay Health Inspector</SelectItem>
+                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Secretary">Barangay Secretary</SelectItem>
+                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Care Worker">Barangay Health Care Worker</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex justify-between items-center">
+                      <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                    </div>
+                  </Field>
+                </div>
+
+              </div>
             </div>
 
             {/* acct credentials */}
@@ -634,9 +637,9 @@ export default function Form() {
                       }`}
                     />
                     <div className="flex justify-between items-center">
-                    <FieldError className="text-xs">{fieldErrors.position}</FieldError>
-                    <span className={`text-xs ml-auto ${position.length >= 50 ? 'text-red-500' : 'text-gray-400'}`}>
-                      {position.length}/50
+                      <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                      <span className={`text-xs ml-auto ${position.length >= 50 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {position.length}/50
                     </span>
                   </div>
                 </Field>
