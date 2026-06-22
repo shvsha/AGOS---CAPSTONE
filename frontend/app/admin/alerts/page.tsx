@@ -196,7 +196,7 @@ export default function Alerts() {
                 </div>
                 <p className="text-[#122A48] font-bold">No alerts today</p>
                 <p className="text-[#727272] text-sm">
-                  No alerts have been added today yet.
+                  No alerts have been added today.
                 </p>
               </div>
 

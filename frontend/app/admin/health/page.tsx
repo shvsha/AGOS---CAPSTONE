@@ -97,7 +97,6 @@ export default function Health() {
   const [healthAlert, setHealthAlert] = useState<HealthAlerts[]>([])
   const [selectedNode, setSelectedNode] = useState<NodeHealth | null>(null)
 
-
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
 
@@ -434,22 +433,7 @@ export default function Health() {
             )}
           </div>
 
-        </div>
-
-        {/* alerts */}
-        <div className="flex flex-col gap-3 text-[#122A48] mt-3">
-          <div className="w-full">
-            <p className="font-bold">Active Alerts</p>
-          </div>
-
-          <div>
-
-          </div>
-
-        </div>
-
-        
-        
+        </div>      
       </div>
      </>
    )
