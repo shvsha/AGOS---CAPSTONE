@@ -198,9 +198,10 @@ type Props = {
   markers?: MapMarker[]
   onMapClick?: (lat: number, lng: number) => void
   colorMode?: 'clog' | 'health'
+  showLegend?: boolean
 }
 
-export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick, colorMode = 'clog', }: Props) {
+export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick, colorMode = 'clog', showLegend = true}: Props) {
   const colorMap = colorMode === 'health' ? HEALTH_COLORS : CONDITION_COLORS
   const hasMultiple = markers && markers.length > 0
   const hasSingle   = !!latitude && !!longitude
@@ -230,8 +231,7 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapClickHandler onMapClick={onMapClick} />
-
-      <MapLegend colorMode={colorMode} /> 
+      {showLegend && <MapLegend colorMode={colorMode} />} 
 
       {!hasMultiple && hasSingle && (
         <>
