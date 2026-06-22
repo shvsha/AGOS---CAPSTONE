@@ -6,7 +6,6 @@ class BarangayMonthlyReport(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Reviewed', 'Reviewed'),
-        ('Approved', 'Approved'),
     ]
 
     monthly_report_id = models.AutoField(primary_key=True)

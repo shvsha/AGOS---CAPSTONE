@@ -550,7 +550,13 @@ export default function Node() {
                       <FieldError className="text-xs">{fieldErrors.barangay}</FieldError>
                     </Field>
                     
-                    {/* Node name */}
+                    {/* hotspot select */}
+
+
+                  </div>
+
+                  <div className="flex gap-3 -mt-4 p-2.5 md:p-4">
+                    {/* Node Name */}
                     <Field className="flex gap-1.5 flex-col w-[274px] md:w-[310px]">
                       <FieldLabel className="text-[#122A48] text-xs md:text-sm">
                         NODE NAME <span className="text-[#FF0000]">*</span>
@@ -570,9 +576,6 @@ export default function Node() {
                       <FieldError className="text-xs">{fieldErrors.nodeName}</FieldError>
                     </Field>
 
-                  </div>
-
-                  <div className="flex gap-3 -mt-4 p-2.5 md:p-4">
                     {/* Installed at */}
                     <Field className="flex gap-1.5 flex-col w-[274px] md:w-[310px]">
                       <FieldLabel className="text-[#122A48] text-xs md:text-sm">
@@ -625,10 +628,6 @@ export default function Node() {
                           latitude={latitude ? parseFloat(latitude) : undefined}
                           longitude={longitude ? parseFloat(longitude) : undefined}
                           label={barangay}
-                          onMapClick={(lat, lng) => {
-                            setLatitude(lat.toFixed(15))
-                            setLongitude(lng.toFixed(15))
-                          }}
                         />
                       </div>
                     </div>
@@ -645,11 +644,9 @@ export default function Node() {
                               type="number"
                               name="latitude"
                               value={latitude}
-                              onChange={(e) => {
-                                setLatitude(e.target.value)
-                              }}
-                              placeholder="e.g. 10.000000000000000"
-                              className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h- md:h-9 bg-[#1565BC05] ${
+                              readOnly
+                              placeholder="Auto-filled on selection"
+                              className={`text-[#122A48] rounded-lg text-xs bg-[#F0F0F0] cursor-not-allowed !font-normal h- md:h-9 ${
                                 fieldErrors.latitude ? 'border-[#FF0000]' : 'border-[#727272]'
                               }`}
                             />
@@ -666,12 +663,10 @@ export default function Node() {
                               type="number"
                               name="longitude"
                               value={longitude}
-                              onChange={(e) => {
-                                setLongitude(e.target.value)
-                              }}
-                              placeholder="e.g. 10.000000000000000"
-                              className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h- md:h-9 bg-[#1565BC05] ${
-                                fieldErrors.longitude ? 'border-[#FF0000]' : 'border-[#727272]'
+                              readOnly
+                              placeholder="Auto-filled on selection"
+                              className={`text-[#122A48] rounded-lg text-xs bg-[#F0F0F0] cursor-not-allowed !font-normal h- md:h-9 ${
+                                fieldErrors.latitude ? 'border-[#FF0000]' : 'border-[#727272]'
                               }`}
                             />
                             <div className="flex justify-between items-center">

@@ -236,13 +236,14 @@ export default function ClogEvents() {
                   <TableHead className='font-semibold text-center text-[#727272]'>LOCATION</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>WATER LEVEL</TableHead>
                   <TableHead className='font-semibold text-center text-[#727272]'>WATER FLOW</TableHead>
+                  <TableHead className='font-semibold text-center text-[#727272]'>STATUS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {/* fetch error state */}
                   {fetchError ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-15">
+                      <TableCell colSpan={8} className="text-center py-15">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
                           <p className="text-[#D81010] font-semibold text-base">Failed to clog events. Please try again later.</p>
                           <Button onClick={fetchClogs} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
@@ -253,7 +254,7 @@ export default function ClogEvents() {
                   // no node state
                   ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-15">
+                    <TableCell colSpan={8} className="text-center py-15">
                       <div className="flex flex-col items-center gap-3">
                         <div className="rounded-full bg-[#E5E5E6] p-4">
                           <Radar size={36} color="#727272" />
@@ -301,6 +302,7 @@ export default function ClogEvents() {
                         <TableCell className="text-[#122A48] text-center h-18">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">{clog?.node_details?.water_level} cm</TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">~ {clog?.node_details?.water_flow_rate} m/s</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">{clog.status}</TableCell>
                       </TableRow>
                     ))
                   )}
