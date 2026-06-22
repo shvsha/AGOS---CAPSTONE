@@ -519,6 +519,7 @@ export default function Barangay() {
               longitude={viewMapDialog.barangay?.longitude}
               label={viewMapDialog.barangay?.barangay_name}
               zoom={16}
+              showLegend={false}
             />
           </div>
           <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">
@@ -735,6 +736,7 @@ export default function Barangay() {
                         latitude={latitude ? parseFloat(latitude) : undefined}
                         longitude={longitude ? parseFloat(longitude) : undefined}
                         label={barangay}
+                        showLegend={false}
                       />
                     </div>
                   </div>

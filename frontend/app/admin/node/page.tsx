@@ -628,6 +628,7 @@ export default function Node() {
                           latitude={latitude ? parseFloat(latitude) : undefined}
                           longitude={longitude ? parseFloat(longitude) : undefined}
                           label={barangay}
+                          showLegend={false}
                         />
                       </div>
                     </div>

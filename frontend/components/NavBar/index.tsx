@@ -20,7 +20,7 @@ import {
   Siren, Activity, History, Stamp,
   Map, Package, FileBarChart, CalendarDays,
   MapPin, FileUp, LogOut, RadioTower, ChevronDown,
-  SlidersHorizontal,
+  SlidersHorizontal, Target 
 } from "lucide-react"
 
 // logo
@@ -41,7 +41,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Monitoring", href: "/admin/monitoring",  icon: <ChartNoAxesCombined size={18} /> },
     { label: "Alerts",     href: "/admin/alerts",      icon: <Siren size={18} /> },
     { label: "Node Management",       href: "/admin/node",        icon: <RadioTower size={18} /> },
-    { label: "Canal Hotspots",       href: "/admin/hotspots",        icon: <RadioTower size={18} /> },
+    { label: "Canal Hotspots",       href: "/admin/hotspots",        icon: <Target size={18} /> },
     {
       label: "History",
       icon: <History size={18} />,
