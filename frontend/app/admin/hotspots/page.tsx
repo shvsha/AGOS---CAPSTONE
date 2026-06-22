@@ -3,7 +3,7 @@
 export default function Hotspots() {
   return (
     <>
-    
+    hot
     </>
   )
 }

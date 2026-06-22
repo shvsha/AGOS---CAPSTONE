@@ -75,7 +75,7 @@ class SystemHealthLogListView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAdmin()]
+            return [IsAdminOrMENRO()]
         return [IsIoTDevice()]
 
 

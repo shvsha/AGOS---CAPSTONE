@@ -41,6 +41,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Monitoring", href: "/admin/monitoring",  icon: <ChartNoAxesCombined size={18} /> },
     { label: "Alerts",     href: "/admin/alerts",      icon: <Siren size={18} /> },
     { label: "Node Management",       href: "/admin/node",        icon: <RadioTower size={18} /> },
+    { label: "Canal Hotspots",       href: "/admin/hotspots",        icon: <RadioTower size={18} /> },
     {
       label: "History",
       icon: <History size={18} />,
@@ -63,7 +64,7 @@ const navItems: Record<string, NavItem[]> = {
     },
   ],
   MENRO: [
-    { label: "Centralized Map",  href: "/menro/map",              icon: <Map size={18} /> },
+    { label: "Reginal Map",  href: "/menro/map",              icon: <Map size={18} /> },
     { label: "Alerts",           href: "/menro/alerts",           icon: <Siren size={18} /> },
     { label: "Waste Analytics",  href: "/menro/analytics",        icon: <ChartNoAxesCombined size={18} /> },
     { label: "Resources",        href: "/menro/resources",        icon: <Package size={18} /> },
