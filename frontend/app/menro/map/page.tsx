@@ -212,7 +212,7 @@ export default function Map() {
             <div className='flex justify-between items-center p-3'>
               <p className='font-semibold text-[#122A48]'>Live Alerts</p>
               <Button
-                onClick={() => router.push('/admin/alerts')}
+                onClick={() => router.push('/menro/alerts')}
                 className='rounded-lg shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] flex gap-2 bg-white hover:bg-white/50 cursor-pointer border border-[#C9C9C9]'
               >
                 <Siren size={20} className='text-[#D81010]' />

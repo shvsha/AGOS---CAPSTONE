@@ -16,7 +16,7 @@ export function Toast({ toasts, onRemove }: ToastProps) {
   if (toasts.length === 0) return null
 
   return (
-    <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 md:top-6 md:right-6 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 w-max">
+    <div className="fixed top-6 right-6 z-[100] flex flex-col gap-2 md:top-6 md:right-6 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 w-max">
       {toasts.map(toast => {
         const isError = toast.type === 'error'
         const color   = isError ? '#BB2325' : '#CDE3DE'

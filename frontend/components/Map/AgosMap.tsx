@@ -1,6 +1,6 @@
 "use client"
 
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents  } from "react-leaflet"
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, GeoJSON } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import { useEffect, useRef  } from "react"
@@ -199,9 +199,10 @@ type Props = {
   onMapClick?: (lat: number, lng: number) => void
   colorMode?: 'clog' | 'health'
   showLegend?: boolean
+  boundaryGeoJson?: any
 }
 
-export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick, colorMode = 'clog', showLegend = true}: Props) {
+export default function AgosMap({ latitude, longitude, label, zoom = 14, markers, onMapClick, colorMode = 'clog', showLegend = true, boundaryGeoJson }: Props) {
   const colorMap = colorMode === 'health' ? HEALTH_COLORS : CONDITION_COLORS
   const hasMultiple = markers && markers.length > 0
   const hasSingle   = !!latitude && !!longitude
@@ -231,6 +232,21 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapClickHandler onMapClick={onMapClick} />
+
+    <MapClickHandler onMapClick={onMapClick} />
+      {boundaryGeoJson && (
+      <GeoJSON
+        key={JSON.stringify(boundaryGeoJson.properties?.adm4_en ?? boundaryGeoJson.id)}
+        data={boundaryGeoJson}
+        style={{
+          color: "#1565BC",
+          weight: 2,
+          fillColor: "#1565BC",
+          fillOpacity: 0.1,
+        }}
+      />
+      )}
+
       {showLegend && <MapLegend colorMode={colorMode} />} 
 
       {!hasMultiple && hasSingle && (

@@ -21,6 +21,7 @@ type Props = {
   markers?: MapMarker[]
   onMapClick?: (lat: number, lng: number) => void
   colorMode?: 'clog' | 'health'
+  boundaryGeoJson?: any
 }
 
 
