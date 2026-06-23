@@ -72,7 +72,7 @@ type DialogState = {
 }
 
 
-export default function Node() {
+export default function SensorNode() {
   // us
   const [sensorNodes, setSensorNodes] = useState<SensorNodes[]>([])
 
@@ -419,66 +419,57 @@ export default function Node() {
 
                   // with node state
                   ) : (
-                    paginated.map(node => (
-                      <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                        <TableCell className="text-[#122A48] text-center h-18">{node.node_id}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{node.barangay_details?.barangay_name}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{node.node_name}</TableCell>
+                    paginated.map(sensorNode => (
+                      <TableRow key={sensorNode.node_id} className="border-b border-[#C6C6C8]">
+                        <TableCell className="text-[#122A48] text-center h-18">{sensorNode.node_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">{sensorNode.barangay_details?.barangay_name}</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">{sensorNode.node_name}</TableCell>
 
                         <TableCell className="text-[#122A48] text-center h-18">
-                          <Button
-                            onClick={() => setViewMapDialog({ open: true, node: node })}
-                            className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-4.5 px-3"
-                          >
-                            <Map size={16}/>
-                            View on map
+                          <Button onClick={() => setViewMapDialog({ open: true, node: sensorNode })}>
+                            <Map size={16}/> View on map
                           </Button>
                         </TableCell>
                         
-                          <TableCell className="text-center h-18">
-                            <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                              node.status === 'Active'      ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
-                              node.status === 'Maintenance' ? 'bg-[#D8B4FE] text-[#582579]' :
-                              node.status === 'Decommissioned' ? 'bg-[#E5E5E6] text-[#727272]' :
-                              'bg-[#FFE5E5] text-[#D81010]'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${
-                                node.status === 'Active'      ? 'bg-[#1D8104]' :
-                                node.status === 'Maintenance' ? 'bg-[#582579]' :
-                                node.status === 'Decommissioned' ? 'bg-[#727272]' :
-                                'bg-[#BB2325]'
-                              }`}/>
-                              {node.status}
-                            </span>
-                          </TableCell>
+                        <TableCell className="text-center h-18">
+                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                            sensorNode.status === 'Active'         ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
+                            sensorNode.status === 'Maintenance'    ? 'bg-[#D8B4FE] text-[#582579]' :
+                            sensorNode.status === 'Decommissioned' ? 'bg-[#E5E5E6] text-[#727272]' :
+                            'bg-[#FFE5E5] text-[#D81010]'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              sensorNode.status === 'Active'         ? 'bg-[#1D8104]' :
+                              sensorNode.status === 'Maintenance'    ? 'bg-[#582579]' :
+                              sensorNode.status === 'Decommissioned' ? 'bg-[#727272]' :
+                              'bg-[#BB2325]'
+                            }`}/>
+                            {sensorNode.status}
+                          </span>
+                        </TableCell>
 
                         <TableCell className="text-[#122A48] text-center h-18">
-                          {node.installed_at
-                            ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
+                          {sensorNode.installed_at
+                            ? new Date(sensorNode.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
+                                year: 'numeric', month: 'short', day: 'numeric'
                               })
                             : '—'}
                         </TableCell>
 
                         <TableCell className="text-[#122A48] flex gap-3 justify-center items-center h-18">
                           <Button
-                            onClick={() => setNodeFormDialog({ open: true, node: node })}
+                            onClick={() => setNodeFormDialog({ open: true, node: sensorNode })}
                             className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
                           >
-                            <SquarePen size={16} />
-                            Edit
+                            <SquarePen size={16} /> Edit
                           </Button>
                           <Button
-                            onClick={() => setDecommissionDialog({ open: true, node: node })}
+                            onClick={() => setDecommissionDialog({ open: true, node: sensorNode })}
                             className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-[#dfc6c6] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
                           >
-                            <MapPinOff size={16} />
-                            Remove
+                            <MapPinOff size={16} /> Remove
                           </Button>
-                      </TableCell>
-
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -775,8 +766,8 @@ export default function Node() {
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
               markers={sensorNodes.map(n => ({
-                latitude: n.latitude,
-                longitude: n.longitude,
+                latitude: n.hotspot_details?.latitude,
+                longitude: n.hotspot_details?.longitude,
                 label: n.node_name,
                 condition: n.condition,
                 sublabel: `Water: ${n.water_level ?? '—'}cm | Clog: ${n.clog_pct ?? '—'}%`,
@@ -786,15 +777,15 @@ export default function Node() {
           </div>
           <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">
             <div className="flex flex-col md:flex-row gap-3 items-center">
-              <p className="text-xs md:text-sm">{viewMapDialog.node?.latitude}</p>
-              <p className="text-xs md:text-sm">{viewMapDialog.node?.longitude}</p>
+              <p className="text-xs md:text-sm">{viewMapDialog.node?.hotspot_details?.latitude}</p>
+              <p className="text-xs md:text-sm">{viewMapDialog.node?.hotspot_details?.longitude}</p>
             </div>
             <Button
-              disabled={viewMapDialog.node?.latitude == null || viewMapDialog.node?.longitude == null}
+              disabled={viewMapDialog.node?.hotspot_details?.latitude == null || viewMapDialog.node?.hotspot_details?.longitude == null}
               onClick={() => {
                 const n = viewMapDialog.node
                 if (!n) return
-                window.open(`https://www.google.com/maps/dir/?api=1&destination=${n.latitude},${n.longitude}`, '_blank')
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${n.hotspot_details?.latitude},${n.hotspot_details?.longitude}`, '_blank')
               }}
               className="cursor-pointer rounded-lg border border-[#C6C6C8] bg-[#FAFCFD] hover:bg-[#d6e4eb] px-3 py-2 md:px-4 md:py-3 text-[#727272]"
             >
