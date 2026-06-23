@@ -1,6 +1,8 @@
 from django.db import models
 from apps.barangay.models import Barangay
+from apps.hotspots.models import Hotspot
 from django.utils import timezone
+
 
 class SensorNode(models.Model):
     STATUS_CHOICES = [
@@ -16,9 +18,14 @@ class SensorNode(models.Model):
         on_delete=models.CASCADE,
         db_column='barangay_id'
     )
+    hotspot = models.OneToOneField(
+        Hotspot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='hotspot_id'
+    )
     node_name = models.CharField(max_length=100, blank=True, default='')
-    latitude = models.FloatField()
-    longitude = models.FloatField()
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Active')
     installed_at = models.DateTimeField(default=timezone.now)
 
@@ -28,6 +35,14 @@ class SensorNode(models.Model):
     def __str__(self):
         label = self.node_name or f"Node {self.node_id}"
         return f"{label} - {self.barangay.barangay_name}"
+
+    @property
+    def latitude(self):
+        return self.hotspot.latitude if self.hotspot else None
+
+    @property
+    def longitude(self):
+        return self.hotspot.longitude if self.hotspot else None
 
 
 class SystemHealthLog(models.Model):
