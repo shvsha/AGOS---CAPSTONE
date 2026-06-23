@@ -1,28 +1,47 @@
 from rest_framework import serializers
 from .models import SensorNode, SystemHealthLog
-from apps.barangay.serializers import BarangaySerializer
 from apps.barangay.models import Barangay
+from apps.hotspots.models import Hotspot
 from apps.sensor_readings.models import SensorReading
 
+
 class SensorNodeSerializer(serializers.ModelSerializer):
+    barangay = serializers.PrimaryKeyRelatedField(
+        queryset=Barangay.objects.all(),
+        write_only=True
+    )
+    hotspot = serializers.PrimaryKeyRelatedField(
+        queryset=Hotspot.objects.all(),
+        write_only=True,
+        allow_null=True,
+        required=False
+    )
     barangay_details = serializers.SerializerMethodField()
-    barangay = serializers.PrimaryKeyRelatedField(queryset=Barangay.objects.all(), write_only=True)
-    water_level      = serializers.SerializerMethodField()
-    water_flow_rate  = serializers.SerializerMethodField()
-    clog_pct         = serializers.SerializerMethodField()
-    condition        = serializers.SerializerMethodField()
-    health_status    = serializers.SerializerMethodField()
+    hotspot_details = serializers.SerializerMethodField()
+
+    # Coords are now derived from the hotspot
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    water_level = serializers.SerializerMethodField()
+    water_flow_rate = serializers.SerializerMethodField()
+    clog_pct = serializers.SerializerMethodField()
+    condition = serializers.SerializerMethodField()
+    health_status = serializers.SerializerMethodField()
 
     class Meta:
-        model  = SensorNode
+        model = SensorNode
         fields = [
-            'node_id', 'node_name', 'barangay', 'barangay_details',
-            'latitude', 'longitude', 'status', 'installed_at',
+            'node_id', 'node_name',
+            'barangay', 'barangay_details',
+            'hotspot', 'hotspot_details',
+            'latitude', 'longitude',
+            'status', 'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
             'health_status',
         ]
         extra_kwargs = {
-            'installed_at': {'required': False}
+            'installed_at': {'required': False},
         }
 
     def _latest(self, obj):
@@ -33,9 +52,26 @@ class SensorNodeSerializer(serializers.ModelSerializer):
 
     def get_barangay_details(self, obj):
         return {
-            'barangay_id':   obj.barangay.barangay_id,
+            'barangay_id': obj.barangay.barangay_id,
             'barangay_name': obj.barangay.barangay_name,
         }
+
+    def get_hotspot_details(self, obj):
+        if not obj.hotspot:
+            return None
+        return {
+            'hotspot_id': obj.hotspot.hotspot_id,
+            'name': obj.hotspot.name,
+            'description': obj.hotspot.description,
+            'latitude': obj.hotspot.latitude,
+            'longitude': obj.hotspot.longitude,
+        }
+
+    def get_latitude(self, obj):
+        return obj.hotspot.latitude if obj.hotspot else None
+
+    def get_longitude(self, obj):
+        return obj.hotspot.longitude if obj.hotspot else None
 
     def get_water_level(self, obj):
         r = self._latest(obj)
@@ -56,16 +92,39 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     def get_health_status(self, obj):
         h = self._latest_health(obj)
         return h.status if h else None
-    
+
+    def validate(self, attrs):
+        hotspot = attrs.get('hotspot')
+
+        if hotspot:
+            # Check if the hotspot is already occupied by another node
+            existing = SensorNode.objects.filter(
+                hotspot=hotspot
+            ).exclude(status='Decommissioned')
+
+            # Exclude self on update
+            if self.instance:
+                existing = existing.exclude(pk=self.instance.pk)
+
+            if existing.exists():
+                raise serializers.ValidationError(
+                    {'hotspot': 'This hotspot is already occupied by an active node.'}
+                )
+
+        return attrs
+
 
 class SystemHealthLogSerializer(serializers.ModelSerializer):
     node_details = SensorNodeSerializer(source='node', read_only=True)
-    node = serializers.PrimaryKeyRelatedField(queryset=SensorNode.objects.all(), write_only=True)
+    node = serializers.PrimaryKeyRelatedField(
+        queryset=SensorNode.objects.all(),
+        write_only=True
+    )
 
     class Meta:
         model = SystemHealthLog
         fields = [
             'health_id', 'node', 'node_details',
             'battery_voltage', 'signal_strength', 'sensor_continuity',
-            'status', 'status', 'checked_at',
+            'status', 'checked_at',
         ]

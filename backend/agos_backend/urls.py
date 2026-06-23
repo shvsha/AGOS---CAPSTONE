@@ -23,6 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apps.users.urls')),
     path('api/', include('apps.barangay.urls')),
+    path('api/', include('apps.hotspots.urls')),
     path('api/', include('apps.sensor_nodes.urls')),
     path('api/', include('apps.sensor_readings.urls')),
     path('api/', include('apps.waste_classification.urls')),

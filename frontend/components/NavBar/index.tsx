@@ -68,6 +68,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Alerts",           href: "/menro/alerts",           icon: <Siren size={18} /> },
     { label: "Waste Analytics",  href: "/menro/analytics",        icon: <ChartNoAxesCombined size={18} /> },
     { label: "Resources",        href: "/menro/resources",        icon: <Package size={18} /> },
+    { label: "Canal Hotspots",        href: "/menro/hotspots",        icon: <Target size={18} /> },
     { label: "Barangay Reports", href: "/menro/barangay-reports", icon: <FileBarChart size={18} /> },
     { label: "Monthly Reports",  href: "/menro/reports",          icon: <CalendarDays size={18} /> },
   ],

@@ -55,13 +55,15 @@ function getBarColor(pct: number) {
 }
 
 
-
 type SensorNodes = {
   node_id: number
   barangay_details: { barangay_id: number; barangay_name: string } | null
+  hotspot_details: {
+    hotspot_id: number
+    latitude: number
+    longitude: number
+  }
   node_name: string
-  latitude: number
-  longitude: number
   status: string
   installed_at: string
   condition: string | null
@@ -117,11 +119,13 @@ export default function Map() {
   const [selectedNode, setSelectedNode] = useState<SensorNodes | null>(null)
   const [nodeDialog, setNodeDialog] = useState({ open: false })
 
+  console.log(allSensorNodes)
+
   // helpers
   const health = allSensorHealth.find(h => h.node_details.node_id === selectedNode?.node_id)
   const voltage = health?.battery_voltage
   const pct = voltage != null ? getBatteryPct(voltage) : null
-  const signal = health?.signal_strength  // e.g. -75 dBm
+  const signal = health?.signal_strength
   const signalPct = signal != null 
     ? Math.min(100, Math.max(0, Math.round(((signal + 100) / 60) * 100)))
     : null
@@ -190,8 +194,8 @@ export default function Map() {
             <div className="flex-1 overflow-hidden">
               <AgosMapWrapper
                 markers={allSensorNodes.map(n => ({
-                  latitude:  n.latitude,
-                  longitude: n.longitude,
+                  latitude:  n.hotspot_details.latitude,
+                  longitude: n.hotspot_details.longitude,
                   label:     n.node_name,
                   condition: n.health_status ?? 'Normal',
                   onMarkerClick: () => handleSelectNode(n.node_id)

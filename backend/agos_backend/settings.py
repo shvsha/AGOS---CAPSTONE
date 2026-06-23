@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'apps.alerts',
     'apps.reports',
     'apps.audit_logs',
+    'apps.hotspots',
 ]
 
 MIDDLEWARE = [
