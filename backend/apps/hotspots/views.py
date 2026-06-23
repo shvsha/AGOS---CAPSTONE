@@ -21,7 +21,7 @@ class HotspotDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Hotspot.objects.select_related('barangay').all()
     serializer_class = HotspotSerializer
     lookup_field = 'hotspot_id'
-    permission_classes = [IsMENRO]
+    permission_classes = [IsAdminOrMENRO]
 
 
 class HotspotByBarangayView(generics.ListAPIView):
@@ -41,7 +41,7 @@ class HotspotByBarangayView(generics.ListAPIView):
 
 class HotspotAvailableByBarangayView(generics.ListAPIView):
     serializer_class = HotspotSerializer
-    permission_classes = [IsMENRO]
+    permission_classes = [IsAdminOrMENRO]
 
     def get_queryset(self):
         barangay_id = self.kwargs['barangay_id']

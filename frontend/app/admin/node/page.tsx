@@ -37,9 +37,12 @@ import { api } from "@/lib/api";
 type SensorNodes = {
   node_id: number
   barangay_details: { barangay_id: number; barangay_name: string } | null
+  hotspot_details: {
+    hotspot_id: number
+    latitude: number
+    longitude: number
+  }
   node_name: string
-  latitude: number
-  longitude: number
   status: string
   installed_at: string
   condition: string | null
@@ -53,6 +56,14 @@ type Barangay = {
   barangay_name: string
   latitude: number
   longitude: number
+}
+
+type Hotspots = {
+  hotspot_id: number
+  name: string
+  latitude: number
+  longitude: number
+  is_occupied: boolean
 }
 
 type DialogState = {
@@ -78,10 +89,10 @@ export default function Node() {
   // form state
   const [barangay, setBarangay] = useState<string>('')
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
+  const [hotspots, setHotspots] = useState<Hotspots[]>([])
   const [nodeName, setNodeName] = useState<string>('')
   const [installedAt, setInstalledAt] = useState<string>("")
-  const [latitude, setLatitude] = useState<string>('')
-  const [longitude, setLongitude] = useState<string>('')
+  const [hotspot, setHotspot] = useState<string>('')
 
   const {toasts, addToast, removeToast } = useToast()
 
@@ -133,6 +144,8 @@ export default function Node() {
 
   const isEdit = !!nodeFormDialog.node
 
+  const selectedHotspot = hotspots.find(h => String(h.hotspot_id) === hotspot)
+
   const fetchNodes = async () => {
     setLoading(true)
     setFetchError(false)
@@ -177,8 +190,7 @@ export default function Node() {
     if (nodeFormDialog.node) {
       setBarangay(String(nodeFormDialog.node.barangay_details?.barangay_id ?? ''))
       setNodeName(nodeFormDialog.node.node_name ?? '')
-      setLatitude(String(nodeFormDialog.node.latitude ?? ''))
-      setLongitude(String(nodeFormDialog.node.longitude ?? ''))
+      setHotspot(String(nodeFormDialog.node.hotspot_details?.hotspot_id ?? ''))
       setInstalledAt(
         nodeFormDialog.node.installed_at
           ? new Date(nodeFormDialog.node.installed_at).toISOString().split('T')[0]
@@ -187,12 +199,34 @@ export default function Node() {
     } else {
       setBarangay('')
       setNodeName('')
-      setLatitude('')
-      setLongitude('')
+      setHotspot('')
       setInstalledAt('')
       setFieldErrors({})
     }
   }, [nodeFormDialog.open])
+
+  useEffect(() => {
+    if (!barangay) {
+      setHotspots([])
+      setHotspot('')
+      return
+    }
+
+    const fetchHotspots = async () => {
+      try {
+        const res = await fetchWithAuth(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/barangay/${barangay}/available/`
+        )
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setHotspots(data.results ?? data)
+      } catch {
+        setHotspots([])
+      }
+    }
+    fetchHotspots()
+  }, [barangay])
+  
 
   // handlers
   const handleDecomission = async (node: SensorNodes) => {
@@ -214,10 +248,9 @@ export default function Node() {
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
     if (!barangay.trim()) errors.barangay = "This field is required."
+    if (!hotspot.trim()) errors.hotspot = "This field is required."
     if (!nodeName.trim()) errors.nodeName = "This field is required."
     if (!installedAt.trim()) errors.installedAt = "This field is required."
-    if (!latitude.trim()) errors.latitude = 'This field is required.'
-    if (!longitude.trim()) errors.longitude = 'This field is required.'
 
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
@@ -229,10 +262,9 @@ export default function Node() {
     setCancelDialog({ open: false})
     setNodeFormDialog({ open: false, node: null})
     setBarangay('')
+    setHotspot('')
     setNodeName('')
     setInstalledAt('')
-    setLatitude('')
-    setLongitude('')
     setFieldErrors({})
   }
 
@@ -242,9 +274,8 @@ export default function Node() {
 
     const payload = {
       barangay: parseInt(barangay),
+      hotspot: parseInt(hotspot),
       node_name: nodeName,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
       installed_at: installedAt ? new Date(installedAt).toISOString() : undefined,
     }
 
@@ -257,28 +288,26 @@ export default function Node() {
             : n
         ))
         addToast(`${nodeName} has been updated.`, 'success')
-        } else {
-          const created = await api.post('/api/sensor-nodes/', payload)
-          setSensorNodes(prev => [created, ...prev])
-          addToast(`${nodeName || 'New node'} has been added.`, 'success')
-        }
-        
-        setNodeFormDialog({ open: false, node: null })
-        setBarangay('')
-        setNodeName('')
-        setInstalledAt('')
-        setLatitude('')
-        setLongitude('')
-        setFieldErrors({})
-      } catch (err: any) {
-        addToast(err?.detail ?? err?.error ?? 'Something went wrong.', 'error')
-      } finally {
-        setLoadingDialog({ open: false })
+      } else {
+        const created = await api.post('/api/sensor-nodes/', payload)
+        setSensorNodes(prev => [created, ...prev])
+        addToast(`${nodeName || 'New node'} has been added.`, 'success')
+      }
+
+      setNodeFormDialog({ open: false, node: null })
+      setBarangay('')
+      setHotspot('')
+      setNodeName('')
+      setInstalledAt('')
+      setFieldErrors({})
+    } catch (err: any) {
+      addToast(err?.detail ?? err?.error ?? 'Something went wrong.', 'error')
+    } finally {
+      setLoadingDialog({ open: false })
     }
   }
+
   
-
-
   return (
     <>
       <div className="hidden md:flex flex-col">
@@ -313,7 +342,7 @@ export default function Node() {
               onClick={() => setNodeFormDialog({ open: true, node: null})}
               className="p-5 py-5.5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
-              <FaPlus color="white" /> Add Node
+              <FaPlus color="white" /> Assign Node
             </Button>
 
           </div>
@@ -376,13 +405,13 @@ export default function Node() {
                         </div>
                         <p className="text-[#122A48] font-bold">No sensor nodes in the system</p>
                         <p className="text-[#727272] text-sm">
-                          No sensor node have been added yet. Click <br/> the button below to start adding node.
+                          No sensor node have been assigned yet. Click <br/> the button below to start assigning node.
                         </p>
                         <Button
                           onClick={() => setNodeFormDialog({ open: true, node: null})}
                           className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
                         >
-                          + Add Node
+                          + Assign Node
                         </Button>
                       </div>
                     </TableCell>
@@ -479,13 +508,13 @@ export default function Node() {
                 {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
               </div>
               <div className="flex flex-col ">
-                <p className="font-bold text-base md:text-lg">{isEdit ? nodeFormDialog.node?.node_name ?? 'Edit Node' : 'Add Node'}</p>
+                <p className="font-bold text-base md:text-lg">{isEdit ? nodeFormDialog.node?.node_name ?? 'Edit Node' : 'Assign Node'}</p>
                 <p className="text-[10px] md:text-sm">
                   {isEdit ? (
                     'Rosario, La Union'
                   ) : (
                     <>
-                      Register a new IoT sensor node under<br className="md:hidden" /> AGOS monitoring coverage
+                      Assign a new IoT sensor node under<br className="md:hidden" /> AGOS monitoring coverage
                     </>
                   )}
                 </p>
@@ -521,19 +550,14 @@ export default function Node() {
                         value={barangay}
                         onValueChange={(value) => {
                           setBarangay(value)
+                          setHotspot('')
                           if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: '' }))
-
-                          const selected = allBarangays.find(b => String(b.barangay_id) === value)
-                          if (selected) {
-                            setLatitude(String(selected.latitude))
-                            setLongitude(String(selected.longitude))
-                          }
                         }}
                       >
                         <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                           <SelectValue placeholder="Select Barangay..." />
                         </SelectTrigger>
-                        <SelectContent className="max-h-60 overflow-y-auto">
+                        <SelectContent position='popper' className="max-h-60 overflow-y-auto">
                           {[...allBarangays]
                             .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                             .map(b => (
@@ -550,9 +574,43 @@ export default function Node() {
                       <FieldError className="text-xs">{fieldErrors.barangay}</FieldError>
                     </Field>
                     
-                    {/* hotspot select */}
-
-
+                    {/* Hotspot Select */}
+                    <Field className="flex gap-1.5 flex-col w-[274px] md:w-[310px]">
+                      <FieldLabel className="text-[#122A48] text-xs md:text-sm">
+                        HOTSPOT <span className="text-[#FF0000]">*</span>
+                      </FieldLabel>
+                      <Select
+                        value={hotspot}
+                        onValueChange={(value) => {
+                          setHotspot(value)
+                          if (fieldErrors.hotspot) setFieldErrors(prev => ({ ...prev, hotspot: '' }))
+                        }}
+                        disabled={!barangay}
+                      >
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.hotspot ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder={!barangay ? "Select barangay first..." : "Select hotspot..."} />
+                        </SelectTrigger>
+                        <SelectContent position='popper' className="max-h-60 overflow-y-auto">
+                          {hotspots.length === 0 ? (
+                            <div className="p-2 text-xs text-[#727272] text-center">
+                              {barangay ? "No available hotspots in this barangay" : "Select a barangay first"}
+                            </div>
+                          ) : (
+                            hotspots.map(h => (
+                              <SelectItem
+                                key={h.hotspot_id}
+                                value={String(h.hotspot_id)}
+                                className="p-1 md:p-2 text-[#122A48]"
+                              >
+                                {h.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FieldError className="text-xs">{fieldErrors.hotspot}</FieldError>
+                    </Field>
+                    
                   </div>
 
                   <div className="flex gap-3 -mt-4 p-2.5 md:p-4">
@@ -625,8 +683,8 @@ export default function Node() {
                       </div>
                       <div className="h-70 md:h-110 border-t border-[#C6C6C8] rounded-b-lg overflow-hidden">
                         <AgosMapWrapper
-                          latitude={latitude ? parseFloat(latitude) : undefined}
-                          longitude={longitude ? parseFloat(longitude) : undefined}
+                          latitude={selectedHotspot?.latitude}
+                          longitude={selectedHotspot?.longitude}
                           label={barangay}
                           showLegend={false}
                         />
@@ -644,12 +702,10 @@ export default function Node() {
                             <Input
                               type="number"
                               name="latitude"
-                              value={latitude}
+                              value={selectedHotspot?.latitude ?? ''}
                               readOnly
-                              placeholder="Auto-filled on selection"
-                              className={`text-[#122A48] rounded-lg text-xs bg-[#F0F0F0] cursor-not-allowed !font-normal h- md:h-9 ${
-                                fieldErrors.latitude ? 'border-[#FF0000]' : 'border-[#727272]'
-                              }`}
+                              placeholder="Auto-filled from hotspot"
+                              className="text-[#122A48] rounded-lg text-xs bg-[#F0F0F0] cursor-not-allowed !font-normal h- md:h-9 border-[#727272]"
                             />
                             <div className="flex justify-between items-center">
                             <FieldError className="text-xs">{fieldErrors.latitude}</FieldError>
@@ -662,13 +718,11 @@ export default function Node() {
                           <FieldLabel className="text-[#122A48] text-[11px] md:text-xs">LONGITUDE <span className="text-[#FF0000]">*</span></FieldLabel>
                             <Input
                               type="number"
-                              name="longitude"
-                              value={longitude}
+                              name="latitude"
+                              value={selectedHotspot?.longitude ?? ''}
                               readOnly
-                              placeholder="Auto-filled on selection"
-                              className={`text-[#122A48] rounded-lg text-xs bg-[#F0F0F0] cursor-not-allowed !font-normal h- md:h-9 ${
-                                fieldErrors.latitude ? 'border-[#FF0000]' : 'border-[#727272]'
-                              }`}
+                              placeholder="Auto-filled from hotspot"
+                              className="text-[#122A48] rounded-lg text-xs bg-[#F0F0F0] cursor-not-allowed !font-normal h- md:h-9 border-[#727272]"
                             />
                             <div className="flex justify-between items-center">
                             <FieldError className="text-xs">{fieldErrors.longitude}</FieldError>
@@ -696,7 +750,7 @@ export default function Node() {
                   className="cursor-pointer hover:bg-[#12569f] rounded-lg text-xs md:text-sm px-4 py-4 bg-[#1565BC]"
                 >
                   <Check />
-                  {isEdit ? 'Save Changes' : 'Add Node'}
+                  {isEdit ? 'Save Changes' : 'Assign Node'}
                 </Button>
 
               </div>
@@ -759,8 +813,8 @@ export default function Node() {
         color={isEdit ? DIALOG_COLOR.lightyellow : DIALOG_COLOR.lightred}
         icon={isEdit ? SquarePen : X}
         iconColor={isEdit ? DIALOG_COLOR.yellow : DIALOG_COLOR.red}
-        title={isEdit ? "Cancel Changes" : "Cancel Adding Node"}
-        description={isEdit ? 'You have unsaved changes that will be lost if you cancel.' : 'Are you sure you want to cancel adding node?'}
+        title={isEdit ? "Cancel Changes" : "Cancel Assigning Node"}
+        description={isEdit ? 'You have unsaved changes that will be lost if you cancel.' : 'Are you sure you want to cancel assigning node?'}
         cancelLabel='Keep Editing'
         confirmLabel='Yes, Cancel'
       />
@@ -796,11 +850,11 @@ export default function Node() {
         title={isEdit? "Saving Changes" : "Saving Node"}
         description={isEdit ? 
           <>
-            Processing barangay detail changes for node <strong>{nodeName}</strong>. Please wait.
+            Processing details changes for node <strong>{nodeName}</strong>. Please wait.
           </>
           : 
           <>
-            Proccessing barangay details. Please wait.
+            Proccessing details. Please wait.
           </>
         }
       />

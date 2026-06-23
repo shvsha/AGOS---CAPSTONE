@@ -60,43 +60,36 @@ type DialogState = {
   hotspot?: Hotspot | null
 }
 
-// Rosario La Union bounding box
-const ROSARIO_BBOX = "16.14,120.44,16.30,120.58"
+
+let boundaryDataCache: any = null
+let boundaryDataPromise: Promise<any> | null = null
+
+async function loadBoundaryData(): Promise<any | null> {
+  if (boundaryDataCache) return boundaryDataCache
+  if (boundaryDataPromise) return boundaryDataPromise
+
+  boundaryDataPromise = fetch("/data/rosario-barangays.json")
+    .then(res => {
+      if (!res.ok) throw new Error()
+      return res.json()
+    })
+    .then(data => {
+      boundaryDataCache = data
+      return data
+    })
+    .catch(() => null)
+
+  return boundaryDataPromise
+}
 
 async function fetchBarangayBoundary(barangayName: string): Promise<any | null> {
-  const query = `
-    [out:json][timeout:15];
-    relation["admin_level"="10"]["boundary"="administrative"]["name"="${barangayName}"](${ROSARIO_BBOX});
-    out geom;
-  `
-  try {
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: query,
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const relation = data.elements?.[0]
-    if (!relation) return null
+  const data = await loadBoundaryData()
+  if (!data) return null
 
-    const coordinates = relation.members
-      ?.filter((m: any) => m.type === "way" && m.role === "outer")
-      .map((m: any) => m.geometry?.map((p: any) => [p.lon, p.lat]) ?? [])
-      .filter((ring: any[]) => ring.length > 0)
-
-    if (!coordinates || coordinates.length === 0) return null
-
-    return {
-      type: "Feature",
-      geometry: {
-        type: coordinates.length === 1 ? "Polygon" : "MultiPolygon",
-        coordinates: coordinates.length === 1 ? coordinates : coordinates.map((r: any) => [r]),
-      },
-      properties: { name: barangayName },
-    }
-  } catch {
-    return null
-  }
+  const feature = data.features.find(
+    (f: any) => f.properties.adm4_en === barangayName
+  )
+  return feature ?? null
 }
 
 
@@ -203,6 +196,7 @@ export default function HotspotManagement() {
       setBoundaryFallback(false)
     }
   }, [formDialog.open])
+
 
   // Boundary fetch on barangay select
   const loadBoundary = useCallback(async (barangayName: string) => {
@@ -452,7 +446,7 @@ export default function HotspotManagement() {
                       <TableCell className="text-[#122A48] text-center h-18">{hotspot.hotspot_id}</TableCell>
                       <TableCell className="text-[#122A48] text-center h-18">{hotspot.barangay_details?.barangay_name}</TableCell>
                       <TableCell className="text-[#122A48] text-center h-18 font-medium">{hotspot.name}</TableCell>
-                      <TableCell className="text-[#727272] text-center h-18 text-sm max-w-48 truncate">
+                      <TableCell className="text-[#727272] text-center h-18 text-xs max-w-48 truncate">
                         {hotspot.description || "—"}
                       </TableCell>
 
@@ -592,9 +586,9 @@ export default function HotspotManagement() {
                     <textarea
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      rows={2}
-                      placeholder="Brief description of this hotspot location..."
-                      className="w-full text-[#122A48] rounded-lg text-xs border border-[#727272] bg-[#1565BC05] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#1565BC40]"
+                      rows={1}
+                      placeholder="Brief description or landmark of this hotspot location e.g. (Near Tsongsan)..."
+                      className="w-full text-[#122A48] rounded-lg text-sm border border-[#727272] bg-[#1565BC05] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#1565BC40]"
                     />
                   </Field>
                 </div>
