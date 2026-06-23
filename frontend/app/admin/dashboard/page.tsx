@@ -222,8 +222,6 @@ export default function Dashboard() {
     )
   })
 
-  console.log(allNodeHealth)
-
 
   return (
     <>
