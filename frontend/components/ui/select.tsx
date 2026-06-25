@@ -69,7 +69,7 @@ function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         data-align-trigger={position === "item-aligned"}
-        className={cn("relative z-50 ...")}
+        className={cn("relative z-50 bg-popover ...")}
         position={position}
         {...props}
       >

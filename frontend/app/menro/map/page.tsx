@@ -140,6 +140,15 @@ export default function Map() {
       setAllSensorNodes(data.results ?? data)
     } catch {}
   }
+  
+  const fetchAlerts = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllAlerts(data.results ?? data)
+    } catch {}
+  }
 
   // fetch node health
   const fetchNodeHealth = async () => {
@@ -155,6 +164,7 @@ export default function Map() {
   useEffect(() => {
     fetchSensorNodes()
     fetchNodeHealth()
+    fetchAlerts()
   }, [])
 
   // handlers
