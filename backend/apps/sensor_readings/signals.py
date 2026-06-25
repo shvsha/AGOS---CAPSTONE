@@ -23,9 +23,9 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
         )
 
         # Determine severity
-        if instance.water_level >= 90:
+        if instance.water_level >= 75:
             severity = 'High'
-        elif instance.water_level >= 70:
+        elif instance.water_level >= 50:
             severity = 'Medium'
         else:
             severity = 'Low'

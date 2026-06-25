@@ -40,8 +40,8 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Dashboard",  href: "/admin/dashboard",  icon: <LayoutDashboard size={18} /> },
     { label: "Monitoring", href: "/admin/monitoring",  icon: <ChartNoAxesCombined size={18} /> },
     { label: "Alerts",     href: "/admin/alerts",      icon: <Siren size={18} /> },
-    { label: "Node Management",       href: "/admin/node",        icon: <RadioTower size={18} /> },
     { label: "Canal Hotspots",       href: "/admin/hotspots",        icon: <Target size={18} /> },
+    { label: "Node Management",       href: "/admin/node",        icon: <RadioTower size={18} /> },
     {
       label: "History",
       icon: <History size={18} />,
