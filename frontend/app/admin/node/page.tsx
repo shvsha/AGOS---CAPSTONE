@@ -206,11 +206,7 @@ export default function SensorNode() {
   }, [nodeFormDialog.open])
 
   useEffect(() => {
-    if (!barangay) {
-      setHotspots([])
-      setHotspot('')
-      return
-    }
+    if (!barangay) { setHotspots([]); setHotspot(''); return }
 
     const fetchHotspots = async () => {
       try {
@@ -219,10 +215,19 @@ export default function SensorNode() {
         )
         if (!res.ok) throw new Error()
         const data = await res.json()
-        setHotspots(data.results ?? data)
-      } catch {
-        setHotspots([])
-      }
+        let spots = data.results ?? data
+
+        // If editing, include the current node's hotspot even if occupied
+        if (nodeFormDialog.node?.hotspot_details) {
+          const currentHotspot = nodeFormDialog.node.hotspot_details
+          const alreadyIncluded = spots.some(h => h.hotspot_id === currentHotspot.hotspot_id)
+          if (!alreadyIncluded) {
+            spots = [{ hotspot_id: currentHotspot.hotspot_id, name: `Current hotspot`, ...currentHotspot }, ...spots]
+          }
+        }
+
+        setHotspots(spots)
+      } catch { setHotspots([]) }
     }
     fetchHotspots()
   }, [barangay])
@@ -340,7 +345,7 @@ export default function SensorNode() {
             {/* add user */}
             <Button
               onClick={() => setNodeFormDialog({ open: true, node: null})}
-              className="p-5 py-5.5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+              className="p-5 py-5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
               <FaPlus color="white" /> Assign Node
             </Button>
@@ -425,8 +430,8 @@ export default function SensorNode() {
                         <TableCell className="text-[#122A48] text-center h-18">{sensorNode.barangay_details?.barangay_name}</TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">{sensorNode.node_name}</TableCell>
 
-                        <TableCell className="text-[#122A48] text-center h-18">
-                          <Button onClick={() => setViewMapDialog({ open: true, node: sensorNode })}>
+                        <TableCell className="text-center h-18 ">
+                          <Button className="text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer" onClick={() => setViewMapDialog({ open: true, node: sensorNode })}>
                             <Map size={16}/> View on map
                           </Button>
                         </TableCell>
@@ -467,7 +472,7 @@ export default function SensorNode() {
                             onClick={() => setDecommissionDialog({ open: true, node: sensorNode })}
                             className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-[#dfc6c6] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
                           >
-                            <MapPinOff size={16} /> Remove
+                            <MapPinOff size={16} /> Decommission
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -548,7 +553,7 @@ export default function SensorNode() {
                         <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                           <SelectValue placeholder="Select Barangay..." />
                         </SelectTrigger>
-                        <SelectContent position='popper' className="max-h-60 overflow-y-auto">
+                        <SelectContent className="max-h-60 overflow-y-auto">
                           {[...allBarangays]
                             .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                             .map(b => (
@@ -581,7 +586,7 @@ export default function SensorNode() {
                         <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.hotspot ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                           <SelectValue placeholder={!barangay ? "Select barangay first..." : "Select hotspot..."} />
                         </SelectTrigger>
-                        <SelectContent position='popper' className="max-h-60 overflow-y-auto">
+                        <SelectContent className="max-h-60 overflow-y-auto">
                           {hotspots.length === 0 ? (
                             <div className="p-2 text-xs text-[#727272] text-center">
                               {barangay ? "No available hotspots in this barangay" : "Select a barangay first"}
@@ -818,7 +823,7 @@ export default function SensorNode() {
         color={DIALOG_COLOR.lightgreen}
         icon={isEdit? MapPinPen : MapPinPlus}
         iconColor={DIALOG_COLOR.green}
-        title={isEdit ? 'Confirm Changes' : 'Confirm Adding Node'}
+        title={isEdit ? 'Confirm Changes' : 'Confirm Assigning Node'}
         description={isEdit ?
           <>
             Are you sure you want to change node <strong>{nodeName}</strong> information?

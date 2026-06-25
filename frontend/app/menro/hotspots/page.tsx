@@ -314,9 +314,9 @@ export default function HotspotManagement() {
     try {
       await api.delete(`/api/hotspots/${h.hotspot_id}/`)
       setHotspots(prev => prev.filter(x => x.hotspot_id !== h.hotspot_id))
-      addToast(`${h.name} has been deleted.`, "success")
+      addToast(`${h.name} has been remove.`, "success")
     } catch (err: any) {
-      addToast(err?.detail ?? "Failed to delete hotspot.", "error")
+      addToast(err?.detail ?? "Failed to remove hotspot.", "error")
     }
   }
 
@@ -482,7 +482,7 @@ export default function HotspotManagement() {
                             onClick={() => handleDeleteClick(hotspot)}
                             className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-[#dfc6c6] cursor-pointer border border-[#C6C6C8] py-3 text-xs px-3"
                           >
-                            <Trash2 size={16} /> Delete
+                            <Trash2 size={16} /> Remove
                           </Button>
                         </TableCell>
                       )}
@@ -789,12 +789,12 @@ export default function HotspotManagement() {
         icon={Trash2}
         iconColor={DIALOG_COLOR.red}
         title="Delete Hotspot"
-        description={<>Are you sure you want to delete <strong>{deleteDialog.hotspot?.name}</strong>? This cannot be undone.</>}
+        description={<>Are you sure you want to remove <strong>{deleteDialog.hotspot?.name}</strong>? This cannot be undone.</>}
         cancelLabel="Cancel"
         confirmLabel="Delete"
       />
 
-      {/* Blocked dialog — trying to delete an occupied hotspot */}
+      {/* Blocked dialog — trying to remove an occupied hotspot */}
       <DialogModal
         open={blockedDialog.open}
         onClose={() => setBlockedDialog({ open: false })}

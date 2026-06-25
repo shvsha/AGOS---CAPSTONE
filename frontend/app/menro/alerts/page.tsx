@@ -11,6 +11,7 @@ import { fetchWithAuth } from "@/lib/auth"
 // components
 import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
+import { AlertCard } from "@/components/Alerts/AlertCard"
 
 // icons
 import { FaSearch } from "react-icons/fa"

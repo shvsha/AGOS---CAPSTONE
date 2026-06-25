@@ -13,6 +13,10 @@ import { fetchWithAuth } from "@/lib/auth";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 
+// component
+import { TablePagination } from "@/components/TablePagination";
+import { usePagination } from "@/components/hooks/usePagination";
+
 
 type Hotspots = {
   hotspot_id: number
@@ -33,15 +37,16 @@ type SensorNode = {
     longitude: number
   }
   status: string
-  reading_details: {
-    reading_id: number
-    water_level: number | null
-    water_flow_rate: number | null
-    clog_pct: number | null
-    condition: string
-    reading_status: string
-    timestamp: number
-  }
+}
+
+type SensorReadings = {
+  reading_id: number
+  water_level: number | null
+  water_flow_rate: number | null
+  clog_pct: number | null
+  reading_status: string
+  timestamp: string
+  node: number
 }
 
 type WasteClassification = {
@@ -49,12 +54,17 @@ type WasteClassification = {
   node_details: {
     node_id: number
     node_name: string
+    barangay_details: {
+      barangay_id: number
+      barangay_name: string
+    }
   }
   reading_details: {
     reading_id: number
     node_details: {
       node_id: number
     }
+    timestamp: string
     water_level: string
     water_flow_rate: number
     water_flow: string
@@ -85,22 +95,95 @@ type Clogs = {
   } | null
 }
 
+const MAX_WASTE_KG = 100
+
+const getSeverityIndex = (weight: number) => {
+  return Math.min(
+    Math.round((weight / MAX_WASTE_KG) * 100),
+    100
+  )
+}
+
+const getSeverityLevel = (weight: number) => {
+  const pct = getSeverityIndex(weight)
+
+  if (pct >= 81) {
+    return {
+      label: "Critical",
+      color: "bg-[#E85656]"
+    }
+  }
+
+  if (pct >= 61) {
+    return {
+      label: "High",
+      color: "bg-[#F39600]"
+    }
+  }
+
+  if (pct >= 41) {
+    return {
+      label: "Medium",
+      color: "bg-[#FFCC00]"
+    }
+  }
+
+  return {
+    label: "Low",
+    color: "bg-[#2C7B3C]"
+  }
+}
+
 
 
 export default function Resources() {
   // fetch data states
   const [allSensorNodes, setAllSensorNodes] = useState<SensorNode[]>([])
+  const [allReadings, setAllReadings] = useState<SensorReadings[]>([])
   const [allHotspots, setAllHotspots] = useState<Hotspots[]>([])
   const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
   const [allClogs, setAllClogs] = useState<Clogs[]>([])
 
+  console.log(allReadings)
+
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(allSensorNodes, 4)
+  
+  const rankedWaste = [...allWasteClassification]
+  .sort((a, b) => b.estimated_volume - a.estimated_volume)
+  .slice(0, 4)
+  
+  const priorityQueue = rankedWaste.map((waste, index) => {
+    const pct = getSeverityIndex(waste.estimated_volume)
 
-  console.log('sensor', allSensorNodes)
-  console.log('hotspots', allHotspots)
-  console.log('waste', allWasteClassification)
-  console.log('clogs', allClogs)
+    let action = ""
+    let label = ""
+
+    if (pct >= 81) {
+      action = "IMMEDIATE ACTION"
+      label = "CRITICAL"
+    } else if (pct >= 61) {
+      action = "WITHIN 12 HOURS"
+      label = "HIGH"
+    } else if (pct >= 41) {
+      action = "WITHIN 24 HOURS"
+      label = "MEDIUM"
+    } else {
+      action = "MONITOR CLOSELY"
+      label = "LOW"
+    }
+
+    return {
+      rank: index + 1,
+      barangay: waste.node_details.barangay_details.barangay_name,
+      node_name: waste.node_details.node_name,
+      pct,
+      label,
+      action,
+    }
+  })
 
   // fetch of data
   const fetchSensorNode = async () => {
@@ -113,6 +196,18 @@ export default function Resources() {
   }
   useEffect(() => {
     fetchSensorNode()
+  }, [])
+
+  const fetchReadings = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/`)
+      if (!res.ok) throw new Error()
+        const data = await res.json()
+      setAllReadings(data.results ?? data)
+    } catch {}
+  }
+  useEffect(() => {
+    fetchReadings()
   }, [])
 
   const fetchHotspots = async () => {
@@ -155,7 +250,7 @@ export default function Resources() {
 
   // summary cards
   const totalSensorNodes = allSensorNodes.length
-  const criticalAreas = allSensorNodes.filter(n => n.condition === 'Critical').length
+  const criticalAreas = allReadings.filter(n => n.reading_status === 'Critical').length
   const totalWaste = allWasteClassification.length
   const clearedAreas = allClogs.filter(c => c.status === 'Cleared').length
 
@@ -167,8 +262,8 @@ export default function Resources() {
         <div className="flex justify-between w-full text-[#122A48]">
           {[
           { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Sensor Nodes" },
+          { icon: <Trash2 size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste (kg)" },
           { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAreas, label: "Critical Areas" },
-          { icon: <Trash2 size={20} color="#1f518f" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Classified" },
           { icon: <BadgeCheck size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: clearedAreas, label: "Cleared Areas" },
         ].map(card => (
             <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
@@ -182,7 +277,7 @@ export default function Resources() {
         </div>
 
         {/* waste hotspot, trash accumulated, priority */}
-          <div className="flex gap-3 text-[#122A48] mt-2">
+          <div className="flex gap-3 text-[#122A48] mt-2 h-80">
           {/* waste hotspot */}
             <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD]">
             <div className="w-full">
@@ -201,28 +296,55 @@ export default function Resources() {
                 </TableHeader>
 
                 <TableBody>
-                 {/* fetch error state */}
                   {fetchError ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-15">
-                        <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-base">Failed to load waste hotspots. Please try again later.</p>
-                          <Button onClick={fetchSensorNode} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                        </div>
+                        ...
                       </TableCell>
                     </TableRow>
                   ) : (
-                    allSensorNodes.map((node) => (
-                      <TableRow key={node.node_id}>
-                        <TableCell>{node.node_id}</TableCell>
-                        <TableCell>{node.node_name}</TableCell>
-                        <TableCell>{node.barangay_details.barangay_name}</TableCell>
-                        <TableCell>{node.reading_details.reading_status}</TableCell>
-                        <TableCell>{node.reading_details.timestamp}</TableCell>
-                      </TableRow>
-                    ))
+                    paginated.map((node) => {
+                      // Find the latest reading for this node
+                      const nodeReadings = allReadings
+                        .filter(r => r.node === node.node_id)
+                        .sort(
+                          (a, b) =>
+                            new Date(b.timestamp).getTime() -
+                            new Date(a.timestamp).getTime()
+                        )
+
+                      const latestReading = nodeReadings[0] ?? null
+
+                      return (
+                        <TableRow key={node.node_id}>
+                          <TableCell className="text-center text-xs">{node.node_id}</TableCell>
+                          <TableCell className="text-center text-xs">{node.node_name}</TableCell>
+                          <TableCell className="text-center text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
+                          <TableCell className="text-center text-xs">
+                            {latestReading ? (
+                              <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                                latestReading.reading_status === 'Normal'   ? 'text-[#2C7B3C]' :
+                                latestReading.reading_status === 'Warning' ? 'text-[#F39600]' :
+                                latestReading.reading_status === 'Critical' ? 'text-[#D81010]' :
+                                'bg-[#E5E5E6] text-[#727272]'
+                              }`}>
+                                {latestReading.reading_status}
+                              </span>
+                            ) : '—'}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {latestReading
+                              ? new Date(latestReading.timestamp).toLocaleTimeString('en-PH', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                })
+                              : '—'}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
-                
                 </TableBody>
               </Table>
             </div>
@@ -246,35 +368,344 @@ export default function Resources() {
                 </TableHeader>
 
                 <TableBody>
-                  {/* fetch error state */}
                   {fetchError ? (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center py-15">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-base">Failed to load trash accumulation. Please try again later.</p>
-                          <Button onClick={fetchWaste} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                          <p className="text-[#D81010] font-semibold text-sm">
+                            Failed to load trash accumulation. Please try again later.
+                          </p>
+
+                          <Button
+                            onClick={fetchWaste}
+                            className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                          >
+                            Retry
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
+                  ) : rankedWaste.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={3}
+                        className="text-center text-sm text-[#727272] py-20"
+                      >
+                        No waste classification data available.
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    <>
-                    </>
-                  )}
+                    rankedWaste.map((waste, index) => {
+                      const severityPct = getSeverityIndex(
+                        waste.estimated_volume
+                      )
 
+                      const severity = getSeverityLevel(
+                        waste.estimated_volume
+                      )
+
+                      return (
+                        <TableRow
+                          key={waste.classification_id}
+                          className="border-b-0"
+                        >
+                          {/* Rank */}
+                          <TableCell className="text-center text-xs">
+                            {index + 1}
+                          </TableCell>
+
+                          {/* Barangay */}
+                          <TableCell className="text-center text-xs">
+                            {
+                              waste.node_details
+                                .barangay_details
+                                .barangay_name
+                            }
+                          </TableCell>
+
+                          {/* Severity Index */}
+                          <TableCell className="flex justify-center">
+                            <div className="flex items-center gap-3">
+                              <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
+                                <div
+                                  className={`${severity.color} h-full rounded-full`}
+                                  style={{
+                                    width: `${severityPct}%`
+                                  }}
+                                />
+                              </div>
+
+                              <span className="text-xs min-w-[40px]">
+                                {severityPct}%
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
                 </TableBody>
               </Table>
+              <div className="border-t px-4 py-2 mt-34">
+                <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#122A48]">
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#E85656]" />
+                      <span>81% - 100%</span>
+                    </div>
+                    <div>
+                      <p>Critical</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#F39600]" />
+                      <span>61% - 80%</span>
+                    </div>
+                    <div>
+                      <p>High</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#FFCC00]" />
+                      <span>41% - 60%</span>
+                    </div>
+                    <div>
+                      <p>Medium</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center flex-col">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#2C7B3C]" />
+                      <span>0% - 40%</span>
+                    </div>
+                    <div>
+                      <p>Low</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
           </div>
 
           {/* priority */}
-          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD]">
-            <div className="w-full p-2">
+          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1">
+  
+            <div className="p-2 border-b">
               <p className="font-bold text-sm">PRIORITY DEPLOYMENT QUEUE</p>
-              <p className="text-xs">Based on severity of waste hotspot status and trash accumulation.</p>
+              <p className="text-xs text-[#727272]">
+                Based on trash accumulation severity only
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {priorityQueue.map(item => (
+                <div key={item.rank} className="flex items-center justify-between border rounded-lg p-3 bg-white">
+                  
+                  <div className="flex items-center gap-3">
+                    
+                    {/* rank badge */}
+                    <div className="w-6 h-6 flex items-center justify-center rounded-md bg-[#E5E7EB] text-[10px] font-bold">
+                      {item.rank}
+                    </div>
+
+                    {/* info */}
+                    <div>
+                      <p className="text-xs font-semibold">
+                        {item.node_name}
+                      </p>
+                      <p className="text-[11px] text-[#727272]">
+                        {item.barangay}
+                      </p>
+                      <p className="text-[11px]">
+                        Severity: {item.pct}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1">
+                    
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                      item.label === "CRITICAL"
+                        ? "bg-[#FFE5E5] text-[#D81010]"
+                        : item.label === "HIGH"
+                        ? "bg-[#FFF3D6] text-[#F59E0B]"
+                        : item.label === "MEDIUM"
+                        ? "bg-[#FEF9C3] text-[#A16207]"
+                        : "bg-[#DCFCE7] text-[#166534]"
+                    }`}>
+                      {item.label}
+                    </span>
+
+                    <p className={`text-[10px] font-semibold ${
+                      item.label === "CRITICAL"
+                        ? "text-[#D81010]"
+                        : item.label === "HIGH"
+                        ? "text-[#F59E0B]"
+                        : item.label === "MEDIUM"
+                        ? "text-[#A16207]"
+                        : "text-[#16A34A]"
+                    }`}>
+                      {item.action}
+                    </p>
+                  </div>
+
+                </div>
+              ))}
             </div>
 
           </div>
+        </div>
+
+        {/* all waste hotspots */}
+        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-90 ">
+          <div className="flex gap-2 w-full p-3 items-center">
+            <p className="font-bold text-sm">ALL WASTE HOTSPOTS</p> <p className="text-[11px]">&#40;DETAILED LIST&#41;</p>
+          </div>
+          <Table>
+              <TableHeader className="bg-[#CFD8D] border">
+              <TableRow>
+                  <TableHead className="text-center text-xs text-[#727272]">NODE</TableHead>
+                  <TableHead className="text-center text-xs text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="text-center text-xs text-[#727272]">SEVERITY INDEX</TableHead>
+                  <TableHead className="text-center text-xs text-[#727272]">TRASH VOLUME (kg)</TableHead>
+                  <TableHead className="text-center text-xs text-[#727272]">STATUS</TableHead>
+                  <TableHead className="text-center text-xs text-[#727272]">LAST UPDATED</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {fetchError ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-15">
+                        <div className="flex flex-col justify-center items-center gap-3 py-20">
+                          <p className="text-[#D81010] font-semibold text-sm">
+                            Failed to load waste hotspots. Please try again later.
+                          </p>
+
+                          <Button
+                            onClick={fetchWaste}
+                            className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : rankedWaste.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={3}
+                        className="text-center text-sm text-[#727272] py-20"
+                      >
+                        No waste hotspots data available.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    rankedWaste.map((waste, index) => {
+                      const severityPct = getSeverityIndex(
+                        waste.estimated_volume
+                      )
+
+                      const severity = getSeverityLevel(
+                        waste.estimated_volume
+                      )
+
+                      // Find the latest reading for this node
+                      const nodeReadings = allReadings
+                        .filter(r => r.node === waste.node_details.node_id)
+                        .sort(
+                          (a, b) =>
+                            new Date(b.timestamp).getTime() -
+                            new Date(a.timestamp).getTime()
+                        )
+
+                      const latestReading = nodeReadings[0] ?? null
+
+                      return (
+                        <TableRow
+                          key={waste.classification_id}
+                          className="border-b-0"
+                        >
+
+                          
+                          {/* Rank */}
+                          <TableCell className="text-center text-xs">
+                            {waste.classification_id}
+                          </TableCell>
+
+                          {/* Barangay */}
+                          <TableCell className="text-center text-xs">
+                            {
+                              waste.node_details
+                                .barangay_details
+                                .barangay_name
+                            }
+                          </TableCell>
+
+                          {/* Severity Index */}
+                          <TableCell className="flex justify-center">
+                            <div className="flex items-center gap-3">
+                              <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
+                                <div
+                                  className={`${severity.color} h-full rounded-full`}
+                                  style={{
+                                    width: `${severityPct}%`
+                                  }}
+                                />
+                              </div>
+
+                              <span className="text-xs min-w-[40px]">
+                                {severityPct}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          
+                          <TableCell className="text-center text-xs">
+                            {waste.estimated_volume} kg
+                          </TableCell>
+
+                          <TableCell className="text-center text-xs">
+                            {latestReading ? (
+                              <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                                latestReading.reading_status === 'Normal'   ? 'text-[#2C7B3C]' :
+                                latestReading.reading_status === 'Warning' ? 'text-[#F39600]' :
+                                latestReading.reading_status === 'Critical' ? 'text-[#D81010]' :
+                                'bg-[#E5E5E6] text-[#727272]'
+                              }`}>
+                                {latestReading.reading_status}
+                              </span>
+                            ) : '—'}
+                          </TableCell>
+
+                          <TableCell className="text-center text-xs">
+                            {waste.reading_details?.timestamp
+                              ? new Date(waste.reading_details.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
+                            : '—'}
+                          </TableCell>
+                          
+                            
+
+
+                        </TableRow>
+                      )
+                    })
+                  )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* recommend resource allocation */}
+        <div className="rounded-lg bg-[#FAFCFD] border border-[#C6C6C8] p-3 mt-2">
+
+          div
+          
         </div>
 
 
