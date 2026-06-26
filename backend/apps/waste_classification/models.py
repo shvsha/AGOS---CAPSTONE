@@ -34,8 +34,12 @@ class WasteClassification(models.Model):
     none_pct = models.FloatField(default=0)
     
     confidence = models.FloatField(default=0)
+    is_mixed = models.BooleanField(default=False)
+    present_waste_types = models.JSONField(default=list, blank=True)
     estimated_volume = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    
 
     class Meta:
         db_table = 'tbl_waste_classification'

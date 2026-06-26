@@ -9,6 +9,7 @@ import sys
 import os
 
 
+
 class WasteClassificationListView(generics.ListCreateAPIView):
     serializer_class = WasteClassificationSerializer
 
@@ -46,7 +47,7 @@ class ClassifyWasteView(APIView):
     Saves the classification result
     """
     authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
-    permission_classes = [IsIoTDevice]
+    permission_classes = [IsIoTDevice | IsAdminOrMENROOrBarangay]
 
     def post(self, request):
         image_file = request.FILES.get('image')
@@ -68,10 +69,10 @@ class ClassifyWasteView(APIView):
             )
             if ai_model_path not in sys.path:
                 sys.path.append(ai_model_path)
-            from classifier import classify_waste_from_bytes
+            from classifier import classify_mixed_from_bytes
 
             image_bytes = image_file.read()
-            result = classify_waste_from_bytes(image_bytes)
+            result = classify_mixed_from_bytes(image_bytes)
 
             if not result['success']:
                 return Response(
@@ -97,7 +98,9 @@ class ClassifyWasteView(APIView):
                 special_waste_pct=percentages.get('special_waste', 0),
                 none_pct=percentages.get('none', 0),
                 confidence=result['confidence'],
-                estimated_volume=float(estimated_volume)
+                estimated_volume=float(estimated_volume),
+                is_mixed=result.get('is_mixed', False),
+                present_waste_types=result.get('present_waste_types', []),
             )
 
             return Response(
