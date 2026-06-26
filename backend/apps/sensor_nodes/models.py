@@ -29,6 +29,21 @@ class SensorNode(models.Model):
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Active')
     installed_at = models.DateTimeField(default=timezone.now)
 
+    sensor_height = models.FloatField(
+        null=True, blank=True,
+        help_text="Fixed distance in cm from camera/sensor mount to canal floor. Measured once at installation."
+    )
+    canal_width = models.FloatField(
+        null=True, blank=True,
+        help_text="Width of canal in meters at this node's location. Measured once at installation."
+    )
+    canal_shape = models.CharField(
+        max_length=20,
+        choices=[('rectangular', 'Rectangular'), ('trapezoidal', 'Trapezoidal')],
+        default='rectangular',
+        help_text="Cross-sectional shape of the canal at this node's location."
+    )
+
     class Meta:
         db_table = 'tbl_sensor_nodes'
 
