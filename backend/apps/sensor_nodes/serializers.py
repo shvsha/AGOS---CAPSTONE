@@ -8,7 +8,9 @@ from apps.sensor_readings.models import SensorReading
 class SensorNodeSerializer(serializers.ModelSerializer):
     barangay = serializers.PrimaryKeyRelatedField(
         queryset=Barangay.objects.all(),
-        write_only=True
+        write_only=True,
+        allow_null=True,
+        required=False
     )
     hotspot = serializers.PrimaryKeyRelatedField(
         queryset=Hotspot.objects.all(),
@@ -19,7 +21,6 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     barangay_details = serializers.SerializerMethodField()
     hotspot_details = serializers.SerializerMethodField()
 
-    # Coords are now derived from the hotspot
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
 
@@ -36,7 +37,8 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'barangay', 'barangay_details',
             'hotspot', 'hotspot_details',
             'latitude', 'longitude',
-            'status', 'installed_at',
+            'availability_status', 'status',
+            'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
             'health_status',
         ]
@@ -51,6 +53,8 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         return SystemHealthLog.objects.filter(node=obj).order_by('-checked_at').first()
 
     def get_barangay_details(self, obj):
+        if not obj.barangay:
+            return None
         return {
             'barangay_id': obj.barangay.barangay_id,
             'barangay_name': obj.barangay.barangay_name,
@@ -97,12 +101,10 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         hotspot = attrs.get('hotspot')
 
         if hotspot:
-            # Check if the hotspot is already occupied by another node
             existing = SensorNode.objects.filter(
                 hotspot=hotspot
-            ).exclude(status='Decommissioned')
+            ).exclude(availability_status='Retired')
 
-            # Exclude self on update
             if self.instance:
                 existing = existing.exclude(pk=self.instance.pk)
 

@@ -27,9 +27,9 @@ import { TablePagination } from "@/components/TablePagination";
 type Nodes = {
   node_id: number
   barangay_details: { barangay_id: number; barangay_name: string } | null
+  hotspot_details: { hotspot_id: number; name: string; latitude: number; longitude: number } | null
   node_name: string
-  latitude: number
-  longitude: number
+  availability_status: string
   status: string
   water_level: number | null
   water_flow_rate: number | null
@@ -79,6 +79,8 @@ const ALERT_ICONS: Record<string, JSX.Element> = {
 function getFilteredNode(nodes: Nodes[], condition: string, search: string) {
   const q = search.toLowerCase()
   return nodes
+    .filter(b => b.hotspot_details != null)
+    .filter(b => b.availability_status === 'Occupied')
     .filter(b => condition === "All" || b.condition === condition)
     .filter(b =>
       [b.node_name, b.barangay_details?.barangay_name]
@@ -113,14 +115,14 @@ export default function Monitoring() {
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
 
   // summary cards
-  const total    = nodes.length
-  const overflow = nodes.filter(n => n.condition === 'Overflow').length
-  const warning  = nodes.filter(n => n.condition === 'Warning').length
-  const normal   = nodes.filter(n => n.condition === 'Normal').length
+  const occupiedNodes = nodes
+    .filter(n => n.hotspot_details != null)
+    .filter(n => n.availability_status === 'Occupied')
 
-  const activeCount      = nodes.filter(n => n.status === 'Active').length
-  const inactiveCount    = nodes.filter(n => n.status === 'Inactive').length
-  const maintenanceCount = nodes.filter(n => n.status === 'Maintenance').length
+  const total    = occupiedNodes.length
+  const critical = occupiedNodes.filter(n => n.condition === 'Critical').length
+  const warning  = occupiedNodes.filter(n => n.condition === 'Warning').length
+  const normal   = occupiedNodes.filter(n => n.condition === 'Normal').length
 
   // clock
   useEffect(() => {
@@ -189,8 +191,8 @@ export default function Monitoring() {
         {/* summary cards */}
         <div className="flex justify-between w-full text-[#122A48] mt-3">
           {[
-            { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Sensor Nodes" },
-            { icon: <Activity   size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: overflow,  label: "Overflow Events"    },
+            { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Occupied Nodes" },
+            { icon: <Activity   size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: critical,  label: "Critical Events"    },
             { icon: <TriangleAlert size={20} color="#FF9705" />, bg: "bg-[#F4E4A7]", count: warning, label: "Warning"           },
             { icon: <Waves      size={20} color="#1868A9" />, bg: "bg-[#1868A929]", count: normal,  label: "Normal"             },
           ].map(card => (
@@ -351,7 +353,7 @@ export default function Monitoring() {
           {/* device and clog level legend */}
           <div className='flex flex-col gap-3'>
             {/* device status */}
-            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
+            {/* <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
                 <p className='font-semibold text-[#122A48]'>Device Status</p>
                 <hr />
@@ -380,7 +382,7 @@ export default function Monitoring() {
                 </div>
 
               </div>
-            </div>
+            </div> */}
 
             {/* clog level legend */}
             <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
@@ -432,33 +434,35 @@ export default function Monitoring() {
           </DialogTitle>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
-              markers={nodes.map(n => ({
-                latitude:  n.latitude,
-                longitude: n.longitude,
-                label:     n.node_name,
-                condition: n.condition,
-                sublabel:  `Water: ${n.water_level ?? "—"}cm | Clog: ${n.clog_pct ?? "—"}%`,
-              }))}
+              markers={nodes
+                .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
+                .map(n => ({
+                  latitude:  n.hotspot_details!.latitude,
+                  longitude: n.hotspot_details!.longitude,
+                  label:     n.node_name,
+                  condition: n.condition,
+                  sublabel:  `Water: ${n.water_level ?? "—"}cm | Clog: ${n.clog_pct ?? "—"}%`,
+                }))}
               zoom={13}
             />
           </div>
           <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">
             <div className="flex flex-col md:flex-row gap-3 items-center">
-              <p className="text-xs md:text-sm">{viewMapDialog.node?.latitude}</p>
-              <p className="text-xs md:text-sm">{viewMapDialog.node?.longitude}</p>
+              <p className="text-xs md:text-sm">{viewMapDialog.node?.hotspot_details?.latitude}</p>
+              <p className="text-xs md:text-sm">{viewMapDialog.node?.hotspot_details?.longitude}</p>
             </div>
             <Button 
               disabled={
-                viewMapDialog.node?.latitude == null ||
-                viewMapDialog.node?.longitude == null
+                viewMapDialog.node?.hotspot_details?.latitude == null ||
+                viewMapDialog.node?.hotspot_details?.longitude == null
               }
               onClick={() => {
                 const node = viewMapDialog.node;
-                if (!node) return;
+                if (!node?.hotspot_details) return;
 
                 openInGoogleMaps(
-                  node.latitude,
-                  node.longitude
+                  node.hotspot_details.latitude,
+                  node.hotspot_details.longitude
                 );
               }}
               className="cursor-pointer rounded-lg border border-[#C6C6C8] bg-[#FAFCFD] hover:bg-[#d6e4eb] px-3 py-2 md:px-4 md:py-3 text-[#727272]"

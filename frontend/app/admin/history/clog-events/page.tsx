@@ -195,10 +195,10 @@ export default function ClogEvents() {
           </div>
 
           <div>
-            <Button className="text-[#122A48] border border-[#C6C6C8] rounded-lg bg-[#FAFCFD] px-3 py-5 cursor-pointer hover:bg-[#d8e9f2]">
+            {/* <Button className="text-[#122A48] border border-[#C6C6C8] rounded-lg bg-[#FAFCFD] px-3 py-5 cursor-pointer hover:bg-[#d8e9f2]">
               <Upload size={23}/>
               Export
-            </Button>
+            </Button> */}
           </div>
 
         </div>
