@@ -10,9 +10,24 @@ class Hotspot(models.Model):
         db_column='barangay_id'
     )
     name = models.CharField(max_length=150)
-    description = models.TextField(blank=True, default='')
+    description = models.TextField()
     latitude = models.FloatField()
     longitude = models.FloatField()
+    canal_width = models.FloatField(
+    null=True, blank=True,
+    help_text="Width of canal in meters at this location."
+    )
+    canal_shape = models.CharField(
+        max_length=20,
+        choices=[('rectangular', 'Rectangular'), ('trapezoidal', 'Trapezoidal')],
+        default='rectangular',
+        help_text="Cross-sectional shape of the canal at this location."
+    )
+    sensor_height = models.FloatField(
+        null=True, blank=True,
+        help_text="Fixed distance in cm from sensor/camera mount to canal floor. Measured once at installation."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -25,4 +40,7 @@ class Hotspot(models.Model):
 
     @property
     def is_occupied(self):
-        return hasattr(self, 'sensornode') and self.sensornode.status != 'Decommissioned'
+        return (
+            hasattr(self, 'sensornode')
+            and self.sensornode.availability_status == 'Occupied'
+        )

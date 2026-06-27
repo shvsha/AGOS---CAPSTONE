@@ -185,10 +185,10 @@ export default function Waste() {
           </div>
 
           <div>
-            <Button className="cursor-pointer rounded-lg bg-[#FAFCFD] hover:bg-[#d5e2e8] text-[#122A48] border border-[#C6C6C8] px-3 py-5">
+            {/* <Button className="cursor-pointer rounded-lg bg-[#FAFCFD] hover:bg-[#d5e2e8] text-[#122A48] border border-[#C6C6C8] px-3 py-5">
               <Upload size={25}/>
               Export
-            </Button>
+            </Button> */}
           </div>
 
         </div>
@@ -305,15 +305,16 @@ export default function Waste() {
 
               </TableBody>
             </Table>
+            <div className='mt-auto'>
+              <TablePagination
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
           </div>
-          <div className='mt-auto'>
-            <TablePagination
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-            />
-          </div>
+
 
           {/* preview waste container */}
           <div className="border border-[#C6C6C8] rounded-lg bg-[#F8F9FA] w-85">

@@ -233,7 +233,6 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       />
       <MapClickHandler onMapClick={onMapClick} />
 
-    <MapClickHandler onMapClick={onMapClick} />
       {boundaryGeoJson && (
       <GeoJSON
         key={JSON.stringify(boundaryGeoJson.properties?.adm4_en ?? boundaryGeoJson.id)}

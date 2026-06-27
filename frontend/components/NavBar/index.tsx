@@ -20,7 +20,8 @@ import {
   Siren, Activity, History, Stamp,
   Map, Package, FileBarChart, CalendarDays,
   MapPin, FileUp, LogOut, RadioTower, ChevronDown,
-  SlidersHorizontal, Target 
+  SlidersHorizontal, Target, GitBranchPlus,
+  ClipboardList, TriangleAlert 
 } from "lucide-react"
 
 // logo
@@ -42,11 +43,13 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Alerts",     href: "/admin/alerts",      icon: <Siren size={18} /> },
     { label: "Canal Hotspots",       href: "/admin/hotspots",        icon: <Target size={18} /> },
     { label: "Node Management",       href: "/admin/node",        icon: <RadioTower size={18} /> },
+    { label: "Node Assignment",       href: "/admin/assign",        icon: <GitBranchPlus size={18} /> },
     {
       label: "History",
       icon: <History size={18} />,
       children: [
-        { label: "Clog Events",              href: "/admin/history/clog-events",      icon: <RadioTower size={14} /> },
+        { label: "Water Level Audit Log",    href: "/admin/history/water-level-logs", icon: <ClipboardList size={14} /> },
+        { label: "Clog Events",              href: "/admin/history/clog-events",      icon: <TriangleAlert size={14} /> },
         { label: "Waste Classification",     href: "/admin/history/waste",            icon: <Package size={14} /> },
         { label: "Barangay Monthly Reports", href: "/admin/history/barangay-reports", icon: <FileBarChart size={14} /> },
         { label: "Monthly Reports",          href: "/admin/history/monthly-reports",  icon: <CalendarDays size={14} /> },
@@ -58,8 +61,8 @@ const navItems: Record<string, NavItem[]> = {
       children: [
         { label: "User Management",     href: "/admin/users",   icon: <Users size={14} /> },
         { label: "Barangay Management", href: "/admin/barangay",icon: <MapPin size={14} /> },
-        { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
-        { label: "Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
+        // { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
+        { label: "System Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
       ]
     },
   ],

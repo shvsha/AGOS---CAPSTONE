@@ -30,10 +30,10 @@ import { Button } from "@/components/ui/button"
 type SensorNodes = {
   node_id: number
   barangay_details: { barangay_id: number; barangay_name: string } | null
+  hotspot_details: { hotspot_id: number; name: string; latitude: number; longitude: number } | null
   node_name: string
-  latitude: number
-  longitude: number
   status: string
+  availability_status: string
   installed_at: string
   condition: string | null
   water_level: number | null
@@ -222,6 +222,32 @@ export default function Dashboard() {
     )
   })
 
+  const fetchClogEvents = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllClogEvents(data.results ?? data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchClogEvents()
+  }, [])
+
+  const fetchBarangays = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllBarangays(data.results ?? data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchBarangays()
+  }, [])
+
 
   return (
     <>
@@ -260,15 +286,17 @@ export default function Dashboard() {
               </div>
               <div className="flex-1 overflow-hidden rounded-b-lg">
                 <AgosMapWrapper
-                  markers={allSensorNodes.map(n => ({
-                    latitude:  n.latitude,
-                    longitude: n.longitude,
-                    label:     n.node_name,
-                    condition: n.health_status ?? 'Normal',
-                    sublabel: `Node Status: ${n.health_status ?? 'Normal'}`,
-                  }))}
+                  markers={allSensorNodes
+                    .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
+                    .filter(n => n.availability_status === 'Occupied')
+                    .map(n => ({
+                      latitude:  n.hotspot_details!.latitude,
+                      longitude: n.hotspot_details!.longitude,
+                      label:     n.node_name,
+                      condition: n.condition ?? 'Normal',
+                      sublabel: `Water: ${n.water_level ?? '—'}cm | Clog: ${n.clog_pct ?? '—'}%`,
+                    }))}
                   zoom={13}
-                  colorMode="health"
                 />
               </div>
             </div>
@@ -328,16 +356,16 @@ export default function Dashboard() {
 
         {/* sensor node health summary */}
         <>
-          <div className="bg-[#FAFCFD] rounded-lg border border-[#00000040] text-[#122A48] mt-2 p-3">
+          {/* <div className="bg-[#FAFCFD] rounded-lg border border-[#00000040] text-[#122A48] mt-2 p-3">
             <div className="mb-2">
               <p className="font-semibold text-sm">Sensor Node Health Summary</p>
               <p className="text-[12px] text-[#727272]">Average across all active sensor nodes</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3"> */}
 
               {/* Battery Voltage */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              {/* <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Battery size={15} />
@@ -356,10 +384,10 @@ export default function Dashboard() {
                 <p className="text-[10px] text-[#727272] mt-1">
                   {batteryPct != null ? `${batteryPct}% avg. capacity across sensor nodes` : 'No data'}
                 </p>
-              </div>
+              </div> */}
 
               {/* 4G Signal */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              {/* <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Signal size={15} />
@@ -378,10 +406,10 @@ export default function Dashboard() {
                 <p className="text-[10px] text-[#727272] mt-1">
                   {avgSignal != null ? getSignalLabel(avgSignal) : 'No data'}
                 </p>
-              </div>
+              </div> */}
 
               {/* Sensor Continuity */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              {/* <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <ScanSearch size={15} />
@@ -410,7 +438,7 @@ export default function Dashboard() {
               </div>
 
             </div>
-          </div>
+          </div> */}
         </>
 
         

@@ -21,7 +21,7 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { SearchFilter } from "@/components/SearchFilter";
 
 // react
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 // toast
 import { useToast } from "@/components/hooks/useToast";
@@ -119,6 +119,8 @@ export default function Barangay() {
 
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
 
+  const barangayRef = useRef<HTMLDivElement>(null)
+
   const fetchBarangay = async () => {
     setLoading(true)
     setFetchError(false)
@@ -190,17 +192,23 @@ export default function Barangay() {
   }
 
   // handlers for form
-  const handleConfirmationDialog = () => {
-    const errors: Record<string, string> = {}
-    if (!barangay.trim()) errors.barangay = 'This field is required.'
-    if (!latitude.trim()) errors.latitude = 'This field is required.'
-    if (!longitude.trim()) errors.longitude = 'This field is required.'
+const handleConfirmationDialog = () => {
+  const errors: Record<string, string> = {}
+  if (!barangay.trim()) errors.barangay = 'This field is required.'
+  if (!latitude.trim()) errors.latitude = 'This field is required.'
+  if (!longitude.trim()) errors.longitude = 'This field is required.'
 
-    setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
+  setFieldErrors(errors)
 
-    setConfirmDialog({ open: true })
+  if (Object.keys(errors).length > 0) {
+    if (errors.barangay) {
+      barangayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    return
   }
+
+  setConfirmDialog({ open: true })
+}
 
   const handleCancel = () => {
     setCancelDialog({ open: false })
@@ -327,7 +335,7 @@ export default function Barangay() {
                         onClick={() => setBarangayFormDialog({ open: true })}
                         className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
                       >
-                        + Add Barangay
+                        + Register Barangay
                       </Button>
                     </div>
                   </TableCell>
@@ -561,7 +569,7 @@ export default function Barangay() {
         description={
           <div className="text-justify">
             Are you sure you want to unregister{" "}
-            <strong>{unregisterDialog.barangay?.barangay_name}</strong>? Make sure all sensor nodes and barangay users are decommissioned first.
+            <strong>{unregisterDialog.barangay?.barangay_name}</strong>? Make sure all sensor nodes and barangay users are unassigned first.
           </div>
         }
         cancelLabel="Cancel"
@@ -602,7 +610,7 @@ export default function Barangay() {
                 <MapPinPlus className="md:h-7.5 md:w-7.5" />
               </div>
               <div className="flex flex-col ">
-                <p className="font-bold text-base md:text-lg">Add Barangay</p>
+                <p className="font-bold text-base md:text-lg">Register Barangay</p>
                 <p className="text-[10px] md:text-sm">
                   Register a new Barangay under AGOS <br className="md:hidden" /> monitoring coverage
                 </p>
@@ -626,43 +634,45 @@ export default function Barangay() {
 
                 {/* Barangay Select */}
                 <div className="border-t border-[#C6C6C8] p-2.5 md:p-4">
-                  <Field className="flex gap-1.5 flex-col w-[274px] md:w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-xs md:text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
-                    <Select
-                      value={barangay}
-                      onValueChange={(value) => {
-                        setBarangay(value)
-                        const found = allBarangays.find(b => b.barangay_name === value)
-                        if (found) {
-                          setLatitude(String(found.latitude))
-                          setLongitude(String(found.longitude))
-                        }
-                        if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: '' }))
-                      }}
-                    >
-                      <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                        <SelectValue placeholder="Select Barangay..." />
-                      </SelectTrigger>
-                      <SelectContent position="popper" className="max-h-60 overflow-y-auto">
-                        {[...allBarangays]
-                          .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
-                          .map(b => {
-                            const isAdded = addedBarangayNames.has(b.barangay_name)
-                            return (
-                              <SelectItem
-                                key={b.barangay_id}
-                                value={b.barangay_name}
-                                disabled={isAdded}
-                                className={`p-1 md:p-2 ${isAdded ? 'opacity-40 cursor-not-allowed text-[#727272]' : 'text-[#122A48]'}`}
-                              >
-                                {b.barangay_name} {isAdded ? '— already registered' : ''}
-                              </SelectItem>
-                            )
-                          })}
-                      </SelectContent>
-                    </Select>
-                    <FieldError className="text-xs">{fieldErrors.barangay}</FieldError>
-                  </Field>
+                  <div ref={barangayRef}>
+                    <Field className="flex gap-1.5 flex-col w-[274px] md:w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-xs md:text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <Select
+                        value={barangay}
+                        onValueChange={(value) => {
+                          setBarangay(value)
+                          const found = allBarangays.find(b => b.barangay_name === value)
+                          if (found) {
+                            setLatitude(String(found.latitude))
+                            setLongitude(String(found.longitude))
+                          }
+                          if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: '' }))
+                        }}
+                      >
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder="Select Barangay..." />
+                        </SelectTrigger>
+                        <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+                          {[...allBarangays]
+                            .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
+                            .map(b => {
+                              const isAdded = addedBarangayNames.has(b.barangay_name)
+                              return (
+                                <SelectItem
+                                  key={b.barangay_id}
+                                  value={b.barangay_name}
+                                  disabled={isAdded}
+                                  className={`p-1 md:p-2 ${isAdded ? 'opacity-40 cursor-not-allowed text-[#727272]' : 'text-[#122A48]'}`}
+                                >
+                                  {b.barangay_name} {isAdded ? '— already registered' : ''}
+                                </SelectItem>
+                              )
+                            })}
+                        </SelectContent>
+                      </Select>
+                      <FieldError className="text-xs">{fieldErrors.barangay}</FieldError>
+                    </Field>
+                  </div>
                 </div>
               </div>
             </div>
@@ -760,7 +770,7 @@ export default function Barangay() {
                 className="cursor-pointer hover:bg-[#12569f] rounded-lg text-xs md:text-sm px-4 py-4 bg-[#1565BC]"
               >
                 <Check />
-                Add Barangay
+                Register Barangay
               </Button>
 
             </div>
@@ -779,7 +789,7 @@ export default function Barangay() {
         color={DIALOG_COLOR.lightred}
         icon={X}
         iconColor={DIALOG_COLOR.red}
-        title="Cancel Adding Barangay"
+        title="Cancel Registering Barangay"
         description="Are you sure you want to cancel register barangay?"
         cancelLabel='Keep Editing'
         confirmLabel='Yes, Cancel'
@@ -793,14 +803,14 @@ export default function Barangay() {
         color={DIALOG_COLOR.lightgreen}
         icon={MapPinPlus}
         iconColor={DIALOG_COLOR.green}
-        title='Confirm Adding Barangay'
+        title='Confirm Registering Barangay'
         description={
           <>
             Are you sure you want to register this new barangay?
           </>
         }
         cancelLabel='Keep Editing'
-        confirmLabel='Add Barangay'
+        confirmLabel='Register Barangay'
       />
 
       {/* loading state */}

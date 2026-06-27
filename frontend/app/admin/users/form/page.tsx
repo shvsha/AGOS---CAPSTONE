@@ -2,7 +2,7 @@
 
 // react
 import { useSearchParams, useRouter, } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 // constant
 import { DIALOG_COLOR } from "@/lib/constant";
@@ -81,6 +81,15 @@ export default function Form() {
   // toast
   const {toasts, addToast, removeToast } = useToast()
 
+  // refs
+  const fnameRef = useRef<HTMLDivElement>(null)
+  const lnameRef = useRef<HTMLDivElement>(null)
+  const roleRef = useRef<HTMLDivElement>(null)
+  const barangayRef = useRef<HTMLDivElement>(null)
+  const positionRef = useRef<HTMLDivElement>(null)
+  const usernameRef = useRef<HTMLDivElement>(null)
+  const emailRef = useRef<HTMLDivElement>(null)
+
   // get barangay
   useEffect(() => {
     const loadBarangays = async () => {
@@ -133,16 +142,34 @@ export default function Form() {
 
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!fname.trim())        errors.fname         = 'This field is required.'
-    if (!lname.trim())        errors.lname         = 'This field is required.'
-    if (role !== 'MENRO' && !position.trim()) errors.position = 'This field is required.'
-    if (!role) errors.role = 'This field is required.'
-    if (role !== 'MENRO' && !barangayId) errors.barangayId = 'This field is required.'
-    if (!username.trim())     errors.username      = 'This field is required.'
-    if (!email.trim())        errors.email         = 'This field is required.'
+    if (!fname.trim())                            errors.fname      = 'This field is required.'
+    if (!lname.trim())                            errors.lname      = 'This field is required.'
+    if (role !== 'MENRO' && !position.trim())     errors.position   = 'This field is required.'
+    if (!role)                                    errors.role       = 'This field is required.'
+    if (role !== 'MENRO' && !barangayId)          errors.barangayId = 'This field is required.'
+    if (!username.trim())                         errors.username   = 'This field is required.'
+    if (!email.trim())                            errors.email      = 'This field is required.'
 
     setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
+
+    if (Object.keys(errors).length > 0) {
+      if (errors.fname) {
+        fnameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.lname) {
+        lnameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.role) {
+        roleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.barangayId) {
+        barangayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.position) {
+        positionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.username) {
+        usernameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.email) {
+        emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      return
+    }
 
     setConfirmDialog({ open: true })
   }
@@ -295,38 +322,42 @@ export default function Form() {
               <div className="p-3">
                 <div className="flex gap-5 w-full">
                   {/* fname */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">FIRST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Input
-                        name="fname"
-                        value={fname}
-                        onChange={(e) => {
-                          setFname(e.target.value)
-                        }}
-                        placeholder="e.g. Patricia"
-                        className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
-                          fieldErrors.fname ? 'border-[#FF0000]' : 'border-[#727272]'
-                        }`}
-                      />
-                      <FieldError className="text-xs">{fieldErrors.fname}</FieldError>
-                  </Field>
+                  <div ref={fnameRef}>
+                    <Field className="flex gap-1.5 flex-col w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-sm">FIRST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <Input
+                          name="fname"
+                          value={fname}
+                          onChange={(e) => {
+                            setFname(e.target.value)
+                          }}
+                          placeholder="e.g. Patricia"
+                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                            fieldErrors.fname ? 'border-[#FF0000]' : 'border-[#727272]'
+                          }`}
+                        />
+                        <FieldError className="text-xs">{fieldErrors.fname}</FieldError>
+                    </Field>
+                  </div>
                   
                   {/* lname */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">LAST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Input
-                        name="lname"
-                        value={lname}
-                        onChange={(e) => {
-                          setLname(e.target.value)
-                        }}
-                        placeholder="e.g. Quinto"
-                        className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
-                          fieldErrors.lname ? 'border-[#FF0000]' : 'border-[#727272]'
-                        }`}
-                      />
-                      <FieldError className="text-xs">{fieldErrors.lname}</FieldError>
-                  </Field>
+                  <div ref={lnameRef} >
+                    <Field className="flex gap-1.5 flex-col w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-sm">LAST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <Input
+                          name="lname"
+                          value={lname}
+                          onChange={(e) => {
+                            setLname(e.target.value)
+                          }}
+                          placeholder="e.g. Quinto"
+                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                            fieldErrors.lname ? 'border-[#FF0000]' : 'border-[#727272]'
+                          }`}
+                        />
+                        <FieldError className="text-xs">{fieldErrors.lname}</FieldError>
+                    </Field>
+                  </div>
                 </div>
 
               </div>
@@ -352,81 +383,87 @@ export default function Form() {
               <div className="p-3">
                 <div className="flex gap-5 w-full">
                   {/* role */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
-                        <Select
-                          value={role}
-                          onValueChange={(value) => {
-                            setRole(value)
-                            if (value === 'MENRO') {
-                              setBarangayId(null)
-                              setPosition('')
-                            } if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
-                          }}
-                        >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select role..." />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectItem className="text-[#122A48] p-2" value="MENRO">MENRO Officer</SelectItem>
-                          <SelectItem className="text-[#122A48] p-2" value="Barangay">Barangay Personnel</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FieldError className="text-xs">{fieldErrors.role}</FieldError>
-                  </Field>
+                  <div ref={roleRef}>
+                    <Field className="flex gap-1.5 flex-col w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-sm">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
+                          <Select
+                            value={role}
+                            onValueChange={(value) => {
+                              setRole(value)
+                              if (value === 'MENRO') {
+                                setBarangayId(null)
+                                setPosition('')
+                              } if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
+                            }}
+                          >
+                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder="Select role..." />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            <SelectItem className="text-[#122A48] p-2" value="MENRO">MENRO Officer</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2" value="Barangay">Barangay Personnel</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError className="text-xs">{fieldErrors.role}</FieldError>
+                    </Field>
+                  </div>
                   
                   {/* barangay */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Select
-                        value={role === 'MENRO' ? '' : barangayId ? String(barangayId) : ''}
-                        onValueChange={(value) => {
-                          setBarangayId(Number(value))
-                          if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
-                        }}
-                        disabled={role === 'MENRO'}
-                      >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder={role === 'MENRO' ? MENRO_OFFICE : 'Select...'} />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          {barangays.map(b => (
-                            <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
-                              {b.barangay_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FieldError className="text-xs">{fieldErrors.barangayId }</FieldError>
-                  </Field>
+                  {role !== 'MENRO' && (
+                    <div ref={barangayRef}>
+                      <Field className="flex gap-1.5 flex-col w-[400px]">
+                        <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <Select
+                          value={barangayId ? String(barangayId) : ''}
+                          onValueChange={(value) => {
+                            setBarangayId(Number(value))
+                            if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
+                          }}
+                        >
+                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent position="popper">
+                            {barangays.map(b => (
+                              <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                                {b.barangay_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldError className="text-xs">{fieldErrors.barangayId}</FieldError>
+                      </Field>
+                    </div>
+                  )}
                 </div>
 
                 {/* position/designation */}
-                <div className="mt-3">
-                  <Field className="flex gap-1.5 flex-col w-100">
-                    <FieldLabel className="text-[#122A48] text-sm">POSITION <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Select
-                        value={position}
-                        onValueChange={(value) => {
-                          setPosition(value)
-                          if (fieldErrors.position) setFieldErrors(prev => ({ ...prev, position: '' }))
-                        }}
-                        disabled={role === 'MENRO'}
-                      >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder={role === 'MENRO' ? 'MENRO Officer' : 'Select position...'} />
-                        </SelectTrigger>
-                        <SelectContent position="popper" className='w-100 min-w-0'>
-                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Inspector">Barangay Health Inspector</SelectItem>
-                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Secretary">Barangay Secretary</SelectItem>
-                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Care Worker">Barangay Health Care Worker</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <div className="flex justify-between items-center">
-                      <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                {role !== 'MENRO' && (
+                  <div className="mt-3">
+                    <div ref={positionRef}>
+                      <Field className="flex gap-1.5 flex-col w-100">
+                        <FieldLabel className="text-[#122A48] text-sm">POSITION <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <Select
+                          value={position}
+                          onValueChange={(value) => {
+                            setPosition(value)
+                            if (fieldErrors.position) setFieldErrors(prev => ({ ...prev, position: '' }))
+                          }}
+                        >
+                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder="Select position..." />
+                          </SelectTrigger>
+                          <SelectContent position="popper" className='w-100 min-w-0'>
+                            <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Inspector">Barangay Health Inspector</SelectItem>
+                            <SelectItem className="p-2 text-[#122A48]" value="Barangay Secretary">Barangay Secretary</SelectItem>
+                            <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Care Worker">Barangay Health Care Worker</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                      </Field>
                     </div>
-                  </Field>
-                </div>
+                  </div>
+                )}
 
               </div>
             </div>
@@ -450,44 +487,48 @@ export default function Form() {
               <div className="p-3">
                 <div className="flex gap-5 w-full">
                   {/* username */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">USERNAME <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Input
-                        name="username"
-                        value={username}
-                        maxLength={20}
-                        onChange={(e) => {
-                          setUsername(e.target.value)
-                        }}
-                        placeholder="e.g. patquinto"
-                        className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
-                          fieldErrors.username ? 'border-[#FF0000]' : 'border-[#727272]'
-                        }`}
-                      />
-                      <div className="flex justify-between items-center">
-                      <FieldError className="text-xs">{fieldErrors.username}</FieldError>
-                      <span className={`text-xs ml-auto ${username.length >= 20 ? 'text-[#FF0000]' : 'text-[#72727280]'}`}>
-                        {username.length}/20
-                      </span>
-                    </div>
-                  </Field>
+                  <div ref={usernameRef}>
+                    <Field className="flex gap-1.5 flex-col w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-sm">USERNAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <Input
+                          name="username"
+                          value={username}
+                          maxLength={20}
+                          onChange={(e) => {
+                            setUsername(e.target.value)
+                          }}
+                          placeholder="e.g. patquinto"
+                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                            fieldErrors.username ? 'border-[#FF0000]' : 'border-[#727272]'
+                          }`}
+                        />
+                        <div className="flex justify-between items-center">
+                        <FieldError className="text-xs">{fieldErrors.username}</FieldError>
+                        <span className={`text-xs ml-auto ${username.length >= 20 ? 'text-[#FF0000]' : 'text-[#72727280]'}`}>
+                          {username.length}/20
+                        </span>
+                      </div>
+                    </Field>
+                  </div>
                   
                   {/* email */}
-                  <Field className="flex gap-1.5 flex-col w-[400px]">
-                    <FieldLabel className="text-[#122A48] text-sm">EMAIL <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Input
-                        name="email"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value)
-                        }}
-                        placeholder="e.g. patpobeast@rosario.gov.ph"
-                        className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
-                          fieldErrors.email ? 'border-[#FF0000]' : 'border-[#727272]'
-                        }`}
-                      />
-                      <FieldError className="text-xs">{fieldErrors.email}</FieldError>
-                  </Field>
+                 <div ref={emailRef}>
+                   <Field className="flex gap-1.5 flex-col w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-sm">EMAIL <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <Input
+                          name="email"
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value)
+                          }}
+                          placeholder="e.g. patpobeast@rosario.gov.ph"
+                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                            fieldErrors.email ? 'border-[#FF0000]' : 'border-[#727272]'
+                          }`}
+                        />
+                        <FieldError className="text-xs">{fieldErrors.email}</FieldError>
+                    </Field>
+                 </div>
                 </div>
               </div>
 
@@ -620,30 +661,33 @@ export default function Form() {
                 </Field>
               </div>
 
-              <div className="mt-3">
-                {/* position/designation */}
-                <Field className="flex gap-1.5 flex-col">
-                  <FieldLabel className="text-[#122A48] text-xs">POSITION/DESIGNATION <span className="text-[#FF0000]">*</span></FieldLabel>
-                    <Input
-                      name="position"
-                      value={position}
-                      maxLength={50}
-                      onChange={(e) => {
-                        setPosition(e.target.value)
-                      }}
-                      placeholder="e.g. Barangay Sanitary Inspector"
-                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
-                        fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'
-                      }`}
-                    />
-                    <div className="flex justify-between items-center">
+              {/* position/designation */}
+              {role !== 'MENRO' && (
+                <div className="mt-3">
+                  <div ref={positionRef}>
+                    <Field className="flex gap-1.5 flex-col w-100">
+                      <FieldLabel className="text-[#122A48] text-sm">POSITION <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <Select
+                        value={position}
+                        onValueChange={(value) => {
+                          setPosition(value)
+                          if (fieldErrors.position) setFieldErrors(prev => ({ ...prev, position: '' }))
+                        }}
+                      >
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder="Select position..." />
+                        </SelectTrigger>
+                        <SelectContent position="popper" className='w-100 min-w-0'>
+                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Inspector">Barangay Health Inspector</SelectItem>
+                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Secretary">Barangay Secretary</SelectItem>
+                          <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Care Worker">Barangay Health Care Worker</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FieldError className="text-xs">{fieldErrors.position}</FieldError>
-                      <span className={`text-xs ml-auto ${position.length >= 50 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {position.length}/50
-                    </span>
+                    </Field>
                   </div>
-                </Field>
-              </div>
+                </div>
+              )}
             </div>
 
           </div>
@@ -691,29 +735,32 @@ export default function Form() {
                 </Field>
                 
                 {/* office/barangay */}
-                <Field className="flex gap-1.5 flex-col">
-                  <FieldLabel className="text-[#122A48] text-xs">OFFICE/BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
+                {role !== 'MENRO' && (
+                  <div ref={barangayRef}>
+                    <Field className="flex gap-1.5 flex-col w-[400px]">
+                      <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
                       <Select
-                        value={role === 'MENRO' ? MENRO_OFFICE : barangayId ? String(barangayId) : ''}
+                        value={barangayId ? String(barangayId) : ''}
                         onValueChange={(value) => {
                           setBarangayId(Number(value))
                           if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
                         }}
-                        disabled={role === 'MENRO'}
                       >
-                      <SelectTrigger className={`text-xs !font-normal bg-[#1565BC05] py-[17px] rounded-lg ${fieldErrors.officeBarangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent position="popper" side="bottom">
-                        {barangays.map(b => (
-                          <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
-                            {b.barangay_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FieldError className="text-xs">{fieldErrors.barangayId }</FieldError>
-                </Field>
+                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          {barangays.map(b => (
+                            <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                              {b.barangay_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FieldError className="text-xs">{fieldErrors.barangayId}</FieldError>
+                    </Field>
+                  </div>
+                )}
               </div>
             </div>
 
