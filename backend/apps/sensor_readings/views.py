@@ -307,43 +307,30 @@ class SensorReadingWithFlowView(APIView):
             estimated_volume=0.0,
         )
 
+        # Only act on the FIRST classification per ClogEvent
         open_event = ClogEvent.objects.filter(
             node=node,
             status__in=['Detected', 'Responded'],
-            classification__isnull=True
         ).order_by('-detected_at').first()
 
-        if open_event:
+        if open_event and open_event.classification is None:
+            # Link this classification to the ClogEvent
             open_event.classification = classification
             open_event.save()
 
-        recently_alerted = Alert.objects.filter(
-            node=node,
-            alert_type='High_Clog_Index',
-            timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).exists()
-
-        print(f"[DEBUG] about to create Alert with context")  # ← add this
-        waste_context = {
-            'dominant_waste_type': dominant.replace('_', ' ').title(),
-            'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
-            'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
-            'residual_pct':        round(percentages.get('residual', 0), 2),
-            'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
-            'confidence':          round(confidence, 2),
-            'estimated_volume':    0.0,
-        }
-
-        existing_alert = Alert.objects.filter(
-            node=node,
-            alert_type__in=['Critical_Clog', 'High_Clog_Index'],
-            timestamp__gte=timezone.now() - timedelta(hours=1),
-            alert_context={}  # only patch if context is still empty
-        ).order_by('-timestamp').first()
-
-        if existing_alert:
-            existing_alert.alert_context = waste_context
-            existing_alert.save()
-            print(f"[DEBUG] Patched waste context into {existing_alert.alert_type} alert")
-        else:
-            print(f"[DEBUG] No alert found to patch")
+            # Create the alert ONCE using this same classification's data
+            Alert.objects.create(
+                node=node,
+                event=open_event,
+                alert_type='High_Clog_Index',
+                alert_context={
+                    'dominant_waste_type': dominant.replace('_', ' ').title(),
+                    'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
+                    'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
+                    'residual_pct':        round(percentages.get('residual', 0), 2),
+                    'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
+                    'confidence':          round(confidence, 2),
+                    'estimated_volume':    0.0,
+                }
+            )
+        # If classification is already linked, do nothing — alert already exists
