@@ -1,5 +1,6 @@
 from rest_framework import generics
 from rest_framework.response import Response
+from rest_framework import status
 from .models import Hotspot
 from .serializers import HotspotSerializer
 from apps.users.permissions import IsAdmin, IsMENRO, IsAdminOrMENRO, IsAdminOrMENROOrBarangay
@@ -14,7 +15,9 @@ class HotspotListView(generics.ListCreateAPIView):
         return [IsAdminOrMENRO()]
 
     def get_queryset(self):
-        return Hotspot.objects.select_related('barangay').all().order_by('barangay__barangay_name', 'name')
+        return Hotspot.objects.select_related('barangay').filter(
+            is_active=True
+        ).order_by('barangay__barangay_name', 'name')
 
 
 class HotspotDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -22,6 +25,10 @@ class HotspotDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = HotspotSerializer
     lookup_field = 'hotspot_id'
     permission_classes = [IsAdminOrMENRO]
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save()
 
 
 class HotspotByBarangayView(generics.ListAPIView):

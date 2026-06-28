@@ -28,7 +28,6 @@ const pageTitles: Record<string, string> = {
   "/admin/node": "Node Management",
   "/admin/hotspots": "Canal Hotspots Management",
   "/admin/history/clog-events": "Clog Events",
-  "/admin/history/water-level-logs": "Water Level Audit Log",
   "/admin/history/waste": "Waste Classification",
   "/admin/history/barangay-reports": "Barangay Reports",
   "/admin/history/monthly-reports": "Municipal Reports",

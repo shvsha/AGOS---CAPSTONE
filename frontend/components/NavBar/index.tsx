@@ -21,7 +21,7 @@ import {
   Map, Package, FileBarChart, CalendarDays,
   MapPin, FileUp, LogOut, RadioTower, ChevronDown,
   SlidersHorizontal, Target, GitBranchPlus,
-  ClipboardList, TriangleAlert 
+  TriangleAlert 
 } from "lucide-react"
 
 // logo
@@ -48,7 +48,6 @@ const navItems: Record<string, NavItem[]> = {
       label: "History",
       icon: <History size={18} />,
       children: [
-        { label: "Water Level Audit Log",    href: "/admin/history/water-level-logs", icon: <ClipboardList size={14} /> },
         { label: "Clog Events",              href: "/admin/history/clog-events",      icon: <TriangleAlert size={14} /> },
         { label: "Waste Classification",     href: "/admin/history/waste",            icon: <Package size={14} /> },
         { label: "Barangay Monthly Reports", href: "/admin/history/barangay-reports", icon: <FileBarChart size={14} /> },

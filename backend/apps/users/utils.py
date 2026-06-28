@@ -45,13 +45,10 @@ def send_credentials_email(user, password):
 
     details = [
         f'Name: {user.first_name} {user.last_name}',
-        f'Email: {user.email}',
         f'Role: {user.user_role}',
+        f'Email: {user.email}',
+        
     ]
-    if user.position:
-        details.append(f'Position: {user.position}')
-    if user.user_role == 'Barangay' and user.barangay:
-        details.append(f'Barangay: {user.barangay.barangay_name}')
 
     details_text = '\n'.join(details)
 
