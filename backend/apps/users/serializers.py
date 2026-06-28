@@ -6,31 +6,25 @@ import string
 
 
 class UserSerializer(serializers.ModelSerializer):
-  barangay_details = BarangaySerializer(source='barangay', read_only=True)
-  barangay_id = serializers.IntegerField(required=False, allow_null=True)
+    barangay_details = BarangaySerializer(source='barangay', read_only=True)
+    barangay_id = serializers.IntegerField(required=False, allow_null=True)
 
-  class Meta:
-    model = User
-    fields = [
-        'user_id', 'first_name', 'last_name',
-        'email', 'username', 'user_role',
-        'position', 'barangay_id', 'barangay_details',
-        'status', 'must_change_password',
-        'created_at', 'updated_at'
-    ]
-    extra_kwargs = {
-        'password': {'write_only': True}
-    }
+    class Meta:
+        model = User
+        fields = [
+            'user_id', 'first_name', 'last_name',
+            'email', 'user_role',
+            'position', 'barangay_id', 'barangay_details',
+            'status', 'must_change_password',
+            'created_at', 'updated_at'
+        ]
 
     def update(self, instance, validated_data):
         barangay_id = validated_data.pop('barangay_id', -1)
-
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-
         if barangay_id != -1:
             instance.barangay_id = barangay_id
-
         instance.save()
         return instance
     
@@ -48,12 +42,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'first_name', 'last_name', 'email',
-            'username', 'password', 'user_role',
+            'password', 'user_role',
             'position', 'barangay_id'
         ]
 
     def validate(self, attrs):
-        # If creating admin, password must be explicitly provided
         role = attrs.get('user_role', '')
         password = attrs.get('password', None)
         if role == 'Admin' and not password:

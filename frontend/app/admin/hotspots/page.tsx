@@ -170,6 +170,26 @@ export default function HotspotManagement() {
   const sensorHeightRef = useRef<HTMLDivElement>(null)
   const latitudeRef = useRef<HTMLDivElement>(null)
 
+  const allHotspotMarkers = hotspots.map(h => {
+    const assignedNode = allNodes.find(n => n.hotspot_details?.hotspot_id === h.hotspot_id)
+    if (assignedNode) {
+      return {
+        latitude: h.latitude,
+        longitude: h.longitude,
+        label: assignedNode.node_name || `Node ${assignedNode.node_id}`,
+        condition: assignedNode.condition ?? "Normal",
+        sublabel: `Hotspot: ${h.name}`,
+      }
+    }
+    return {
+      latitude: h.latitude,
+      longitude: h.longitude,
+      label: h.name,
+      condition: "default",
+      sublabel: "Available hotspot",
+    }
+  })
+
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 6)
 
   const total = hotspots.length
@@ -812,7 +832,7 @@ export default function HotspotManagement() {
                         onMapClick={handleMapClick}
                         boundaryGeoJson={boundaryGeoJson}
                         showLegend={false}
-                        markers={nodeMarkers}
+                        markers={allHotspotMarkers}
                       />
                     </div>
                   </div>
@@ -895,7 +915,7 @@ export default function HotspotManagement() {
               label={viewMapDialog.hotspot?.name}
               zoom={16}
               showLegend={false}
-              markers={viewMapNodeMarkers.length > 0 ? viewMapNodeMarkers : undefined}
+              markers={allHotspotMarkers}
             />
           </div>
           <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">

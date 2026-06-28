@@ -76,6 +76,7 @@ export default function NodeAssignment() {
   // form state
   const [availableNodes, setAvailableNodes] = useState<AvailableNode[]>([])
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
+  const [allHotspots, setAllHotspots] = useState<Hotspot[]>([])
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [selectedNode, setSelectedNode] = useState('')
   const [barangay, setBarangay] = useState('')
@@ -115,6 +116,28 @@ export default function NodeAssignment() {
   const active   = assignedNodes.filter(n => n.status === 'Active').length
   const inactive = assignedNodes.filter(n => n.status === 'Inactive').length
 
+  const allHotspotMarkers = allHotspots.map(h => {
+    const assignedNode = assignedNodes.find(n => n.hotspot_details?.hotspot_id === h.hotspot_id)
+    if (assignedNode) {
+      return {
+        latitude: h.latitude,
+        longitude: h.longitude,
+        label: assignedNode.node_name,
+        condition: assignedNode.condition ?? "Normal",
+        sublabel: `Water: ${assignedNode.water_level ?? '—'}cm | Clog: ${assignedNode.clog_pct ?? '—'}%`,
+      }
+    }
+    return {
+      latitude: h.latitude,
+      longitude: h.longitude,
+      label: h.name,
+      condition: "default",
+      sublabel: "Available hotspot",
+    }
+  })
+
+  
+  // fetch
   const fetchAssignedNodes = async () => {
     setLoading(true)
     setFetchError(false)
@@ -156,6 +179,18 @@ export default function NodeAssignment() {
       } catch {}
     }
     fetchBarangays()
+  }, [])
+
+  useEffect(() => {
+    const fetchAllHotspots = async () => {
+      try {
+        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setAllHotspots(data.results ?? data)
+      } catch {}
+    }
+    fetchAllHotspots()
   }, [])
 
   // Fetch available nodes when form opens for create
@@ -626,6 +661,7 @@ export default function NodeAssignment() {
                         longitude={selectedHotspot?.longitude}
                         label={barangay}
                         showLegend={false}
+                        markers={allHotspotMarkers}
                       />
                     </div>
                   </div>
@@ -696,13 +732,7 @@ export default function NodeAssignment() {
           </DialogHeader>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
-              markers={assignedNodes.map(n => ({
-                latitude: n.hotspot_details?.latitude,
-                longitude: n.hotspot_details?.longitude,
-                label: n.node_name,
-                condition: n.condition,
-                sublabel: `Water: ${n.water_level ?? '—'}cm | Clog: ${n.clog_pct ?? '—'}%`,
-              }))}
+              markers={allHotspotMarkers}
               zoom={13}
             />
           </div>
