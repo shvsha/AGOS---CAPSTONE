@@ -29,7 +29,7 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # Water level alert — fires on Warning (≥50%) or Critical (≥75%)
+    # Water_Level_Rising — fires on Warning or Critical, once per hour
     if instance.reading_status in ('Warning', 'Critical'):
         recently_alerted = Alert.objects.filter(
             node=instance.node,
@@ -47,7 +47,7 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
                 }
             )
 
-    # ClogEvent
+    # ClogEvent — only if none already open
     severity = get_clog_severity(instance.clog_pct)
     if severity is None:
         return
@@ -56,18 +56,16 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
         node=instance.node,
         status__in=['Detected', 'Responded']
     ).exists()
-    if already_open:
-        return
+    if not already_open:
+        ClogEvent.objects.create(
+            node=instance.node,
+            barangay=instance.node.barangay,
+            severity=severity,
+            status='Detected'
+        )
 
-    ClogEvent.objects.create(
-        node=instance.node,
-        barangay=instance.node.barangay,
-        severity=severity,
-        status='Detected'
-    )
-
-    # Critical_Clog alert — only for High severity
-    if severity == 'High':
+    # Critical_Clog — fires when reading_status is Critical, once per hour
+    if instance.reading_status == 'Critical':
         recently_alerted = Alert.objects.filter(
             node=instance.node,
             alert_type='Critical_Clog',
