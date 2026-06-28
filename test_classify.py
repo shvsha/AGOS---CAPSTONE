@@ -14,7 +14,7 @@ import requests
 # CONFIG — edit these before running
 # ------------------------------------------------------------------
 BASE_URL   = "http://localhost:8000"
-USERNAME   = "admin"       # your admin login
+EMAIL     = "23100316@slc-sflu.edu.ph"
 PASSWORD   = "admin123"             # your admin password
 IMAGE_PATH = r"C:\Users\admin\Desktop\pat basura\IMG_20260621_171132_426.jpg"  # full path to a test image
 NODE_ID    = 2                         # a valid node_id in your DB
@@ -25,7 +25,7 @@ READING_ID = 248                         # a valid reading_id with no classifica
 def get_token():
     resp = requests.post(
         f"{BASE_URL}/api/auth/login/",
-        json={"username": USERNAME, "password": PASSWORD},
+        json={"email": EMAIL, "password": PASSWORD},  # ← change "username" to "email"
     )
     if resp.status_code != 200:
         print(f"Login failed: {resp.status_code} {resp.text}")

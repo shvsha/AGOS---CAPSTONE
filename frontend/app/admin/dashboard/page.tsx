@@ -5,7 +5,10 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 // icons
-import { RadioTower, Droplets, TriangleAlert, MapPinned, Siren, Activity, Battery, Signal, ScanSearch } from "lucide-react"
+import { RadioTower, Droplets, TriangleAlert, MapPinned, Siren, Activity, Battery, Signal, ScanSearch, X} from "lucide-react"
+
+// shadcn
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
@@ -62,6 +65,7 @@ type Alert = {
   barangay_name: string | null
   timestamp: string
   is_read: boolean
+  alert_context?: Record<string, any> 
 }
 
 type MonthlyReports = {
@@ -135,6 +139,10 @@ export default function Dashboard() {
   const [allAlerts, setAllAlerts] = useState<Alert[]>([])
   const [allMonthlyReports, setAllMonthlyReports] = useState<MonthlyReports[]>([])
   const [allNodeHealth, setAllNodeHealth] = useState<NodeHealth[]>([])
+
+  // alert dialog state
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
+  const [alertDialog, setAlertDialog] = useState(false)
 
   // summary cards
   const totalSensorNodes = allSensorNodes.length
@@ -280,7 +288,7 @@ export default function Dashboard() {
         <div className="text-[#122A48] mt-3 flex gap-2 w-full">
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             {/* map */}
-            <div className="bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-[400px] flex flex-col">
+            <div className="bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-[380px] flex flex-col">
               <div className="px-2 pt-2 pb-1">
                 <p className="font-bold text-sm">Canal Network Map - Rosario, La Union</p>
               </div>
@@ -312,20 +320,13 @@ export default function Dashboard() {
 
           {/* alerts */}
           <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
-            <div className='flex justify-between items-center justify-between p-3'>
-              <p className='font-semibold text-[#122A48]'>Live Alerts</p>
-              <Button
-                onClick={() => router.push('/admin/alerts')}
-                className='rounded-lg shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] flex gap-2 bg-white hover:bg-white/50 cursor-pointer border border-[#C9C9C9]'
-              >
-                <Siren size={20} className='text-[#D81010]' />
-                View Alerts
-              </Button>
+            <div className='flex justify-between items-center justify-between p-1.5 px-3'>
+              <p className='font-semibold text-[#122A48] text-base'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-3 p-3 overflow-y-auto'>
+            <div className='flex flex-col gap-2 p-3 overflow-y-auto'>
               {todayAlerts.length === 0 ? (
-                <div className='flex flex-col items-center justify-center h-full py-37 gap-2'>
+                <div className='flex flex-col items-center justify-center h-full py-45 gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
@@ -333,7 +334,14 @@ export default function Dashboard() {
                 todayAlerts.slice(0, 6).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
-                    <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}>
+                    <div
+                      key={alert.alert_id}
+                      onClick={() => {
+                        setSelectedAlert(alert)
+                        setAlertDialog(true)
+                      }}
+                      className={`flex items-center gap-3 p-1 h-14 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
+                    >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
                       </div>
@@ -442,10 +450,90 @@ export default function Dashboard() {
         </>
 
         
-
-
-
       </div>
+
+      {/* Alert Detail Dialog */}
+      <Dialog open={alertDialog} onOpenChange={setAlertDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[350px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg ${ALERT_STYLE[selectedAlert?.alert_type ?? '']?.icon ?? ALERT_STYLE.default.icon}`}>
+                  {ALERT_ICONS[selectedAlert?.alert_type ?? ''] ?? <Activity size={16} />}
+                </div>
+                <p className="font-bold text-sm">
+                  {selectedAlert?.alert_type.replace(/_/g, ' ')}
+                </p>
+              </div>
+              <button onClick={() => setAlertDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Alert Details</DialogTitle>
+          <hr />
+
+          {selectedAlert && (
+            <div className="flex flex-col gap-2 text-sm">
+              {/* Basic Info */}
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Node</p>
+                <p className="font-medium">{selectedAlert.node_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Barangay</p>
+                <p className="font-medium">{selectedAlert.barangay_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Detected</p>
+                <p className="font-medium">
+                  {new Date(selectedAlert.timestamp).toLocaleString('en-PH', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                  })}
+                </p>
+              </div>
+
+              <hr />
+
+              {/* Context Data */}
+              {selectedAlert.alert_context && Object.keys(selectedAlert.alert_context).length > 0 && (
+                <>
+                  <p className="font-semibold text-xs text-[#727272]">DETAILS</p>
+                  {Object.entries(selectedAlert.alert_context).map(([key, value]) => {
+                    // Format value based on key
+                    let displayValue = value
+
+                    if (typeof value === 'boolean') {
+                      displayValue = value ? 'Connected' : 'Disconnected'
+                    } else if (key === 'water_level') {
+                      displayValue = `${value} cm`
+                    } else if (key === 'water_flow_rate') {
+                      displayValue = `${Number(value).toFixed(5)} m/s`
+                    } else if (key.endsWith('_pct') || key === 'confidence') {
+                      displayValue = `${Number(value).toFixed(1)}%`
+                    } else if (key === 'estimated_volume') {
+                      displayValue = `${value} kg`
+                    } else if (key === 'battery_voltage') {
+                      displayValue = `${Number(value).toFixed(2)} V`
+                    } else if (key === 'signal_strength') {
+                      displayValue = `${value} dBm`
+                    }
+
+                    return (
+                      <div key={key} className="flex justify-between">
+                        <p className="text-[#727272] capitalize">{key.replace(/_/g, ' ')}</p>
+                        <p className="font-medium">{String(displayValue)}</p>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
  }

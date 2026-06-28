@@ -35,6 +35,7 @@ class Alert(models.Model):
         db_column='health_log_id'
     )
     alert_type = models.CharField(max_length=25, choices=ALERT_TYPE_CHOICES)
+    alert_context = models.JSONField(default=dict, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

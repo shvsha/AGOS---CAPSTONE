@@ -33,8 +33,8 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # --- Alerts for water level status (early warning, always fires) ---
-    if instance.reading_status == 'Warning':
+    # Water level alerts only — regardless of Warning or Critical
+    if instance.reading_status in ('Warning', 'Critical'):
         recently_alerted = Alert.objects.filter(
             node=instance.node,
             alert_type='Water_Level_Rising',
@@ -46,26 +46,11 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
                 alert_type='Water_Level_Rising'
             )
 
-    elif instance.reading_status == 'Critical':
-        recently_alerted = Alert.objects.filter(
-            node=instance.node,
-            alert_type='Critical_Clog',
-            timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).exists()
-        if not recently_alerted:
-            Alert.objects.create(
-                node=instance.node,
-                alert_type='Critical_Clog'
-            )
-
-    # --- ClogEvent from clog_pct (primary clog detection logic) ---
-    # clog_pct is computed from optical flow + water level trend
-    # Only create a ClogEvent if clog_pct is high enough
+    # ClogEvent from clog_pct
     severity = get_clog_severity(instance.clog_pct)
     if severity is None:
         return
 
-    # Deduplication — don't create a new event if one is already open
     already_open = ClogEvent.objects.filter(
         node=instance.node,
         status__in=['Detected', 'Responded']

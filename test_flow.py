@@ -21,7 +21,7 @@ import os
 # CONFIG — edit these before running
 # ------------------------------------------------------------------
 BASE_URL     = "http://localhost:8000"
-USERNAME     = "admin"
+EMAIL     = "23100316@slc-sflu.edu.ph"
 PASSWORD     = "admin123"
 NODE_ID      = 2          # a valid node_id in your DB
 WATER_LEVEL  = 50.0       # test water level in cm
@@ -42,7 +42,7 @@ FRAMES = [
 def get_token():
     resp = requests.post(
         f"{BASE_URL}/api/auth/login/",
-        json={"username": USERNAME, "password": PASSWORD},
+        json={"email": EMAIL, "password": PASSWORD},  # ← change "username" to "email"
     )
     if resp.status_code != 200:
         print(f"Login failed: {resp.status_code} {resp.text}")
