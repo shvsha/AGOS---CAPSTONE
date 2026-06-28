@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical } from "lucide-react"
 
 // react
 import { useState, useEffect } from "react"
@@ -43,6 +43,17 @@ type DialogState = {
   node?: SensorNode | null
 }
 
+type SensorReading = {
+  reading_id: number
+  timestamp: string
+  reading_status: string
+  water_level: number | null
+  water_flow_rate: number | null
+  clog_pct: number | null
+}
+
+
+
 export default function NodeManagement() {
   const [sensorNodes, setSensorNodes] = useState<SensorNode[]>([])
   const [search, setSearch] = useState('')
@@ -50,6 +61,13 @@ export default function NodeManagement() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+
+  // readings state
+  const [readingsDialog, setReadingsDialog] = useState<DialogState>({ open: false, node: null })
+  const [nodeReadings, setNodeReadings] = useState<SensorReading[]>([])
+  const [readingsLoading, setReadingsLoading] = useState(false)
+  const [readingsError, setReadingsError] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
   const [nodeName, setNodeName] = useState('')
 
@@ -107,6 +125,43 @@ export default function NodeManagement() {
     setFieldErrors({})
   }
 
+  useEffect(() => {
+    if (!readingsDialog.open || !readingsDialog.node) {
+      setNodeReadings([])
+      return
+    }
+
+    const fetchReadings = async () => {
+      setReadingsLoading(true)
+      setReadingsError(false)
+      try {
+        const res = await fetchWithAuth(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/node/${readingsDialog.node!.node_id}/`
+        )
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setNodeReadings(data.results ?? data)
+      } catch {
+        setReadingsError(true)
+      } finally {
+        setReadingsLoading(false)
+      }
+    }
+    fetchReadings()
+  }, [readingsDialog.open, readingsDialog.node])
+  
+  useEffect(() => {
+    function handleClickOutside() {
+      setOpenMenuId(null)
+    }
+    if (openMenuId !== null) {
+      document.addEventListener("click", handleClickOutside)
+      return () => document.removeEventListener("click", handleClickOutside)
+    }
+  }, [openMenuId])
+
+
+  // handlers
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
     if (!nodeName.trim()) errors.nodeName = "This field is required."
@@ -211,7 +266,7 @@ export default function NodeManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-108.5">
+        <div className="flex gap-4 mt-3 h-108.5 overflow-visible">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-3 font-bold text-[#122A48]">IoT Sensor Nodes</p>
             <Table>
@@ -267,20 +322,53 @@ export default function NodeManagement() {
                           {node.availability_status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-center items-center h-18">
+                      <TableCell className="text-[#122A48] flex gap-2 justify-center items-center h-18 relative">
                         <Button
                           onClick={() => setNodeFormDialog({ open: true, node })}
                           className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
                         >
                           <SquarePen size={16} /> Edit
                         </Button>
-                        {node.availability_status === 'Occupied' && (
+
+                        {node.availability_status === 'Available' ? (
                           <Button
-                            onClick={() => setUnassignDialog({ open: true, node })}
-                            className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                            onClick={() => setReadingsDialog({ open: true, node })}
+                            className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
                           >
-                            <Unplug size={16} /> Unassign
+                            <History size={16} /> View Readings
                           </Button>
+                        ) : (
+                          <div className="relative">
+                            <Button
+                              id={`menu-btn-${node.node_id}`}
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                              className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                            >
+                              <MoreVertical size={16} />
+                            </Button>
+
+                            {openMenuId === node.node_id && (
+                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-44 overflow-hidden"
+                                  style={{
+                                    top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                    right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
+                                  }}
+                                >
+                                <button
+                                  onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
+                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
+                                >
+                                  <Unplug size={14} /> Unassign
+                                </button>
+                                <button
+                                  onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                >
+                                  <History size={14} /> View Readings History
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -371,6 +459,79 @@ export default function NodeManagement() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Readings History Dialog */}
+      <Dialog open={readingsDialog.open}>
+        <DialogContent className="[&>button]:hidden p-0 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-[800px] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex justify-between items-center p-2 md:p-3 border-b border-[#C6C6C8]">
+              <div className="flex flex-col">
+                <p className="font-bold text-sm md:text-base">{readingsDialog.node?.node_name}</p>
+                <p className="text-[11px] text-[#727272]">Sensor Readings History</p>
+              </div>
+              <button className="cursor-pointer" onClick={() => setReadingsDialog({ open: false, node: null })}>
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+          <DialogTitle className="sr-only">Water Level Readings History</DialogTitle>
+
+          <div className="flex-1 overflow-y-auto -mt-4">
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                <TableRow>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">TIMESTAMP</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">WATER LEVEL</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">FLOW RATE</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">CLOG %</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">STATUS</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {readingsError ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10">
+                      <p className="text-[#D81010] font-semibold text-sm">Failed to load readings.</p>
+                    </TableCell>
+                  </TableRow>
+                ) : readingsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10">
+                      <p className="text-[#727272] text-sm">Loading readings...</p>
+                    </TableCell>
+                  </TableRow>
+                ) : nodeReadings.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10">
+                      <p className="text-[#727272] text-sm">No readings recorded for this node yet.</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  nodeReadings.map(r => (
+                    <TableRow key={r.reading_id} className="border-b border-[#C6C6C8] text-xs">
+                      <TableCell className="text-center h-11">
+                        {new Date(r.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </TableCell>
+                      <TableCell className="text-center h-11">{r.water_level != null ? `${r.water_level} cm` : '—'}</TableCell>
+                      <TableCell className="text-center h-11">{r.water_flow_rate != null ? `${Number(r.water_flow_rate).toFixed(5)} m/s` : '—'}</TableCell>
+                      <TableCell className="text-center h-11">{r.clog_pct != null ? `${r.clog_pct} %` : '—'}</TableCell>
+                      <TableCell className="text-center h-11">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                          r.reading_status === 'Critical' ? 'bg-[#FFE5E5] text-[#D81010]' :
+                          r.reading_status === 'Warning'  ? 'bg-[#F4E4A7] text-[#E4B600]' :
+                          'bg-[#B2FBC173] text-[#2C7B3C]'
+                        }`}>
+                          {r.reading_status}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </DialogContent>
       </Dialog>
 

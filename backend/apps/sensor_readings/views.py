@@ -1,29 +1,9 @@
-"""
-AGOS - SensorReadingWithFlowView
-=================================
-Accepts a combined POST from the ESP32 containing:
-  - node       (int)
-  - water_level (float, in cm)
-  - reading_status (str: Normal / Warning / Critical)
-  - frame_1 through frame_5 (JPEG image files)
-
-Steps:
-  1. Validates all required fields
-  2. Runs optical flow across the 5 frames → water_flow_rate (m/s)
-  3. Fetches last N readings for this node → computes water level trend
-  4. Combines flow rate + trend → computes clog_pct (0-100)
-  5. Derives water_flow category (Normal / Slow / Stagnant)
-  6. Creates one complete SensorReading with everything filled in
-  7. Returns the serialized reading
-
-Add to sensor_readings/views.py and sensor_readings/urls.py.
-"""
-
 import cv2
 import numpy as np
+import os
+import sys
 from rest_framework import generics
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from .models import SensorReading
@@ -53,79 +33,44 @@ class SensorReadingByNodeView(generics.ListAPIView):
         return SensorReading.objects.filter(
             node__node_id=node_id
         ).order_by('-timestamp')
-    
-
-# ------------------------------------------------------------------
-# Tunable constants — adjust after real-world calibration
-# ------------------------------------------------------------------
-
-# Number of past readings to use for water level trend
-TREND_WINDOW = 5
-
-# Flow rate thresholds (m/s) for water_flow category
-FLOW_NORMAL_MIN = 0.10   # above this = Normal
-FLOW_SLOW_MIN   = 0.02   # above this, below Normal = Slow
-                          # below FLOW_SLOW_MIN = Stagnant
-
-# clog_pct weights — how much each signal contributes
-# These should sum to 1.0
-WEIGHT_FLOW  = 0.60   # flow rate is the primary signal
-WEIGHT_TREND = 0.40   # water level trend is the secondary signal
-
-# Max expected flow rate for normalization (m/s)
-# A canal flowing faster than this is considered 0% clogged
-MAX_FLOW_RATE = 1.0
-
-# Max expected water level rise per reading cycle (cm)
-# A rise faster than this is considered 100% trend contribution
-MAX_TREND_RISE = 5.0
-
-# Number of JPEG frames expected in each burst
-FRAME_COUNT = 5
 
 
-# ------------------------------------------------------------------
-# Optical flow calculation
-# ------------------------------------------------------------------
+# Tunable constants
 
-def compute_optical_flow(frames_bytes: list[bytes], camera_height_cm: float) -> float | None:
-    """
-    Given a list of JPEG frame bytes and the camera height above water (cm),
-    compute the estimated surface water flow rate in m/s using Lucas-Kanade
-    sparse optical flow.
+TREND_WINDOW    = 5
+FLOW_NORMAL_MIN = 0.10
+FLOW_SLOW_MIN   = 0.02
+WEIGHT_FLOW     = 0.60
+WEIGHT_TREND    = 0.40
+MAX_FLOW_RATE   = 1.0
+MAX_TREND_RISE  = 5.0
+FRAME_COUNT     = 5
 
-    Returns flow rate in m/s, or None if computation fails.
-    """
+# clog_pct threshold to trigger waste classification
+CLASSIFY_THRESHOLD = 30.0
+
+
+# Optical flow
+
+def compute_optical_flow(frames_bytes: list, camera_height_cm: float):
     if len(frames_bytes) < 2:
         return None
 
-    # Decode first frame to get image dimensions
     first_arr = np.frombuffer(frames_bytes[0], dtype=np.uint8)
     first_frame = cv2.imdecode(first_arr, cv2.IMREAD_GRAYSCALE)
     if first_frame is None:
         return None
 
     img_height, img_width = first_frame.shape
-
-    # pixels_per_meter: how many pixels correspond to 1 real meter
-    # at this camera height.
-    # Formula: at height H (meters), field of view covers roughly
-    # H * tan(FOV/2) * 2 in each direction.
-    # For a typical wide-angle camera at 60° FOV:
-    #   horizontal coverage ≈ H * 1.155 meters
-    # So 1 pixel ≈ (H * 1.155) / image_width meters
-    # We invert to get pixels per meter.
     camera_height_m = camera_height_cm / 100.0
-    real_width_m = camera_height_m * 1.155  # approx horizontal coverage
+    real_width_m = camera_height_m * 1.155
     pixels_per_meter = img_width / real_width_m if real_width_m > 0 else 1000
 
-    # Lucas-Kanade parameters
     lk_params = dict(
         winSize=(21, 21),
         maxLevel=3,
         criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01),
     )
-
     feature_params = dict(
         maxCorners=200,
         qualityLevel=0.01,
@@ -142,18 +87,15 @@ def compute_optical_flow(frames_bytes: list[bytes], camera_height_cm: float) -> 
         if curr_gray is None:
             continue
 
-        # Detect feature points in previous frame
         prev_pts = cv2.goodFeaturesToTrack(prev_gray, mask=None, **feature_params)
         if prev_pts is None or len(prev_pts) == 0:
             prev_gray = curr_gray
             continue
 
-        # Track them in current frame
         curr_pts, status_arr, _ = cv2.calcOpticalFlowPyrLK(
             prev_gray, curr_gray, prev_pts, None, **lk_params
         )
 
-        # Keep only successfully tracked points
         good_prev = prev_pts[status_arr == 1]
         good_curr = curr_pts[status_arr == 1]
 
@@ -161,17 +103,10 @@ def compute_optical_flow(frames_bytes: list[bytes], camera_height_cm: float) -> 
             prev_gray = curr_gray
             continue
 
-        # Compute pixel displacement magnitudes
-        displacements = np.sqrt(
-            np.sum((good_curr - good_prev) ** 2, axis=1)
-        )
-
-        # Convert pixels/frame to m/s
-        # time between frames = FRAME_INTERVAL_MS / 1000 seconds
-        frame_interval_s = 0.2  # 200ms between frames
+        displacements = np.sqrt(np.sum((good_curr - good_prev) ** 2, axis=1))
+        frame_interval_s = 0.2
         speeds_m_s = displacements / pixels_per_meter / frame_interval_s
 
-        # Use median to ignore outliers (debris moving faster than water)
         if len(speeds_m_s) > 0:
             velocities.append(float(np.median(speeds_m_s)))
 
@@ -180,21 +115,14 @@ def compute_optical_flow(frames_bytes: list[bytes], camera_height_cm: float) -> 
     if not velocities:
         return None
 
-    # Return the median across all frame pairs
     return float(np.median(velocities))
 
 
 # ------------------------------------------------------------------
-# Water level trend calculation
+# Water level trend
 # ------------------------------------------------------------------
 
 def compute_trend_contribution(node, current_water_level: float) -> float:
-    """
-    Look at the last TREND_WINDOW readings for this node and compute
-    how much the water level is rising (0.0 = stable/falling, 1.0 = rising fast).
-
-    Returns a float between 0.0 and 1.0.
-    """
     recent = SensorReading.objects.filter(
         node=node
     ).order_by('-timestamp')[:TREND_WINDOW]
@@ -202,41 +130,28 @@ def compute_trend_contribution(node, current_water_level: float) -> float:
     if not recent:
         return 0.0
 
-    levels = [r.water_level for r in recent]
-
-    # Add current reading to the front
-    levels = [current_water_level] + levels
+    levels = [current_water_level] + [r.water_level for r in recent]
 
     if len(levels) < 2:
         return 0.0
 
-    # Net rise = current level - oldest level in window
     net_rise = levels[0] - levels[-1]
-
     if net_rise <= 0:
-        return 0.0  # stable or falling = no clog contribution from trend
+        return 0.0
 
-    # Normalize against MAX_TREND_RISE
     return min(net_rise / MAX_TREND_RISE, 1.0)
 
 
 # ------------------------------------------------------------------
-# clog_pct computation
+# clog_pct
 # ------------------------------------------------------------------
 
-def compute_clog_pct(flow_rate: float | None, trend_contribution: float) -> float:
-    """
-    Combine flow rate and water level trend into a 0-100 clog percentage.
-
-    Flow rate contribution: slow flow = high clog signal.
-    Trend contribution: rising water = high clog signal.
-    """
-    # Flow rate contribution (inverted — slow flow = high clog)
+def compute_clog_pct(flow_rate, trend_contribution: float) -> float:
     if flow_rate is None:
-        flow_contribution = 0.5  # unknown flow → neutral contribution
+        flow_contribution = 0.5
     else:
         normalized_flow = min(flow_rate / MAX_FLOW_RATE, 1.0)
-        flow_contribution = 1.0 - normalized_flow  # invert: slow = high
+        flow_contribution = 1.0 - normalized_flow
 
     clog = (WEIGHT_FLOW * flow_contribution) + (WEIGHT_TREND * trend_contribution)
     return round(min(clog * 100, 100.0), 2)
@@ -246,7 +161,7 @@ def compute_clog_pct(flow_rate: float | None, trend_contribution: float) -> floa
 # water_flow category
 # ------------------------------------------------------------------
 
-def get_water_flow_category(flow_rate: float | None) -> str:
+def get_water_flow_category(flow_rate) -> str:
     if flow_rate is None:
         return 'Normal'
     if flow_rate >= FLOW_NORMAL_MIN:
@@ -257,33 +172,40 @@ def get_water_flow_category(flow_rate: float | None) -> str:
 
 
 # ------------------------------------------------------------------
-# The view
+# AI waste classification
+# ------------------------------------------------------------------
+
+def run_waste_classification(image_bytes: bytes):
+    try:
+        ai_model_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'ai_model'
+        )
+        if ai_model_path not in sys.path:
+            sys.path.append(ai_model_path)
+
+        from classifier import classify_mixed_from_bytes
+        result = classify_mixed_from_bytes(image_bytes)
+
+        if not result.get('success'):
+            return None
+
+        return result
+
+    except Exception as e:
+        print(f"[WARN] Waste classification failed: {e}")
+        return None
+
+
+# ------------------------------------------------------------------
+# Combined view
 # ------------------------------------------------------------------
 
 class SensorReadingWithFlowView(APIView):
-    """
-    Combined sensor reading endpoint.
-    Accepts water level + camera burst frames in one multipart POST.
-    Computes optical flow and clog_pct, saves one complete SensorReading.
-
-    POST /api/sensor-readings/with-flow/
-    Content-Type: multipart/form-data
-
-    Fields:
-      node           (int)       required
-      water_level    (float, cm) required
-      reading_status (str)       required: Normal / Warning / Critical
-      frame_1        (file)      required: JPEG
-      frame_2        (file)      required: JPEG
-      frame_3        (file)      required: JPEG
-      frame_4        (file)      required: JPEG
-      frame_5        (file)      required: JPEG
-    """
     authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
     permission_classes = [IsIoTDevice | IsAdminOrMENRO]
 
     def post(self, request):
-        # --- Validate required text fields ---
         node_id        = request.data.get('node')
         water_level    = request.data.get('water_level')
         reading_status = request.data.get('reading_status', 'Normal')
@@ -303,7 +225,6 @@ class SensorReadingWithFlowView(APIView):
         except SensorNode.DoesNotExist:
             return Response({'error': 'Sensor node not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # --- Collect frame files ---
         frames_bytes = []
         for i in range(1, FRAME_COUNT + 1):
             frame_file = request.FILES.get(f'frame_{i}')
@@ -314,33 +235,19 @@ class SensorReadingWithFlowView(APIView):
                 )
             frames_bytes.append(frame_file.read())
 
-        # --- Compute camera height above water ---
-        # sensor_height is stored on the hotspot (cm from mount to canal floor)
-        # camera_height_above_water = sensor_height - water_level
         camera_height_cm = None
         if node.hotspot and node.hotspot.sensor_height:
             camera_height_cm = node.hotspot.sensor_height - water_level
-            # Sanity check — if water is above the sensor, something is wrong
             if camera_height_cm <= 0:
-                camera_height_cm = 50.0  # fallback: assume 50cm above water
-
+                camera_height_cm = 50.0
         if camera_height_cm is None:
-            # No sensor_height configured yet — use a safe default
             camera_height_cm = 100.0
 
-        # --- Optical flow ---
-        water_flow_rate = compute_optical_flow(frames_bytes, camera_height_cm)
-
-        # --- Water level trend ---
+        water_flow_rate    = compute_optical_flow(frames_bytes, camera_height_cm)
         trend_contribution = compute_trend_contribution(node, water_level)
+        clog_pct           = compute_clog_pct(water_flow_rate, trend_contribution)
+        water_flow         = get_water_flow_category(water_flow_rate)
 
-        # --- clog_pct ---
-        clog_pct = compute_clog_pct(water_flow_rate, trend_contribution)
-
-        # --- water_flow category ---
-        water_flow = get_water_flow_category(water_flow_rate)
-
-        # --- Create SensorReading ---
         reading = SensorReading.objects.create(
             node=node,
             water_level=water_level,
@@ -350,7 +257,86 @@ class SensorReadingWithFlowView(APIView):
             clog_pct=clog_pct,
         )
 
+        if clog_pct >= CLASSIFY_THRESHOLD:
+            self._handle_clog_classification(
+                node=node,
+                reading=reading,
+                frame_bytes=frames_bytes[0],
+                clog_pct=clog_pct,
+            )
+
         return Response(
             SensorReadingSerializer(reading).data,
             status=status.HTTP_201_CREATED
         )
+
+    def _handle_clog_classification(self, node, reading, frame_bytes, clog_pct):
+        from apps.waste_classification.models import WasteClassification
+        from apps.clog_events.models import ClogEvent
+        from apps.alerts.models import Alert
+        from django.utils import timezone
+        from datetime import timedelta
+
+        classification_result = run_waste_classification(frame_bytes)
+        print(f"[DEBUG] classification_result: {classification_result}")  # ← add this
+        if classification_result is None:
+            print(f"[WARN] Classification failed for reading {reading.reading_id}")
+            return
+
+        percentages = classification_result.get('percentages', {})
+        print(f"[DEBUG] percentages: {percentages}")  # ← add this
+        dominant    = classification_result.get('dominant_waste_type', 'None')
+        confidence  = classification_result.get('confidence', 0)
+        is_mixed    = classification_result.get('is_mixed', False)
+        present     = classification_result.get('present_waste_types', [])
+
+        classification = WasteClassification.objects.create(
+            node=node,
+            reading=reading,
+            dominant_waste_type=dominant.replace('_', ' ').title(),
+            recyclable_pct=percentages.get('recyclable', 0),
+            biodegradable_pct=percentages.get('biodegradable', 0),
+            residual_pct=percentages.get('residual', 0),
+            special_waste_pct=percentages.get('special_waste', 0),
+            none_pct=percentages.get('none', 0),
+            confidence=confidence,
+            is_mixed=is_mixed,
+            present_waste_types=present,
+            estimated_volume=0.0,
+        )
+
+        open_event = ClogEvent.objects.filter(
+            node=node,
+            status__in=['Detected', 'Responded'],
+            classification__isnull=True
+        ).order_by('-detected_at').first()
+
+        if open_event:
+            open_event.classification = classification
+            open_event.save()
+
+        recently_alerted = Alert.objects.filter(
+            node=node,
+            alert_type='High_Clog_Index',
+            timestamp__gte=timezone.now() - timedelta(hours=1)
+        ).exists()
+
+        print(f"[DEBUG] about to create Alert with context")  # ← add this
+        if not recently_alerted:
+            Alert.objects.create(
+                node=node,
+                event=open_event,
+                alert_type='High_Clog_Index',
+                alert_context={
+                    'dominant_waste_type': dominant.replace('_', ' ').title(),
+                    'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
+                    'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
+                    'residual_pct':        round(percentages.get('residual', 0), 2),
+                    'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
+                    'confidence':          round(confidence, 2),
+                    'estimated_volume':    0.0,
+                }
+            )
+            print(f"[DEBUG] Alert created with context")
+        else:
+            print(f"[DEBUG] Alert skipped — recently alerted") 
