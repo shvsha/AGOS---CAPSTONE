@@ -46,7 +46,6 @@ def send_credentials_email(user, password):
     details = [
         f'Name: {user.first_name} {user.last_name}',
         f'Email: {user.email}',
-        f'Username: {user.username}',
         f'Role: {user.user_role}',
     ]
     if user.position:

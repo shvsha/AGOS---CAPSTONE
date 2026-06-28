@@ -50,6 +50,7 @@ export default function ChangePassword() {
     { label: "Must be at least 8 characters", valid: newPassword.length >= 8 },
     { label: "Must contain one special character", valid: /[^a-zA-Z0-9]/.test(newPassword) },
     { label: "Passwords must match", valid: newPassword === confirmNewPassword && confirmNewPassword !== "" },
+    { label: "Must be different from your current password", valid: newPassword !== "" && newPassword !== oldPassword },
   ]
 
   const handlePasswordChange = async () => {

@@ -15,24 +15,16 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        username = request.data.get('username')
+        email = request.data.get('email')
         password = request.data.get('password')
 
-        if not username or not password:
+        if not email or not password:
             return Response(
-                {'error': 'Username and password are required'},
+                {'error': 'Email and password are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            user_obj = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Invalid credentials'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        user = authenticate(request, email=user_obj.email, password=password)
+        user = authenticate(request, email=email, password=password)
 
         if user:
             if user.status == 'Inactive':
@@ -61,33 +53,16 @@ class LoginView(APIView):
             })
 
             response.set_cookie(
-                key='access_token',
-                value=access_token,
-                max_age=7 * 24 * 60 * 60,
-                httponly=True,
-                secure=is_secure,
-                samesite='Lax',
-                path='/',
+                key='access_token', value=access_token, max_age=7*24*60*60,
+                httponly=True, secure=is_secure, samesite='Lax', path='/',
             )
-
             response.set_cookie(
-                key='refresh_token',
-                value=refresh_token,
-                max_age=7 * 24 * 60 * 60,
-                httponly=True,
-                secure=is_secure,
-                samesite='Lax',
-                path='/',
+                key='refresh_token', value=refresh_token, max_age=7*24*60*60,
+                httponly=True, secure=is_secure, samesite='Lax', path='/',
             )
-
             response.set_cookie(
-                key='user',
-                value=json.dumps(dict(user_data)),
-                max_age=7 * 24 * 60 * 60,
-                httponly=False,
-                secure=is_secure,
-                samesite='Lax',
-                path='/',
+                key='user', value=json.dumps(dict(user_data)), max_age=7*24*60*60,
+                httponly=False, secure=is_secure, samesite='Lax', path='/',
             )
 
             return response
@@ -142,13 +117,12 @@ class UserListView(generics.ListCreateAPIView):
         return UserSerializer
     
     def perform_create(self, serializer):
-        print(self.request.data)
         user = serializer.save()
         log_action(
             user=self.request.user,
             action='Created User',
             affected_table='tbl_user',
-            new_value=f"username: {user.username}, role: {user.user_role}",
+            new_value=f"email: {user.email}, role: {user.user_role}",
             ip_address=self.request.META.get('REMOTE_ADDR')
         )
 
@@ -177,7 +151,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
             user=self.request.user,
             action='Deleted User',
             affected_table='tbl_user',
-            old_value=f"username: {instance.username}",
+            old_value=f"email: {instance.email}",
             ip_address=self.request.META.get('REMOTE_ADDR')
         )
         instance.delete()
@@ -296,7 +270,7 @@ class InitialSetupView(APIView):
                 user=user,
                 action='Initial Setup - Created Admin',
                 affected_table='tbl_user',
-                new_value=f"username: {user.username}, role: {user.user_role}",
+                new_value=f"email: {user.email}, role: {user.user_role}",
                 ip_address=request.META.get('REMOTE_ADDR')
             )
             return Response(

@@ -32,7 +32,7 @@ export default function Login() {
   const router = useRouter()
 
   // login states
-  const [username, setUsername] = useState<string>("")
+  const [email, setEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
   const [showPassword, setShowPassword] = useState<boolean>(false)
   const [isLoadingLogin, setIsLoadingLogin] = useState<boolean>(false)
@@ -96,7 +96,7 @@ export default function Login() {
   // handlers
   const handleCredentials = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    if (name === "username") setUsername(value)
+    if (name === "email") setEmail(value)
     if (name === "password") setPassword(value)
   }
 
@@ -105,14 +105,14 @@ export default function Login() {
     setLoginError("")
     setFieldError("")
 
-    if (username === "" || password === "") {
+    if (email === "" || password === "") {
       setFieldError("Please fill in all fields.")
       return
     }
 
     setIsLoadingLogin(true)
     try {
-      const data = await api.post("/api/auth/login/", { username, password })
+      const data = await api.post("/api/auth/login/", { email, password })
       setTokens(data.access)
       setUser(data.user)
 
@@ -280,14 +280,14 @@ export default function Login() {
           <CardContent className='text-center'>
             <FieldGroup>
               <Field className='gap-0.5'>
-                <FieldLabel className='text-[#122A48] text-xs sm:text-sm' htmlFor='username'>Username</FieldLabel>
+                <FieldLabel className='text-[#122A48] text-xs sm:text-sm' htmlFor='username'>Email</FieldLabel>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#122A48BA]" />
                   <Input
-                    name="username"
-                    id="username"
+                    name="email"
+                    id="email"
                     type="text"
-                    value={username}
+                    value={email}
                     onChange={e => { handleCredentials(e); setFieldError(""); setLoginError("") }}
                     className={`border focus:ring-0 bg-[#CDE3DEB0] h-7.5 sm:h-8.5 pl-10 text-xs sm:text-base ${fieldError || loginError ? "border-red-500" : "border-none"}`}
                   />

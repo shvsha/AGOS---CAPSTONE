@@ -3,13 +3,12 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from apps.barangay.models import Barangay
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, username, first_name, last_name, user_role, password=None, **extra_fields):
+    def create_user(self, email, first_name, last_name, user_role, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required")
         email = self.normalize_email(email)
         user = self.model(
             email=email,
-            username=username,
             first_name=first_name,
             last_name=last_name,
             user_role=user_role,
@@ -19,11 +18,10 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, username, first_name, last_name, password=None, **extra_fields):
+    def create_superuser(self, email, first_name, last_name, password=None, **extra_fields):
         extra_fields.setdefault('user_role', 'Admin')
         return self.create_user(
             email=email,
-            username=username,
             first_name=first_name,
             last_name=last_name,
             user_role='Admin',
@@ -46,7 +44,6 @@ class User(AbstractBaseUser):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    username = models.CharField(max_length=50, unique=True)
     user_role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     position = models.CharField(max_length=50, null=True, blank=True)
     barangay = models.ForeignKey(

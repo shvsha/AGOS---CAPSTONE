@@ -61,7 +61,6 @@ export default function Form() {
   const [status, setStatus] = useState<string>('')
   const [barangays, setBarangays] = useState<Barangay[]>([])
   const [barangayId, setBarangayId] = useState<number | null>(null)
-  const [username, setUsername] = useState<string>('')
 
   // form us
   const [formLoading, setFormLoading] = useState<boolean>(isEdit)
@@ -87,7 +86,6 @@ export default function Form() {
   const roleRef = useRef<HTMLDivElement>(null)
   const barangayRef = useRef<HTMLDivElement>(null)
   const positionRef = useRef<HTMLDivElement>(null)
-  const usernameRef = useRef<HTMLDivElement>(null)
   const emailRef = useRef<HTMLDivElement>(null)
 
   // get barangay
@@ -116,7 +114,6 @@ export default function Form() {
         setRole(data.user_role)
         setEmail(data.email)
         setStatus(data.status)
-        setUsername(data.username)
         setPosition(data.position ?? '')
         setBarangayId(data.barangay_id ?? null)
       } catch {
@@ -147,7 +144,6 @@ export default function Form() {
     if (role !== 'MENRO' && !position.trim())     errors.position   = 'This field is required.'
     if (!role)                                    errors.role       = 'This field is required.'
     if (role !== 'MENRO' && !barangayId)          errors.barangayId = 'This field is required.'
-    if (!username.trim())                         errors.username   = 'This field is required.'
     if (!email.trim())                            errors.email      = 'This field is required.'
 
     setFieldErrors(errors)
@@ -163,8 +159,6 @@ export default function Form() {
         barangayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       } else if (errors.position) {
         positionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } else if (errors.username) {
-        usernameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       } else if (errors.email) {
         emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
@@ -185,7 +179,6 @@ export default function Form() {
         first_name: fname,
         last_name: lname,
         email,
-        username,
         user_role: role,
         position,
         barangay_id: role === 'MENRO' ? null : barangayId,
@@ -198,7 +191,7 @@ export default function Form() {
       }
 
       setLoadingDialog({ open: false })
-      addToast(isEdit ? `${fname} ${lname}'s \naccount has been updated.` : `${fname} ${lname} \nhas been added.`, 'success')
+      addToast(isEdit ? `User account has \nbeen updated.` : `User has been \nadded successfully.`, 'success')
       await new Promise(resolve => setTimeout(resolve, 3000))
       router.push('/admin/users')
 
@@ -212,7 +205,7 @@ export default function Form() {
         }
         setFieldErrors(backendErrors)
       }
-
+ 
       addToast(isEdit ? 'Failed to save changes. Please try again.' : 'Failed to create user. Please try again.', 'error')
     }
   }
@@ -477,7 +470,7 @@ export default function Form() {
                 </div>
                 <div className="flex flex-col justify-center">
                   <p className="font-bold">Account Credentials</p>
-                  <p className="text-[13px] text-[#727272]">Login username and email</p>
+                  <p className="text-[13px] text-[#727272]">Login email information</p>
                 </div>
               </div>
 
@@ -486,31 +479,6 @@ export default function Form() {
               {/* inputs for PI */}
               <div className="p-3">
                 <div className="flex gap-5 w-full">
-                  {/* username */}
-                  <div ref={usernameRef}>
-                    <Field className="flex gap-1.5 flex-col w-[400px]">
-                      <FieldLabel className="text-[#122A48] text-sm">USERNAME <span className="text-[#FF0000]">*</span></FieldLabel>
-                        <Input
-                          name="username"
-                          value={username}
-                          maxLength={20}
-                          onChange={(e) => {
-                            setUsername(e.target.value)
-                          }}
-                          placeholder="e.g. patquinto"
-                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
-                            fieldErrors.username ? 'border-[#FF0000]' : 'border-[#727272]'
-                          }`}
-                        />
-                        <div className="flex justify-between items-center">
-                        <FieldError className="text-xs">{fieldErrors.username}</FieldError>
-                        <span className={`text-xs ml-auto ${username.length >= 20 ? 'text-[#FF0000]' : 'text-[#72727280]'}`}>
-                          {username.length}/20
-                        </span>
-                      </div>
-                    </Field>
-                  </div>
-                  
                   {/* email */}
                  <div ref={emailRef}>
                    <Field className="flex gap-1.5 flex-col w-[400px]">
@@ -775,7 +743,7 @@ export default function Form() {
               </div>
               <div className="flex flex-col justify-center">
                 <p className="font-bold text-xs">Account Credentials</p>
-                <p className="text-[11px] text-[#727272]">Login username and email</p>
+                <p className="text-[11px] text-[#727272]">Login email information</p>
               </div>
             </div>
 
@@ -783,30 +751,7 @@ export default function Form() {
 
             {/* inputs for PI */}
             <div className="p-3">
-              <div className="flex flex-col gap-3 w-full">
-                {/* username */}
-                <Field className="flex gap-1.5 flex-col">
-                  <FieldLabel className="text-[#122A48] text-xs">USERNAME <span className="text-[#FF0000]">*</span></FieldLabel>
-                    <Input
-                      name="username"
-                      value={username}
-                      maxLength={20}
-                      onChange={(e) => {
-                        setUsername(e.target.value)
-                      }}
-                      placeholder="e.g. patquinto"
-                      className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-9 bg-[#1565BC05] ${
-                        fieldErrors.username ? 'border-[#FF0000]' : 'border-[#727272]'
-                      }`}
-                    />
-                    <div className="flex justify-between items-center">
-                    <FieldError className="text-xs">{fieldErrors.username}</FieldError>
-                    <span className={`text-xs ml-auto ${username.length >= 20 ? 'text-[#FF0000]' : 'text-[#72727280]'}`}>
-                      {username.length}/20
-                    </span>
-                  </div>
-                </Field>
-                
+              <div className="flex flex-col gap-3 w-full">             
                 {/* email */}
                 <Field className="flex gap-1.5 flex-col">
                   <FieldLabel className="text-[#122A48] text-xs">EMAIL <span className="text-[#FF0000]">*</span></FieldLabel>
