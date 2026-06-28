@@ -6,17 +6,13 @@ from apps.alerts.models import Alert
 from django.utils import timezone
 from datetime import timedelta
 
-
-# clog_pct thresholds for ClogEvent severity
 CLOG_PCT_THRESHOLDS = {
     'High':   80,
     'Medium': 60,
     'Low':    30,
 }
 
-
 def get_clog_severity(clog_pct):
-    """Map clog_pct to a severity tier, or None if not high enough."""
     if clog_pct is None:
         return None
     if clog_pct >= CLOG_PCT_THRESHOLDS['High']:
@@ -33,7 +29,7 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # Water level alerts only — regardless of Warning or Critical
+    # Water level alert — fires on Warning (≥50%) or Critical (≥75%)
     if instance.reading_status in ('Warning', 'Critical'):
         recently_alerted = Alert.objects.filter(
             node=instance.node,
@@ -43,10 +39,15 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
         if not recently_alerted:
             Alert.objects.create(
                 node=instance.node,
-                alert_type='Water_Level_Rising'
+                alert_type='Water_Level_Rising',
+                alert_context={
+                    'water_level':     instance.water_level,
+                    'water_flow_rate': instance.water_flow_rate,
+                    'water_flow':      instance.water_flow,
+                }
             )
 
-    # ClogEvent from clog_pct
+    # ClogEvent
     severity = get_clog_severity(instance.clog_pct)
     if severity is None:
         return
@@ -64,3 +65,22 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
         severity=severity,
         status='Detected'
     )
+
+    # Critical_Clog alert — only for High severity
+    if severity == 'High':
+        recently_alerted = Alert.objects.filter(
+            node=instance.node,
+            alert_type='Critical_Clog',
+            timestamp__gte=timezone.now() - timedelta(hours=1)
+        ).exists()
+        if not recently_alerted:
+            Alert.objects.create(
+                node=instance.node,
+                alert_type='Critical_Clog',
+                alert_context={
+                    'water_level':     instance.water_level,
+                    'water_flow_rate': instance.water_flow_rate,
+                    'water_flow':      instance.water_flow,
+                    'clog_pct':        instance.clog_pct,
+                }
+            )

@@ -301,7 +301,7 @@ export default function ClogEvents() {
                         </TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">{clog?.node_details?.water_level} cm</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">~ {clog?.node_details?.water_flow_rate} m/s</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">~ {Number(clog.node_details?.water_flow_rate).toFixed(5)} m/s</TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">{clog.status}</TableCell>
                       </TableRow>
                     ))

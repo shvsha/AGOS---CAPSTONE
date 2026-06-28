@@ -652,7 +652,11 @@ const handleConfirmationDialog = () => {
                         <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                           <SelectValue placeholder="Select Barangay..." />
                         </SelectTrigger>
-                        <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+                        <SelectContent 
+                          position="popper" 
+                          className="max-h-60"
+                          style={{ maxHeight: '240px', overflowY: 'auto' }}
+                        >
                           {[...allBarangays]
                             .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                             .map(b => {

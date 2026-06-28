@@ -49,6 +49,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         role = attrs.get('user_role', '')
         password = attrs.get('password', None)
+        
+        if role == 'Admin':
+            raise serializers.ValidationError(
+                {'user_role': 'Admin accounts cannot be created through the API.'}
+            )
+    
         if role == 'Admin' and not password:
             raise serializers.ValidationError(
                 {'password': 'Password is required for Admin accounts.'}

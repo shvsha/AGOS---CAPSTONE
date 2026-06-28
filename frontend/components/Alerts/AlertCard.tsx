@@ -98,19 +98,44 @@ function formatDate(ts: string) {
 
 function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }) {
   if (alertType === "Critical_Clog") {
-    const c = ctx as WaterContext & { clog_pct?: number }
-    if (c.water_level == null) return null
+    const c = ctx as WaterContext & HighClogContext & { clog_pct?: number }
     return (
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[#727272]">
-        <span>Water Level: <span className="font-semibold text-[#122A48]">{c.water_level} cm</span></span>
-        {c.water_flow_rate != null && (
-          <span>Flow Rate: <span className="font-semibold text-[#122A48]">{c.water_flow_rate} m/s</span></span>
-        )}
-        {c.water_flow && (
-          <span>Flow: <span className="font-semibold text-[#122A48]">{c.water_flow}</span></span>
-        )}
-        {c.clog_pct != null && (
-          <span>Clog: <span className="font-semibold text-[#D81010]">{c.clog_pct}%</span></span>
+      <div className="flex flex-col gap-1 text-xs text-[#727272]">
+        {/* water data row */}
+        <div className="flex flex-wrap gap-x-4">
+          {c.water_level != null && (
+            <span>Water Level: <span className="font-semibold text-[#122A48]">{c.water_level} cm</span></span>
+          )}
+          {c.water_flow_rate != null && (
+            <span>Flow Rate: <span className="font-semibold text-[#122A48]">{Number(c.water_flow_rate).toFixed(5)} m/s</span></span>
+          )}
+          {c.water_flow && (
+            <span>Flow: <span className="font-semibold text-[#122A48]">{c.water_flow}</span></span>
+          )}
+          {c.clog_pct != null && (
+            <span>Clog: <span className="font-semibold text-[#D81010]">{c.clog_pct}%</span></span>
+          )}
+        </div>
+
+        {/* waste data row — only if classification exists */}
+        {c.dominant_waste_type && (
+          <>
+            <div className="flex flex-wrap gap-x-4">
+              <span>Dominant: <span className="font-semibold text-[#122A48]">{c.dominant_waste_type}</span></span>
+              {c.estimated_volume != null && (
+                <span>Est. Volume: <span className="font-semibold text-[#122A48]">{c.estimated_volume} kg</span></span>
+              )}
+              {c.confidence != null && (
+                <span>Confidence: <span className="font-semibold text-[#122A48]">{Math.round(c.confidence)}%</span></span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-3 text-xs">
+              {c.recyclable_pct != null && <span>Recyclable: {c.recyclable_pct}%</span>}
+              {c.biodegradable_pct != null && <span>Biodegradable: {c.biodegradable_pct}%</span>}
+              {c.residual_pct != null && <span>Residual: {c.residual_pct}%</span>}
+              {c.special_waste_pct != null && <span>Special: {c.special_waste_pct}%</span>}
+            </div>
+          </>
         )}
       </div>
     )
@@ -128,7 +153,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
         {c.water_flow_rate != null && (
           <span>
             Flow Rate:{" "}
-            <span className="font-semibold text-[#122A48]">{c.water_flow_rate} m/s</span>
+            <span className="font-semibold text-[#122A48]">{Number(c.water_flow_rate).toFixed(5)} m/s</span>
           </span>
         )}
         {c.water_flow && (

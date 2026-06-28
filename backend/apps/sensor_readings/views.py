@@ -276,6 +276,8 @@ class SensorReadingWithFlowView(APIView):
         from apps.alerts.models import Alert
         from django.utils import timezone
         from datetime import timedelta
+        from apps.sensor_readings.signals import get_clog_severity
+        severity = get_clog_severity(clog_pct)
 
         classification_result = run_waste_classification(frame_bytes)
         print(f"[DEBUG] classification_result: {classification_result}")  # ← add this
@@ -322,21 +324,26 @@ class SensorReadingWithFlowView(APIView):
         ).exists()
 
         print(f"[DEBUG] about to create Alert with context")  # ← add this
-        if not recently_alerted:
-            Alert.objects.create(
-                node=node,
-                event=open_event,
-                alert_type='High_Clog_Index',
-                alert_context={
-                    'dominant_waste_type': dominant.replace('_', ' ').title(),
-                    'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
-                    'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
-                    'residual_pct':        round(percentages.get('residual', 0), 2),
-                    'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
-                    'confidence':          round(confidence, 2),
-                    'estimated_volume':    0.0,
-                }
-            )
-            print(f"[DEBUG] Alert created with context")
+        waste_context = {
+            'dominant_waste_type': dominant.replace('_', ' ').title(),
+            'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
+            'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
+            'residual_pct':        round(percentages.get('residual', 0), 2),
+            'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
+            'confidence':          round(confidence, 2),
+            'estimated_volume':    0.0,
+        }
+
+        existing_alert = Alert.objects.filter(
+            node=node,
+            alert_type__in=['Critical_Clog', 'High_Clog_Index'],
+            timestamp__gte=timezone.now() - timedelta(hours=1),
+            alert_context={}  # only patch if context is still empty
+        ).order_by('-timestamp').first()
+
+        if existing_alert:
+            existing_alert.alert_context = waste_context
+            existing_alert.save()
+            print(f"[DEBUG] Patched waste context into {existing_alert.alert_type} alert")
         else:
-            print(f"[DEBUG] Alert skipped — recently alerted") 
+            print(f"[DEBUG] No alert found to patch")

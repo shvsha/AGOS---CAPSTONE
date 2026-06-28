@@ -832,7 +832,16 @@ export default function HotspotManagement() {
                         onMapClick={handleMapClick}
                         boundaryGeoJson={boundaryGeoJson}
                         showLegend={false}
-                        markers={allHotspotMarkers}
+                        markers={[
+                          ...allHotspotMarkers,
+                          ...(latitude && longitude ? [{
+                            latitude: parseFloat(latitude),
+                            longitude: parseFloat(longitude),
+                            label: hotspotName || "New Hotspot",
+                            condition: "Normal",
+                            sublabel: "Selected location",
+                          }] : []),
+                        ]}
                       />
                     </div>
                   </div>
