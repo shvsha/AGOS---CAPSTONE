@@ -39,50 +39,62 @@ class AlertSerializer(serializers.ModelSerializer):
         t = obj.alert_type
 
         if t == 'Critical_Clog':
-            if obj.node:
+            if obj.event and obj.event.classification:
+                # Use classification linked to the clog event
+                classification = obj.event.classification
+                reading = classification.reading
+                return {
+                    'water_level':        reading.water_level,
+                    'water_flow':         reading.water_flow,
+                    'water_flow_rate':    reading.water_flow_rate,
+                    'clog_pct':           reading.clog_pct,
+                    'dominant_waste_type': classification.dominant_waste_type,
+                    'recyclable_pct':     classification.recyclable_pct,
+                    'biodegradable_pct':  classification.biodegradable_pct,
+                    'residual_pct':       classification.residual_pct,
+                    'special_waste_pct':  classification.special_waste_pct,
+                    'confidence':         classification.confidence,
+                    'estimated_volume':   classification.estimated_volume,
+                }
+            elif obj.node:
+                # Fallback: no classification yet, use latest reading only
                 reading = obj.node.sensorreading_set.order_by('-timestamp').first()
-                classification = obj.node.wasteclassification_set.order_by('-timestamp').first()
                 if reading:
                     return {
-                        'water_level': reading.water_level,
-                        'water_flow': reading.water_flow,
+                        'water_level':     reading.water_level,
+                        'water_flow':      reading.water_flow,
                         'water_flow_rate': reading.water_flow_rate,
-                        'clog_pct': reading.clog_pct,
-                        **(  # only include waste data if classification exists
-                            {
-                                'dominant_waste_type': classification.dominant_waste_type,
-                                'recyclable_pct': classification.recyclable_pct,
-                                'biodegradable_pct': classification.biodegradable_pct,
-                                'residual_pct': classification.residual_pct,
-                                'special_waste_pct': classification.special_waste_pct,
-                                'confidence': classification.confidence,
-                                'estimated_volume': classification.estimated_volume,
-                            } if classification else {}
-                        )
+                        'clog_pct':        reading.clog_pct,
                     }
             return {}
 
         if t == 'High_Clog_Index':
-            if obj.node:
+            if obj.event and obj.event.classification:
+                # Use classification linked to the clog event
+                classification = obj.event.classification
+                reading = classification.reading
+                return {
+                    'water_level':        reading.water_level,
+                    'water_flow':         reading.water_flow,
+                    'water_flow_rate':    reading.water_flow_rate,
+                    'clog_pct':           reading.clog_pct,
+                    'dominant_waste_type': classification.dominant_waste_type,
+                    'recyclable_pct':     classification.recyclable_pct,
+                    'biodegradable_pct':  classification.biodegradable_pct,
+                    'residual_pct':       classification.residual_pct,
+                    'special_waste_pct':  classification.special_waste_pct,
+                    'confidence':         classification.confidence,
+                    'estimated_volume':   classification.estimated_volume,
+                }
+            elif obj.node:
+                # Fallback: no classification yet, use latest reading only
                 reading = obj.node.sensorreading_set.order_by('-timestamp').first()
-                classification = obj.node.wasteclassification_set.order_by('-timestamp').first()
-                if classification:
+                if reading:
                     return {
-                        **(
-                            {
-                                'water_level': reading.water_level,
-                                'water_flow': reading.water_flow,
-                                'water_flow_rate': reading.water_flow_rate,
-                                'clog_pct': reading.clog_pct,
-                            } if reading else {}
-                        ),
-                        'dominant_waste_type': classification.dominant_waste_type,
-                        'recyclable_pct': classification.recyclable_pct,
-                        'biodegradable_pct': classification.biodegradable_pct,
-                        'residual_pct': classification.residual_pct,
-                        'special_waste_pct': classification.special_waste_pct,
-                        'confidence': classification.confidence,
-                        'estimated_volume': classification.estimated_volume,
+                        'water_level':     reading.water_level,
+                        'water_flow':      reading.water_flow,
+                        'water_flow_rate': reading.water_flow_rate,
+                        'clog_pct':        reading.clog_pct,
                     }
             return {}
 

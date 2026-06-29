@@ -2,6 +2,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import ClogEvent
 from apps.alerts.models import Alert
+from django.utils import timezone
+from datetime import timedelta
 
 
 @receiver(post_save, sender=ClogEvent)
@@ -9,12 +11,24 @@ def create_alerts_on_clog(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # alert_type choice based on severity — adjust this mapping if your own
-    # definition of "High_Clog_Index" vs "Critical_Clog" differs
-    alert_type = 'Critical_Clog' if instance.severity == 'High' else 'High_Clog_Index'
+    # Determine alert type based on severity
+    # Critical_Clog  → clog_pct >= 80 (High severity)
+    # High_Clog_Index → clog_pct 30-79 (Low or Medium severity)
+    if instance.severity == 'High':
+        alert_type = 'Critical_Clog'
+    else:
+        alert_type = 'High_Clog_Index'
 
-    Alert.objects.create(
-        event=instance,
+    # Deduplication — only 1 alert per type per node per hour
+    recently_alerted = Alert.objects.filter(
         node=instance.node,
         alert_type=alert_type,
-    )
+        timestamp__gte=timezone.now() - timedelta(hours=1)
+    ).exists()
+
+    if not recently_alerted:
+        Alert.objects.create(
+            event=instance,
+            node=instance.node,
+            alert_type=alert_type,
+        )
