@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // icons
-import { Siren, Activity, RadioTower, TriangleAlert, MapPin, Droplet, Waves, BatteryMedium, Signal, Radar   } from "lucide-react"
+import { Siren, Activity, RadioTower, TriangleAlert, MapPin, Droplet, Waves, BatteryMedium, Signal, Radar, X   } from "lucide-react"
 
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
@@ -101,6 +101,7 @@ type Alert = {
   barangay_name: string | null
   timestamp: string
   is_read: boolean
+  alert_context?: Record<string, any>
 }
 
 type Dialog = {
@@ -118,8 +119,9 @@ export default function Map() {
   // dialog state
   const [selectedNode, setSelectedNode] = useState<SensorNodes | null>(null)
   const [nodeDialog, setNodeDialog] = useState({ open: false })
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
+  const [alertDialog, setAlertDialog] = useState(false)
 
-  console.log(allSensorNodes)
 
   // helpers
   const health = allSensorHealth.find(h => h.node_details.node_id === selectedNode?.node_id)
@@ -203,12 +205,14 @@ export default function Map() {
 
             <div className="flex-1 overflow-hidden">
               <AgosMapWrapper
-                markers={allSensorNodes.map(n => ({
-                  latitude:  n.hotspot_details.latitude,
-                  longitude: n.hotspot_details.longitude,
-                  label:     n.node_name,
-                  condition: n.health_status ?? 'Normal',
-                  onMarkerClick: () => handleSelectNode(n.node_id)
+                markers={allSensorNodes
+                .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
+                .map(n => ({
+                  latitude:      n.hotspot_details!.latitude,
+                  longitude:     n.hotspot_details!.longitude,
+                  label:         n.node_name,
+                  condition:     n.condition ?? 'Normal',
+                  onMarkerClick: () => handleSelectNode(n.node_id),
                 }))}
                 zoom={13}
                 colorMode="health"
@@ -240,7 +244,14 @@ export default function Map() {
                 todayAlerts.slice(0, 6).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
-                    <div key={alert.alert_id} className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}>
+                    <div
+                      key={alert.alert_id}
+                      onClick={() => {
+                        setSelectedAlert(alert)
+                        setAlertDialog(true)
+                      }}
+                      className={`flex items-center gap-3 p-1 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
+                    >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
                       </div>
@@ -282,11 +293,11 @@ export default function Map() {
           <div className="flex flex-col gap-1 -mt-1">
             <div className="flex justify-between">
               <p>Status:</p>
-              {getStatusBadge(selectedNode?.health_status ?? 'Normal')}
+              {getStatusBadge(selectedNode?.condition ?? 'Normal')}
             </div>
             <div className="flex justify-between">
               <p>Clog Detection:</p>
-              <p>{selectedNode?.clog_pct ?? '- '}%</p>
+              <p>{selectedNode?.clog_pct != null ? `${selectedNode.clog_pct}%` : '— %'}</p>
             </div>
             <div className="flex justify-between">
               <p>Last Updated:</p>
@@ -305,7 +316,11 @@ export default function Map() {
               </div>
 
               <div className="flex justify-center mt-2">
-                <p className="font-medium">{selectedNode?.water_level ?? '- '} m</p>
+                <p className="font-medium">
+                  {selectedNode?.water_level != null
+                    ? `${selectedNode.water_level} cm`
+                    : '— cm'}
+                </p>
               </div>
 
             </div>
@@ -318,14 +333,18 @@ export default function Map() {
               </div>
 
               <div className="flex justify-center mt-2">
-                <p className="font-medium">{selectedNode?.water_flow_rate ?? '- '} m/s</p>
+                <p className="font-medium">
+                  {selectedNode?.water_flow_rate != null
+                    ? `${Number(selectedNode.water_flow_rate).toFixed(5)} m/s`
+                    : '— m/s'}
+                </p>
               </div>
             </div>
           </div>
 
-          <hr />
+          {/* <hr /> */}
 
-          <div className="-mt-1">
+          {/* <div className="-mt-1">
             <div className="w-full">
               <p>Node Health:</p>
             </div>
@@ -345,10 +364,10 @@ export default function Map() {
                 <p className="text-[13px] w-8 text-right shrink-0">
                   {pct != null ? `${pct}%` : '—%'}
                 </p>
-              </div>
+              </div> */}
 
               {/* Signal */}
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <Signal size={16} className="shrink-0" />
                 <p className="text-[13px] w-28 shrink-0">Signal</p>
                 <div className="flex-1 bg-[#E5E5E6] rounded-full h-2">
@@ -362,10 +381,10 @@ export default function Map() {
                 <p className="text-[13px] w-8 text-right shrink-0">
                   {signalPct != null ? `${signalPct}%` : '—%'}
                 </p>
-              </div>
+              </div> */}
 
               {/* Sensor Continuity */}
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <Radar size={16} className="shrink-0" />
                 <p className="text-[13px] w-28 shrink-0">Continuity</p>
                 <div className="flex-1 bg-[#E5E5E6] rounded-full h-2">
@@ -384,10 +403,87 @@ export default function Map() {
               </div>
 
             </div>
-          </div>
+          </div> */}
 
           
 
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={alertDialog} onOpenChange={setAlertDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[350px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg ${ALERT_STYLE[selectedAlert?.alert_type ?? '']?.icon ?? ALERT_STYLE.default.icon}`}>
+                  {ALERT_ICONS[selectedAlert?.alert_type ?? ''] ?? <Activity size={16} />}
+                </div>
+                <p className="font-bold text-sm">
+                  {selectedAlert?.alert_type.replace(/_/g, ' ')}
+                </p>
+              </div>
+              <button onClick={() => setAlertDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Alert Details</DialogTitle>
+          <hr />
+
+          {selectedAlert && (
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Node</p>
+                <p className="font-medium">{selectedAlert.node_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Barangay</p>
+                <p className="font-medium">{selectedAlert.barangay_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Detected</p>
+                <p className="font-medium">
+                  {new Date(selectedAlert.timestamp).toLocaleString('en-PH', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                  })}
+                </p>
+              </div>
+
+              <hr />
+
+              {selectedAlert.alert_context && Object.keys(selectedAlert.alert_context).length > 0 && (
+                <>
+                  <p className="font-semibold text-xs text-[#727272]">DETAILS</p>
+                  {Object.entries(selectedAlert.alert_context).map(([key, value]) => {
+                    let displayValue = value
+                    if (typeof value === 'boolean') {
+                      displayValue = value ? 'Connected' : 'Disconnected'
+                    } else if (key === 'water_level') {
+                      displayValue = `${value} cm`
+                    } else if (key === 'water_flow_rate') {
+                      displayValue = `${Number(value).toFixed(5)} m/s`
+                    } else if (key.endsWith('_pct') || key === 'confidence') {
+                      displayValue = `${Number(value).toFixed(1)}%`
+                    } else if (key === 'estimated_volume') {
+                      displayValue = `${value} kg`
+                    } else if (key === 'battery_voltage') {
+                      displayValue = `${Number(value).toFixed(2)} V`
+                    } else if (key === 'signal_strength') {
+                      displayValue = `${value} dBm`
+                    }
+                    return (
+                      <div key={key} className="flex justify-between">
+                        <p className="text-[#727272] capitalize">{key.replace(/_/g, ' ')}</p>
+                        <p className="font-medium">{String(displayValue)}</p>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     

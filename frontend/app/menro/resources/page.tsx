@@ -26,17 +26,14 @@ type Hotspots = {
 type SensorNode = {
   node_id: number
   node_name: string
-  barangay_details: {
-    barangay_id: number
-    barangay_name: string
-  }
-  hotspot_details: {
-    hotspot_id: number
-    hotspot_name: string
-    latitude: number
-    longitude: number
-  }
+  barangay_details: { barangay_id: number; barangay_name: string }
+  hotspot_details: { hotspot_id: number; hotspot_name: string; latitude: number; longitude: number } | null
   status: string
+  condition: string | null
+  water_level: number | null
+  water_flow_rate: number | null
+  clog_pct: number | null
+  installed_at: string
 }
 
 type SensorReadings = {
@@ -144,16 +141,21 @@ export default function Resources() {
   const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
   const [allClogs, setAllClogs] = useState<Clogs[]>([])
 
-  console.log(allReadings)
-
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
   
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(allSensorNodes, 4)
+  const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 4)
   
-  const rankedWaste = [...allWasteClassification]
-  .sort((a, b) => b.estimated_volume - a.estimated_volume)
-  .slice(0, 4)
+  const allWasteWithHotspot = [...allWasteClassification]
+    .filter(w => {
+      const node = allSensorNodes.find(n => n.node_id === w.node_details.node_id)
+      return node?.hotspot_details != null
+    })
+    .sort((a, b) => b.estimated_volume - a.estimated_volume)
+
+  const rankedWaste = allWasteWithHotspot.slice(0, 4)
   
   const priorityQueue = rankedWaste.map((waste, index) => {
     const pct = getSeverityIndex(waste.estimated_volume)
@@ -303,47 +305,32 @@ export default function Resources() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginated.map((node) => {
-                      // Find the latest reading for this node
-                      const nodeReadings = allReadings
-                        .filter(r => r.node === node.node_id)
-                        .sort(
-                          (a, b) =>
-                            new Date(b.timestamp).getTime() -
-                            new Date(a.timestamp).getTime()
-                        )
-
-                      const latestReading = nodeReadings[0] ?? null
-
-                      return (
-                        <TableRow key={node.node_id}>
-                          <TableCell className="text-center text-xs">{node.node_id}</TableCell>
-                          <TableCell className="text-center text-xs">{node.node_name}</TableCell>
-                          <TableCell className="text-center text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
-                          <TableCell className="text-center text-xs">
-                            {latestReading ? (
-                              <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                                latestReading.reading_status === 'Normal'   ? 'text-[#2C7B3C]' :
-                                latestReading.reading_status === 'Warning' ? 'text-[#F39600]' :
-                                latestReading.reading_status === 'Critical' ? 'text-[#D81010]' :
-                                'bg-[#E5E5E6] text-[#727272]'
-                              }`}>
-                                {latestReading.reading_status}
-                              </span>
-                            ) : '—'}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {latestReading
-                              ? new Date(latestReading.timestamp).toLocaleTimeString('en-PH', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  second: '2-digit',
-                                })
-                              : '—'}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
+                    paginated.map((node) => (
+                      <TableRow key={node.node_id}>
+                        <TableCell className="text-center text-xs">{node.node_id}</TableCell>
+                        <TableCell className="text-center text-xs">{node.node_name}</TableCell>
+                        <TableCell className="text-center text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
+                        <TableCell className="text-center text-xs">
+                          {node.status ? (
+                            <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${
+                              node.status === 'Normal'   ? 'text-[#2C7B3C]' :
+                              node.status === 'Warning'  ? 'text-[#F39600]' :
+                              node.status === 'Critical' ? 'text-[#D81010]' :
+                              'bg-[#E5E5E6] text-[#727272]'
+                            }`}>
+                              {node.status}
+                            </span>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className="text-center text-xs">
+                          {node.installed_at
+                            ? new Date(node.installed_at).toLocaleTimeString('en-PH', {
+                                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                              })
+                            : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>
@@ -566,7 +553,7 @@ export default function Resources() {
         {/* all waste hotspots */}
         <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-90 ">
           <div className="flex gap-2 w-full p-3 items-center">
-            <p className="font-bold text-sm">ALL WASTE HOTSPOTS</p> <p className="text-[11px]">&#40;DETAILED LIST&#41;</p>
+            <p className="font-bold text-sm">WASTE HOTSPOTS</p> <p className="text-[11px]">&#40;DETAILED LIST&#41;</p>
           </div>
           <Table>
               <TableHeader className="bg-[#CFD8D] border">
@@ -637,7 +624,7 @@ export default function Resources() {
                           
                           {/* Rank */}
                           <TableCell className="text-center text-xs">
-                            {waste.classification_id}
+                            {waste.node_details.node_id}
                           </TableCell>
 
                           {/* Barangay */}
@@ -701,12 +688,12 @@ export default function Resources() {
           </Table>
         </div>
 
-        {/* recommend resource allocation */}
+        {/* recommend resource allocation
         <div className="rounded-lg bg-[#FAFCFD] border border-[#C6C6C8] p-3 mt-2">
 
           div
           
-        </div>
+        </div> */}
 
 
       </div>

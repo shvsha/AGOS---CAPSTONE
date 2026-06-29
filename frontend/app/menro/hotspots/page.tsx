@@ -374,8 +374,9 @@ export default function HotspotManagement() {
         <div className="flex justify-between w-full text-[#122A48] -mt-1">
           {[
             { icon: <Target size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Hotspots" },
-            { icon: <MapPin size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: occupied, label: "Occupied" },
             { icon: <MapPin size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: available, label: "Available" },
+            { icon: <MapPin size={20} color="#1565BC" />, bg: "bg-[#DBEAFE]", count: occupied, label: "Occupied" },
+
           ].map(card => (
             <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-105 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
@@ -453,10 +454,10 @@ export default function HotspotManagement() {
                       <TableCell className="text-center h-18">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
                           hotspot.is_occupied
-                            ? "bg-[#FFE5E5] text-[#D81010]"
+                            ? "bg-[#DBEAFE] text-[#1565BC]"
                             : "bg-[#B2FBC173] text-[#2C7B3C]"
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${hotspot.is_occupied ? "bg-[#D81010]" : "bg-[#2C7B3C]"}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${hotspot.is_occupied ? "bg-[#1565BC]" : "bg-[#2C7B3C]"}`} />
                           {hotspot.is_occupied ? "Occupied" : "Available"}
                         </span>
                       </TableCell>
