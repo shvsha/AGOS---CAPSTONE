@@ -29,7 +29,7 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # Water_Level_Rising — fires on Warning or Critical, once per hour
+    # Water_Level_Rising — fires on Warning OR Critical, once per hour
     if instance.reading_status in ('Warning', 'Critical'):
         recently_alerted = Alert.objects.filter(
             node=instance.node,
@@ -63,22 +63,4 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
             severity=severity,
             status='Detected'
         )
-
-    # Critical_Clog — fires when reading_status is Critical, once per hour
-    if instance.reading_status == 'Critical':
-        recently_alerted = Alert.objects.filter(
-            node=instance.node,
-            alert_type='Critical_Clog',
-            timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).exists()
-        if not recently_alerted:
-            Alert.objects.create(
-                node=instance.node,
-                alert_type='Critical_Clog',
-                alert_context={
-                    'water_level':     instance.water_level,
-                    'water_flow_rate': instance.water_flow_rate,
-                    'water_flow':      instance.water_flow,
-                    'clog_pct':        instance.clog_pct,
-                }
-            )
+    # ← REMOVED: Critical_Clog from reading_status == Critical
