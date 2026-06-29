@@ -11,15 +11,11 @@ def create_alerts_on_clog(sender, instance, created, **kwargs):
     if not created:
         return
 
-    # Determine alert type based on severity
-    # Critical_Clog  → clog_pct >= 80 (High severity)
-    # High_Clog_Index → clog_pct 30-79 (Low or Medium severity)
     if instance.severity == 'High':
         alert_type = 'Critical_Clog'
     else:
         alert_type = 'High_Clog_Index'
 
-    # Deduplication — only 1 alert per type per node per hour
     recently_alerted = Alert.objects.filter(
         node=instance.node,
         alert_type=alert_type,
