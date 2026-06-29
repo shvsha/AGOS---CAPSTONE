@@ -65,28 +65,7 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
             status='Detected'
         )
     else:
-        # Escalate severity if current reading is worse
         severity_rank = {'Low': 1, 'Medium': 2, 'High': 3}
         if severity_rank.get(severity, 0) > severity_rank.get(already_open.severity, 0):
             already_open.severity = severity
-            already_open.save()
-
-            # Fire Critical_Clog alert when escalating to High
-            if severity == 'High':
-                recently_alerted = Alert.objects.filter(
-                    node=instance.node,
-                    alert_type='Critical_Clog',
-                    timestamp__gte=timezone.now() - timedelta(hours=1)
-                ).exists()
-                if not recently_alerted:
-                    Alert.objects.create(
-                        node=instance.node,
-                        event=already_open,
-                        alert_type='Critical_Clog',
-                        alert_context={
-                            'water_level':     instance.water_level,
-                            'water_flow_rate': instance.water_flow_rate,
-                            'water_flow':      instance.water_flow,
-                            'clog_pct':        instance.clog_pct,
-                        }
-                    )
+            already_open.save()  # ← this triggers clog_events/signals.py now

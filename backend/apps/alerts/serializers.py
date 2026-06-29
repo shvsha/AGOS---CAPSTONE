@@ -40,78 +40,46 @@ class AlertSerializer(serializers.ModelSerializer):
 
         if t == 'Critical_Clog':
             if obj.event and obj.event.classification:
-                # Use classification linked to the clog event
                 classification = obj.event.classification
                 reading = classification.reading
                 return {
-                    'water_level':        reading.water_level,
-                    'water_flow':         reading.water_flow,
-                    'water_flow_rate':    reading.water_flow_rate,
-                    'clog_pct':           reading.clog_pct,
+                    'water_level':         reading.water_level,
+                    'water_flow':          reading.water_flow,
+                    'water_flow_rate':     reading.water_flow_rate,
+                    'clog_pct':            reading.clog_pct,
                     'dominant_waste_type': classification.dominant_waste_type,
-                    'recyclable_pct':     classification.recyclable_pct,
-                    'biodegradable_pct':  classification.biodegradable_pct,
-                    'residual_pct':       classification.residual_pct,
-                    'special_waste_pct':  classification.special_waste_pct,
-                    'confidence':         classification.confidence,
-                    'estimated_volume':   classification.estimated_volume,
+                    'recyclable_pct':      classification.recyclable_pct,
+                    'biodegradable_pct':   classification.biodegradable_pct,
+                    'residual_pct':        classification.residual_pct,
+                    'special_waste_pct':   classification.special_waste_pct,
+                    'confidence':          classification.confidence,
+                    'estimated_volume':    classification.estimated_volume,
                 }
-            elif obj.node:
-                # Fallback: no classification yet, use latest reading only
-                reading = obj.node.sensorreading_set.order_by('-timestamp').first()
-                if reading:
-                    return {
-                        'water_level':     reading.water_level,
-                        'water_flow':      reading.water_flow,
-                        'water_flow_rate': reading.water_flow_rate,
-                        'clog_pct':        reading.clog_pct,
-                    }
-            return {}
+            # Fallback — use whatever was stored at alert creation time
+            return obj.alert_context if obj.alert_context else {}
 
         if t == 'High_Clog_Index':
             if obj.event and obj.event.classification:
-                # Use classification linked to the clog event
                 classification = obj.event.classification
                 reading = classification.reading
                 return {
-                    'water_level':        reading.water_level,
-                    'water_flow':         reading.water_flow,
-                    'water_flow_rate':    reading.water_flow_rate,
-                    'clog_pct':           reading.clog_pct,
+                    'water_level':         reading.water_level,
+                    'water_flow':          reading.water_flow,
+                    'water_flow_rate':     reading.water_flow_rate,
+                    'clog_pct':            reading.clog_pct,
                     'dominant_waste_type': classification.dominant_waste_type,
-                    'recyclable_pct':     classification.recyclable_pct,
-                    'biodegradable_pct':  classification.biodegradable_pct,
-                    'residual_pct':       classification.residual_pct,
-                    'special_waste_pct':  classification.special_waste_pct,
-                    'confidence':         classification.confidence,
-                    'estimated_volume':   classification.estimated_volume,
+                    'recyclable_pct':      classification.recyclable_pct,
+                    'biodegradable_pct':   classification.biodegradable_pct,
+                    'residual_pct':        classification.residual_pct,
+                    'special_waste_pct':   classification.special_waste_pct,
+                    'confidence':          classification.confidence,
+                    'estimated_volume':    classification.estimated_volume,
                 }
-            elif obj.node:
-                # Fallback: no classification yet, use latest reading only
-                reading = obj.node.sensorreading_set.order_by('-timestamp').first()
-                if reading:
-                    return {
-                        'water_level':     reading.water_level,
-                        'water_flow':      reading.water_flow,
-                        'water_flow_rate': reading.water_flow_rate,
-                        'clog_pct':        reading.clog_pct,
-                    }
-            return {}
+            return obj.alert_context if obj.alert_context else {}
 
         if t == 'Water_Level_Rising':
-            if obj.node:
-                reading = (
-                    obj.node.sensorreading_set
-                    .order_by('-timestamp')
-                    .first()
-                )
-                if reading:
-                    return {
-                        'water_level': reading.water_level,
-                        'water_flow_rate': reading.water_flow_rate,
-                        'water_flow': reading.water_flow,
-                    }
-            return {}
+            # context already stored by signal at alert creation time
+            return obj.alert_context if obj.alert_context else {}
 
         # Node health alerts
         if t in ('Node_Offline', 'Low_Battery', 'Weak_Signal', 'Sensor_Failure'):

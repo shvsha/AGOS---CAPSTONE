@@ -30,6 +30,8 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     condition = serializers.SerializerMethodField()
     health_status = serializers.SerializerMethodField()
 
+    last_reading_at = serializers.SerializerMethodField()
+
     class Meta:
         model = SensorNode
         fields = [
@@ -41,6 +43,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
             'health_status',
+            'last_reading_at', 
         ]
         extra_kwargs = {
             'installed_at': {'required': False},
@@ -96,6 +99,10 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     def get_health_status(self, obj):
         h = self._latest_health(obj)
         return h.status if h else None
+    
+    def get_last_reading_at(self, obj):
+        r = self._latest(obj)
+        return r.timestamp if r else None
 
     def validate(self, attrs):
         hotspot = attrs.get('hotspot')

@@ -8,9 +8,6 @@ from datetime import timedelta
 
 @receiver(post_save, sender=ClogEvent)
 def create_alerts_on_clog(sender, instance, created, **kwargs):
-    if not created:
-        return
-
     if instance.severity == 'High':
         alert_type = 'Critical_Clog'
     else:
@@ -27,4 +24,5 @@ def create_alerts_on_clog(sender, instance, created, **kwargs):
             event=instance,
             node=instance.node,
             alert_type=alert_type,
+            alert_context={}  # will be patched by _handle_clog_classification
         )
