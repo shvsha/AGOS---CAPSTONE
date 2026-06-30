@@ -26,7 +26,7 @@ import {
 
 // logo
 import Image from "next/image"
-import AgosLogo from '../../public/agos-test-logo.png'
+import AgosLogo from '../../public/agos-logo.png'
 
 
 type NavItem = {
@@ -139,8 +139,8 @@ export default function NavBar() {
           <Image
             src={AgosLogo}
             alt="AGOS Logo"
-            width={40}
-            height={40}
+            width={35}
+            height={35}
             className="rounded-full flex-shrink-0 bg-[#CDE3DE]"
           />
           <div className="whitespace-nowrap overflow-hidden">

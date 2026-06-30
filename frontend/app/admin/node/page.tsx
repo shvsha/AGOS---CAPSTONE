@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff } from "lucide-react"
 
 // react
 import { useState, useEffect } from "react"
@@ -57,7 +57,7 @@ type SensorReading = {
 export default function NodeManagement() {
   const [sensorNodes, setSensorNodes] = useState<SensorNode[]>([])
   const [search, setSearch] = useState('')
-  const [availabilityFilter, setAvailabilityFilter] = useState('All')
+  const [availabilityFilter, setAvailabilityFilter] = useState('All Status')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
@@ -78,12 +78,17 @@ export default function NodeManagement() {
   const [confirmDialog, setConfirmDialog] = useState<DialogState>({ open: false })
   const [cancelDialog, setCancelDialog] = useState<DialogState>({ open: false })
   const [unassignDialog, setUnassignDialog] = useState<DialogState>({ open: false, node: null })
+  const [decommissionDialog, setDecommissionDialog] = useState<DialogState>({ open: false, node: null })
+  const [decommissionGuardDialog, setDecommissionGuardDialog] = useState<DialogState>({ open: false, node: null })
 
   const isEdit = !!nodeFormDialog.node
 
   const filtered = sensorNodes
-    .filter(n => n.availability_status !== 'Retired')
-    .filter(n => availabilityFilter === 'All' || n.availability_status === availabilityFilter)
+    .filter(n => 
+      availabilityFilter === 'All Status' 
+        ? n.availability_status !== 'Retired'
+        : n.availability_status === availabilityFilter
+    )
     .filter(n => n.node_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.node_id - a.node_id)
 
@@ -218,6 +223,22 @@ export default function NodeManagement() {
     }
   }
 
+  const handleDecommission = async (node: SensorNode) => {
+    setDecommissionDialog({ open: false, node: null })
+    try {
+      await api.patch(`/api/sensor-nodes/${node.node_id}/`, { availability_status: 'Retired' })
+      setSensorNodes(prev => prev.map(n =>
+        n.node_id === node.node_id
+          ? { ...n, availability_status: 'Retired' }
+          : n
+      ))
+      addToast(`${node.node_name} has been decommissioned.`, 'success')
+    } catch (err: any) {
+      addToast(err?.detail ?? 'Failed to decommission node.', 'error')
+    }
+  }
+
+
   return (
     <>
       <div className="hidden md:flex flex-col">
@@ -234,9 +255,10 @@ export default function NodeManagement() {
                 <SelectValue placeholder="Availability" />
               </SelectTrigger>
               <SelectContent position="popper" className="w-36 min-w-0">
-                <SelectItem className="p-2 text-[#122A48]" value="All">All</SelectItem>
+                <SelectItem className="p-2 text-[#122A48]" value="All Status">All Status</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Available">Available</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Occupied">Occupied</SelectItem>
+                <SelectItem className="p-2 text-[#122A48]" value="Retired">Retired</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -314,62 +336,130 @@ export default function NodeManagement() {
                       <TableCell className="text-center h-18">
                         <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
                           node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
+                          node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
                           'bg-[#DBEAFE] text-[#1565BC]'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
-                            node.availability_status === 'Available' ? 'bg-[#1D8104]' : 'bg-[#1565BC]'
+                            node.availability_status === 'Available' ? 'bg-[#1D8104]' :
+                            node.availability_status === 'Retired'   ? 'bg-[#727272]' :
+                            'bg-[#1565BC]'
                           }`} />
                           {node.availability_status}
                         </span>
                       </TableCell>
                       <TableCell className="text-[#122A48] flex gap-2 justify-center items-center h-18 relative">
-                        <Button
-                          onClick={() => setNodeFormDialog({ open: true, node })}
-                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
-                        >
-                          <SquarePen size={16} /> Edit
-                        </Button>
-
-                        {node.availability_status === 'Available' ? (
-                          <Button
-                            onClick={() => setReadingsDialog({ open: true, node })}
-                            className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
-                          >
-                            <History size={16} /> View Readings
-                          </Button>
-                        ) : (
-                          <div className="relative">
+                        {/* Available */}
+                        {node.availability_status === 'Available' && (
+                          <>
                             <Button
-                              id={`menu-btn-${node.node_id}`}
-                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                              className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              onClick={() => setNodeFormDialog({ open: true, node })}
+                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
                             >
-                              <MoreVertical size={16} />
+                              <SquarePen size={16} /> Edit
                             </Button>
 
-                            {openMenuId === node.node_id && (
-                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-44 overflow-hidden"
+                            <div className="relative">
+                              <Button
+                                id={`menu-btn-${node.node_id}`}
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              >
+                                <MoreVertical size={16} />
+                              </Button>
+
+                              {openMenuId === node.node_id && (
+                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-48 overflow-hidden"
                                   style={{
                                     top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
                                     right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
                                   }}
                                 >
-                                <button
-                                  onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
-                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
-                                >
-                                  <Unplug size={14} /> Unassign
-                                </button>
-                                <button
-                                  onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
-                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
-                                >
-                                  <History size={14} /> View Readings History
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                                  <button
+                                    onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                  >
+                                    <History size={14} /> View Readings
+                                  </button>
+                                  <button
+                                    onClick={() => { setOpenMenuId(null); setDecommissionDialog({ open: true, node }) }}
+                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                  >
+                                    <CircleOff size={14} /> Decommission
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </>
                         )}
+
+                        {/* Occupied */}
+                        {node.availability_status === 'Occupied' && (
+                          <>
+                            <Button
+                              onClick={() => setNodeFormDialog({ open: true, node })}
+                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                            >
+                              <SquarePen size={16} /> Edit
+                            </Button>
+
+                            <div className="relative">
+                              <Button
+                                id={`menu-btn-${node.node_id}`}
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              >
+                                <MoreVertical size={16} />
+                              </Button>
+
+                              {openMenuId === node.node_id && (
+                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
+                                  style={{
+                                    top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                    right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
+                                  }}
+                                >
+                                  <button
+                                    onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                  >
+                                    <History size={14} /> View Readings
+                                  </button>
+                                  <button
+                                    onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
+                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
+                                  >
+                                    <Unplug size={14} /> Unassign
+                                  </button>
+                                  <button
+                                    onClick={() => { setOpenMenuId(null); setDecommissionGuardDialog({ open: true, node }) }}
+                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                  >
+                                    <CircleOff size={14} /> Decommission
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+
+                        {/* Retired */}
+                        {node.availability_status === 'Retired' && (
+                          <>
+                            <Button
+                              onClick={() => setNodeFormDialog({ open: true, node })}
+                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                            >
+                              <SquarePen size={16} /> Edit
+                            </Button>
+                            <Button
+                              onClick={() => setReadingsDialog({ open: true, node })}
+                              className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                            >
+                              <History size={16} /> View Readings
+                            </Button>
+                          </>
+                        )}
+
                       </TableCell>
                     </TableRow>
                   ))
@@ -588,6 +678,34 @@ export default function NodeManagement() {
         description={<> Are you sure you want to unassign <strong>{unassignDialog.node?.node_name}</strong> from its hotspot? It will return to Available. </>}
         cancelLabel="Cancel"
         confirmLabel="Unassign"
+      />
+
+      {/* Decommission dialog */}
+      <DialogModal
+        open={decommissionDialog.open}
+        onClose={() => setDecommissionDialog({ open: false, node: null })}
+        onConfirm={() => handleDecommission(decommissionDialog.node!)}
+        color={DIALOG_COLOR.lightred}
+        icon={CircleOff}
+        iconColor={DIALOG_COLOR.red}
+        title="Decommission Node"
+        description={<> Are you sure you want to decommission <strong>{decommissionDialog.node?.node_name}</strong>? This will mark it as retired and remove it from active monitoring. </>}
+        cancelLabel="Cancel"
+        confirmLabel="Decommission"
+      />
+
+      {/* Decommission guard dialog */}
+      <DialogModal
+        open={decommissionGuardDialog.open}
+        onClose={() => setDecommissionGuardDialog({ open: false, node: null })}
+        onConfirm={() => setDecommissionGuardDialog({ open: false, node: null })}
+        color={DIALOG_COLOR.lightorange}
+        icon={CircleOff}
+        iconColor={DIALOG_COLOR.orange}
+        title="Cannot Decommission Node"
+        description={<> <strong>{decommissionGuardDialog.node?.node_name}</strong> is currently occupied. Please unassign it from its hotspot first before decommissioning. </>}
+        cancelLabel="Close"
+        confirmLabel="Okay"
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />

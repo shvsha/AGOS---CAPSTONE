@@ -16,7 +16,7 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { useToast } from "@/components/hooks/useToast";
 
 // icons
-import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, User } from "lucide-react";
+import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle  } from "lucide-react";
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // api + auth
 import { api } from "@/lib/api"
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, clearAuth } from "@/lib/auth";
 
 type DialogState = {
   open: boolean;
@@ -76,6 +76,7 @@ export default function Form() {
   const [loadingDialog, setLoadingDialog] = useState<DialogState>({
     open: false,
   })
+  const [adminWarningDialog, setAdminWarningDialog] = useState<DialogState>({ open: false })
 
   // toast
   const {toasts, addToast, removeToast } = useToast()
@@ -139,12 +140,12 @@ export default function Form() {
 
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!fname.trim())                            errors.fname      = 'This field is required.'
-    if (!lname.trim())                            errors.lname      = 'This field is required.'
-    if (role !== 'MENRO' && !position.trim())     errors.position   = 'This field is required.'
-    if (!role)                                    errors.role       = 'This field is required.'
-    if (role !== 'MENRO' && !barangayId)          errors.barangayId = 'This field is required.'
-    if (!email.trim())                            errors.email      = 'This field is required.'
+    if (!fname.trim())                                          errors.fname      = 'This field is required.'
+    if (!lname.trim())                                          errors.lname      = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'Admin' && !position.trim()) errors.position   = 'This field is required.'
+    if (!role)                                                  errors.role       = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'Admin' && !barangayId)     errors.barangayId = 'This field is required.'
+    if (!email.trim())                                          errors.email      = 'This field is required.'
 
     setFieldErrors(errors)
 
@@ -165,6 +166,12 @@ export default function Form() {
       return
     }
 
+    // Show special admin warning dialog instead of normal confirm
+    if (role === 'Admin') {
+      setAdminWarningDialog({ open: true })
+      return
+    }
+
     setConfirmDialog({ open: true })
   }
   
@@ -173,15 +180,14 @@ export default function Form() {
     setLoadingDialog({ open: true })
 
     try {
-      // await new Promise(resolve => setTimeout(resolve, 1500))
       const token = getAccessToken()
       const payload = {
         first_name: fname,
         last_name: lname,
         email,
         user_role: role,
-        position,
-        barangay_id: role === 'MENRO' ? null : barangayId,
+        position: role === 'Admin' || role === 'MENRO' ? '' : position,
+        barangay_id: role === 'Admin' || role === 'MENRO' ? null : barangayId,
       }
 
       if (isEdit) {
@@ -191,6 +197,22 @@ export default function Form() {
       }
 
       setLoadingDialog({ open: false })
+
+      // If new admin was created, log out current admin
+      if (!isEdit && role === 'Admin') {
+        addToast('New admin created. You will be logged out.', 'success')
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        try {
+          await api.post('/api/auth/logout/', {})
+        } catch (err) {
+          console.log(err)
+        } finally {
+          clearAuth()
+          window.location.href = "/login"
+        }
+        return
+      }
+
       addToast(isEdit ? `User account has \nbeen updated.` : `User has been \nadded successfully.`, 'success')
       await new Promise(resolve => setTimeout(resolve, 3000))
       router.push('/admin/users')
@@ -205,9 +227,14 @@ export default function Form() {
         }
         setFieldErrors(backendErrors)
       }
- 
+
       addToast(isEdit ? 'Failed to save changes. Please try again.' : 'Failed to create user. Please try again.', 'error')
     }
+  }
+
+  const handleAdminWarningConfirm = () => {
+    setAdminWarningDialog({ open: false })
+    handleSubmit()
   }
 
   if (isEdit && formLoading) return (
@@ -379,22 +406,24 @@ export default function Form() {
                   <div ref={roleRef}>
                     <Field className="flex gap-1.5 flex-col w-[400px]">
                       <FieldLabel className="text-[#122A48] text-sm">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
-                          <Select
-                            value={role}
-                            onValueChange={(value) => {
-                              setRole(value)
-                              if (value === 'MENRO') {
-                                setBarangayId(null)
-                                setPosition('')
-                              } if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
-                            }}
-                          >
-                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                            <SelectValue placeholder="Select role..." />
+                        <Select
+                          value={role}
+                          onValueChange={(value) => {
+                            setRole(value)
+                            if (value === 'MENRO' || value === 'Admin') {
+                              setBarangayId(null)
+                              setPosition('')
+                            }
+                            if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
+                          }}
+                        >
+                          <SelectTrigger className={`text-sm !font-normal bg-[#1565BC05] py-[21px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder="Select Role..." />
                           </SelectTrigger>
-                          <SelectContent position="popper">
-                            <SelectItem className="text-[#122A48] p-2" value="MENRO">MENRO Officer</SelectItem>
-                            <SelectItem className="text-[#122A48] p-2" value="Barangay">Barangay Personnel</SelectItem>
+                          <SelectContent position="popper" side="bottom">
+                            <SelectItem className="text-[#122A48] p-2 text-sm" value="Admin">Admin</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-sm" value="MENRO">MENRO Officer</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-sm" value="Barangay">Barangay Personnel</SelectItem>
                           </SelectContent>
                         </Select>
                         <FieldError className="text-xs">{fieldErrors.role}</FieldError>
@@ -402,7 +431,7 @@ export default function Form() {
                   </div>
                   
                   {/* barangay */}
-                  {role !== 'MENRO' && (
+                  {role !== 'MENRO' && role !== 'Admin' && (
                     <div ref={barangayRef}>
                       <Field className="flex gap-1.5 flex-col w-[400px]">
                         <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
@@ -431,7 +460,7 @@ export default function Form() {
                 </div>
 
                 {/* position/designation */}
-                {role !== 'MENRO' && (
+                {role !== 'MENRO' && role !== 'Admin' && (
                   <div className="mt-3">
                     <div ref={positionRef}>
                       <Field className="flex gap-1.5 flex-col w-100">
@@ -630,7 +659,7 @@ export default function Form() {
               </div>
 
               {/* position/designation */}
-              {role !== 'MENRO' && (
+              {role !== 'MENRO' && role !== 'Admin' && (
                 <div className="mt-3">
                   <div ref={positionRef}>
                     <Field className="flex gap-1.5 flex-col w-100">
@@ -681,29 +710,31 @@ export default function Form() {
                 {/* role */}
                 <Field className="flex gap-1.5 flex-col">
                   <FieldLabel className="text-[#122A48] text-xs">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <Select
-                        value={role}
-                        onValueChange={(value) => {
-                          setRole(value)
-                          if (value === 'MENRO Officer') {
-                            setBarangayId(null)
-                          }
-                          if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
-                        }}
-                      >
-                      <SelectTrigger className={`text-xs !font-normal bg-[#1565BC05] py-[17px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                        <SelectValue placeholder="Select Role..." />
-                      </SelectTrigger>
-                      <SelectContent position="popper" side="bottom">
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO">MENRO Officer</SelectItem>
-                        <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay">Barangay Personnel</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FieldError className="text-xs">{fieldErrors.role}</FieldError>
+                    <Select
+                    value={role}
+                    onValueChange={(value) => {
+                      setRole(value)
+                      if (value === 'MENRO' || value === 'Admin') {
+                        setBarangayId(null)
+                        setPosition('')
+                      }
+                      if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
+                    }}
+                  >
+                    <SelectTrigger className={`text-xs !font-normal bg-[#1565BC05] py-[17px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                      <SelectValue placeholder="Select Role..." />
+                    </SelectTrigger>
+                    <SelectContent position="popper" side="bottom">
+                      <SelectItem className="text-[#122A48] p-2 text-xs" value="Admin">Admin</SelectItem>
+                      <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO">MENRO Officer</SelectItem>
+                      <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay">Barangay Personnel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FieldError className="text-xs">{fieldErrors.role}</FieldError>
                 </Field>
                 
                 {/* office/barangay */}
-                {role !== 'MENRO' && (
+                {role !== 'MENRO' && role !== 'Admin' && (
                   <div ref={barangayRef}>
                     <Field className="flex gap-1.5 flex-col w-[400px]">
                       <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
@@ -850,6 +881,25 @@ export default function Form() {
             Proccessing account details. Please wait.
           </>
         }
+      />
+
+      {/* Admin Warning Dialog */}
+      <DialogModal
+        open={adminWarningDialog.open}
+        onClose={() => setAdminWarningDialog({ open: false })}
+        onConfirm={handleAdminWarningConfirm}
+        color={DIALOG_COLOR.lightred}
+        icon={AlertTriangle}
+        iconColor={DIALOG_COLOR.red}
+        title="Replace Current Admin?"
+        description={
+          <>
+            Creating a new Admin account will <strong>deactivate the current active Admin</strong>. 
+            You will be logged out immediately after this action. Are you sure you want to proceed?
+          </>
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Yes, Proceed"
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />
