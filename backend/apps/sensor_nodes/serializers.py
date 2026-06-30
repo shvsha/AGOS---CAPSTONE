@@ -66,12 +66,18 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     def get_hotspot_details(self, obj):
         if not obj.hotspot:
             return None
+        from apps.waste_classification.utils import max_capacity_kg
         return {
             'hotspot_id': obj.hotspot.hotspot_id,
             'name': obj.hotspot.name,
             'description': obj.hotspot.description,
             'latitude': obj.hotspot.latitude,
             'longitude': obj.hotspot.longitude,
+            'canal_width': obj.hotspot.canal_width,
+            'sensor_height': obj.hotspot.sensor_height,
+            'max_capacity_kg': max_capacity_kg(
+                obj.hotspot.canal_width, obj.hotspot.sensor_height
+            ),
         }
 
     def get_latitude(self, obj):

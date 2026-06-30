@@ -277,6 +277,7 @@ class SensorReadingWithFlowView(APIView):
         from django.utils import timezone
         from datetime import timedelta
         from apps.sensor_readings.signals import get_clog_severity
+        from apps.waste_classification.utils import estimate_weight_kg
         severity = get_clog_severity(clog_pct)
 
         classification_result = run_waste_classification(frame_bytes)
@@ -292,10 +293,22 @@ class SensorReadingWithFlowView(APIView):
         is_mixed    = classification_result.get('is_mixed', False)
         present     = classification_result.get('present_waste_types', [])
 
+        dominant_label = dominant.replace('_', ' ').title()
+
+        hotspot = node.hotspot if node else None
+        estimated_kg = estimate_weight_kg(
+            canal_width=hotspot.canal_width if hotspot else None,
+            sensor_height=hotspot.sensor_height if hotspot else None,
+            water_level=reading.water_level,
+            clog_pct=clog_pct,
+            waste_type=dominant_label,
+        )
+        estimated_kg = estimated_kg if estimated_kg is not None else 0.0
+
         classification = WasteClassification.objects.create(
             node=node,
             reading=reading,
-            dominant_waste_type=dominant.replace('_', ' ').title(),
+            dominant_waste_type=dominant_label,
             recyclable_pct=percentages.get('recyclable', 0),
             biodegradable_pct=percentages.get('biodegradable', 0),
             residual_pct=percentages.get('residual', 0),
@@ -304,7 +317,7 @@ class SensorReadingWithFlowView(APIView):
             confidence=confidence,
             is_mixed=is_mixed,
             present_waste_types=present,
-            estimated_volume=0.0,
+            estimated_volume=estimated_kg,
         )
 
         # Only act on the FIRST classification per ClogEvent
@@ -324,13 +337,13 @@ class SensorReadingWithFlowView(APIView):
                 event=open_event,
                 alert_type='High_Clog_Index',
                 alert_context={
-                    'dominant_waste_type': dominant.replace('_', ' ').title(),
+                    'dominant_waste_type': dominant_label,
                     'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
                     'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
                     'residual_pct':        round(percentages.get('residual', 0), 2),
                     'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
                     'confidence':          round(confidence, 2),
-                    'estimated_volume':    0.0,
+                    'estimated_volume':    round(estimated_kg, 2),
                 }
             )
         # If classification is already linked, do nothing — alert already exists

@@ -27,7 +27,15 @@ type SensorNode = {
   node_id: number
   node_name: string
   barangay_details: { barangay_id: number; barangay_name: string }
-  hotspot_details: { hotspot_id: number; hotspot_name: string; latitude: number; longitude: number } | null
+  hotspot_details: {
+    hotspot_id: number
+    hotspot_name: string
+    latitude: number
+    longitude: number
+    canal_width: number | null
+    sensor_height: number | null
+    max_capacity_kg: number | null
+  } | null
   status: string
   condition: string | null
   water_level: number | null
@@ -55,6 +63,10 @@ type WasteClassification = {
       barangay_id: number
       barangay_name: string
     }
+    hotspot_details: {
+      hotspot_id: number
+      max_capacity_kg: number | null
+    } | null
   }
   reading_details: {
     reading_id: number
@@ -92,17 +104,24 @@ type Clogs = {
   } | null
 }
 
-const MAX_WASTE_KG = 100
+const getSeverityIndex = (weight: number, maxCapacity: number | null | undefined) => {
+  if (!maxCapacity || maxCapacity <= 0) return null
 
-const getSeverityIndex = (weight: number) => {
   return Math.min(
-    Math.round((weight / MAX_WASTE_KG) * 100),
+    Math.round((weight / maxCapacity) * 100),
     100
   )
 }
 
-const getSeverityLevel = (weight: number) => {
-  const pct = getSeverityIndex(weight)
+const getSeverityLevel = (weight: number, maxCapacity: number | null | undefined) => {
+  const pct = getSeverityIndex(weight, maxCapacity)
+
+  if (pct === null) {
+    return {
+      label: "Unknown",
+      color: "bg-[#9CA3AF]"
+    }
+  }
 
   if (pct >= 81) {
     return {
@@ -158,12 +177,16 @@ export default function Resources() {
   const rankedWaste = allWasteWithHotspot.slice(0, 4)
   
   const priorityQueue = rankedWaste.map((waste, index) => {
-    const pct = getSeverityIndex(waste.estimated_volume)
+    const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
+    const pct = getSeverityIndex(waste.estimated_volume, maxCapacity)
 
     let action = ""
     let label = ""
 
-    if (pct >= 81) {
+    if (pct === null) {
+      action = "AWAITING CANAL DATA"
+      label = "UNKNOWN"
+    } else if (pct >= 81) {
       action = "IMMEDIATE ACTION"
       label = "CRITICAL"
     } else if (pct >= 61) {
@@ -383,12 +406,13 @@ export default function Resources() {
                     </TableRow>
                   ) : (
                     rankedWaste.map((waste, index) => {
+                      const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
                       const severityPct = getSeverityIndex(
-                        waste.estimated_volume
+                        waste.estimated_volume, maxCapacity
                       )
 
                       const severity = getSeverityLevel(
-                        waste.estimated_volume
+                        waste.estimated_volume, maxCapacity
                       )
 
                       return (
@@ -417,13 +441,13 @@ export default function Resources() {
                                 <div
                                   className={`${severity.color} h-full rounded-full`}
                                   style={{
-                                    width: `${severityPct}%`
+                                    width: `${severityPct ?? 0}%`
                                   }}
                                 />
                               </div>
 
                               <span className="text-xs min-w-[40px]">
-                                {severityPct}%
+                                {severityPct === null ? "—" : `${severityPct}%`}
                               </span>
                             </div>
                           </TableCell>
@@ -511,7 +535,7 @@ export default function Resources() {
                         {item.barangay}
                       </p>
                       <p className="text-[11px]">
-                        Severity: {item.pct}%
+                        Severity: {item.pct === null ? "—" : `${item.pct}%`}
                       </p>
                     </div>
                   </div>
@@ -525,6 +549,8 @@ export default function Resources() {
                         ? "bg-[#FFF3D6] text-[#F59E0B]"
                         : item.label === "MEDIUM"
                         ? "bg-[#FEF9C3] text-[#A16207]"
+                        : item.label === "UNKNOWN"
+                        ? "bg-[#E5E7EB] text-[#6B7280]"
                         : "bg-[#DCFCE7] text-[#166534]"
                     }`}>
                       {item.label}
@@ -537,6 +563,8 @@ export default function Resources() {
                         ? "text-[#F59E0B]"
                         : item.label === "MEDIUM"
                         ? "text-[#A16207]"
+                        : item.label === "UNKNOWN"
+                        ? "text-[#6B7280]"
                         : "text-[#16A34A]"
                     }`}>
                       {item.action}
@@ -596,12 +624,13 @@ export default function Resources() {
                     </TableRow>
                   ) : (
                     rankedWaste.map((waste, index) => {
+                      const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
                       const severityPct = getSeverityIndex(
-                        waste.estimated_volume
+                        waste.estimated_volume, maxCapacity
                       )
 
                       const severity = getSeverityLevel(
-                        waste.estimated_volume
+                        waste.estimated_volume, maxCapacity
                       )
 
                       // Find the latest reading for this node
@@ -643,19 +672,19 @@ export default function Resources() {
                                 <div
                                   className={`${severity.color} h-full rounded-full`}
                                   style={{
-                                    width: `${severityPct}%`
+                                    width: `${severityPct ?? 0}%`
                                   }}
                                 />
                               </div>
 
                               <span className="text-xs min-w-[40px]">
-                                {severityPct}%
+                                {severityPct === null ? "—" : `${severityPct}%`}
                               </span>
                             </div>
                           </TableCell>
                           
                           <TableCell className="text-center text-xs">
-                            {waste.estimated_volume} kg
+                            {waste.estimated_volume.toFixed(2)} kg
                           </TableCell>
 
                           <TableCell className="text-center text-xs">
