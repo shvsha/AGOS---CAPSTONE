@@ -172,21 +172,13 @@ export default function HotspotManagement() {
 
   const allHotspotMarkers = hotspots.map(h => {
     const assignedNode = allNodes.find(n => n.hotspot_details?.hotspot_id === h.hotspot_id)
-    if (assignedNode) {
-      return {
-        latitude: h.latitude,
-        longitude: h.longitude,
-        label: assignedNode.node_name || `Node ${assignedNode.node_id}`,
-        condition: assignedNode.condition ?? "Normal",
-        sublabel: `Hotspot: ${h.name}`,
-      }
-    }
     return {
       latitude: h.latitude,
       longitude: h.longitude,
       label: h.name,
-      condition: "default",
-      sublabel: "Available hotspot",
+      condition: h.is_occupied ? 'Occupied' : 'Available',
+      sublabel: assignedNode ? `Assigned: ${assignedNode.node_name}` : 'Available hotspot',
+      usePin: h.is_occupied,  // ← ADD
     }
   })
 
@@ -831,7 +823,8 @@ export default function HotspotManagement() {
                         zoom={latitude ? 16 : 15}
                         onMapClick={handleMapClick}
                         boundaryGeoJson={boundaryGeoJson}
-                        showLegend={false}
+                        showLegend={true}
+                        colorMode="availability"
                         markers={[
                           ...allHotspotMarkers,
                           ...(latitude && longitude ? [{
@@ -923,7 +916,8 @@ export default function HotspotManagement() {
               longitude={viewMapDialog.hotspot?.longitude}
               label={viewMapDialog.hotspot?.name}
               zoom={16}
-              showLegend={false}
+              showLegend={true}
+              colorMode="availability"
               markers={allHotspotMarkers}
             />
           </div>

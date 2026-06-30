@@ -335,10 +335,10 @@ export default function Users() {
                   ) : (
                     paginated.map(user => (
                       <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
-                        <TableCell className="text-[#122A48] text-center h-18">{user.user_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18 !min-w-20 ">{user.user_id}</TableCell>
 
-                        <TableCell className="text-[#122A48] text-center font-medium h-18">
-                          <div className="flex gap-3 justify-center">
+                        <TableCell className="text-[#122A48] h-18">
+                          <div className="flex gap-3 items-center ml-35">
                             <div
                               className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
                               style={{ backgroundColor: getAvatarColor(user.user_role) }}
@@ -352,7 +352,11 @@ export default function Users() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-[#122A48] text-center h-18">{ROLE_DISPLAY[user.user_role] ?? user.user_role}</TableCell>
+                        <TableCell className="text-[#122A48] h-18">
+                          <div className="w-32 mx-auto text-left">
+                            {ROLE_DISPLAY[user.user_role] ?? user.user_role}
+                          </div>
+                        </TableCell>
                         
                         <TableCell className="text-center h-18">
                           <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${

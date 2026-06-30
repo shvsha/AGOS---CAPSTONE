@@ -4,12 +4,16 @@
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogHeader } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
 // icons
 import { User, Lock, Eye, EyeOff, LockKeyhole, KeyRound, BadgeCheck } from "lucide-react"
 import { MdOutlineMarkEmailUnread } from "react-icons/md"
+
+// logo
+import Image from "next/image"
+import AgosLogo from '../../public/agos-logo.png'
 
 // react
 import { useState, useRef, useEffect } from "react"
@@ -273,7 +277,15 @@ export default function Login() {
         {/* login form */}
         <Card className="w-full max-w-[80vw] sm:max-w-100 p-4 py-6 sm:p-10 sm:py-12 bg-[#FFFAFA] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)]">
           <CardHeader className="items-center justify-center">
-            <img className='w-12 h-12 sm:w-20 sm:h-20 mx-auto mb-1 bg-[#CDE3DE] rounded-full' />
+            <div className="flex justify-center">
+              <Image
+                src={AgosLogo}
+                alt="AGOS Logo"
+                width={90}
+                height={90}
+                className="rounded-full flex-shrink-0 bg-[#CDE3DE]"
+              />
+            </div>
             <CardTitle className='text-black text-xs sm:text-sm text-center'>AGOS</CardTitle>
             <CardTitle className='text-[#1565BC] font-bold text-sm sm:text-lg text-center'>Automated Geospatial Canal Obstruction Sensing System</CardTitle>
           </CardHeader>
@@ -332,8 +344,8 @@ export default function Login() {
                 </div>
               ) : "Login"}
             </Button>
-            <a 
-              onClick={() => { setChangePasswordOpen(true); setEmailError(""); setResetEmail("") }} 
+            <a
+              onClick={() => { setChangePasswordOpen(true); setEmailError(""); setResetEmail("") }}
               className='text-[#1565BC] text-[11px] sm:text-[14px] underline mb-3 mt-2 cursor-pointer'
             >
               Forgot Password?
@@ -354,7 +366,7 @@ export default function Login() {
               <p className="text-[#122A48] font-semibold text-[17px] sm:text-[23px] mb-3 -mt-1">Forgot Password?</p>
               <p className="text-[#122A48] px-5 text-[12px] sm:text-[14px] -mt-2">Enter your email address and a code will be sent to help reset your password.</p>
             </div>
-            <DialogDescription className="flex flex-col gap-5">
+            <div className="flex flex-col gap-5">
               <Field className='px-6'>
                 <FieldLabel className='text-[#122A48] -mb-1 mt-3' htmlFor="input-field-email">Email</FieldLabel>
                 <Input
@@ -382,7 +394,7 @@ export default function Login() {
               <div className='flex justify-center'>
                 <a onClick={() => setChangePasswordOpen(false)} className='text-[#122A48] text-xs sm:text-sm no-underline decoration-transparent cursor-pointer'>&lt; Back to Login</a>
               </div>
-            </DialogDescription>
+            </div>
           </DialogHeader>
         </DialogContent>
       </Dialog>
@@ -398,7 +410,7 @@ export default function Login() {
               <p className="text-[#122A48] font-semibold text-[17px] sm:text-[23px]">Check your Email</p>
               <p className="text-[#122A48] px-5 mt-1 mb-3 text-[12px] sm:text-[14px]">Input the code that was sent to <span className="font-semibold">{resetEmail}</span>.</p>
             </div>
-            <DialogDescription className="flex flex-col gap-5">
+            <div className="flex flex-col gap-5">
               <div className='flex justify-center gap-2 sm:gap-3 px-4 sm:px-10'>
                 {otp.map((digit, index) => (
                   <input
@@ -461,7 +473,7 @@ export default function Login() {
               <div className='flex justify-center'>
                 <a onClick={handleCloseOtpDialog} className='text-[#122A48] text-xs sm:text-sm -mt-1 no-underline decoration-transparent cursor-pointer'>&lt; Back to Login</a>
               </div>
-            </DialogDescription>
+            </div>
           </DialogHeader>
         </DialogContent>
       </Dialog>
@@ -494,7 +506,7 @@ export default function Login() {
                   <p className='text-[#122A48] font-semibold text-[17px] sm:text-[23px] mb-1'>Set a new password</p>
                   <p className='text-[#122A48] px-5 text-[12px] sm:text-[14px]'>Your new password must be different from previously used passwords.</p>
                 </div>
-                <DialogDescription className='flex flex-col gap-5'>
+                <div className='flex flex-col gap-5'>
                   <Field className='px-10 -mb-3'>
                     <FieldLabel className='text-[#122A48] text-xs sm:text-sm -mb-1 mt-3' htmlFor="new-password">New Password</FieldLabel>
                     <div className="relative">
@@ -562,7 +574,7 @@ export default function Login() {
                   <div className='flex justify-center pb-3'>
                     <a onClick={() => setNewPasswordOpen(false)} className='text-[#122A48] text-xs sm:text-sm -mt-1 cursor-pointer'>&lt; Back to Login</a>
                   </div>
-                </DialogDescription>
+                </div>
               </DialogHeader>
             </>
           )}
@@ -580,14 +592,14 @@ export default function Login() {
               <p className='text-[#122A48] font-semibold text-[17px] sm:text-[23px] mb-1 sm:mb-2'>Password Reset!</p>
               <p className='text-[#122A48] px-5 mb-3 sm:mb-5 text-[12px] sm:text-[14px]'>You've successfully created a new password, click below to login.</p>
             </div>
-            <DialogDescription className='flex flex-col gap-5'>
+            <div className='flex flex-col gap-5'>
               <Button
                 className='!rounded-md mx-6 sm:mx-10 bg-[#122A48] shadow-[0_8px_6px_-4px_rgba(0,0,0,0.3)] py-4 sm:py-4.5 mb-3 sm:mb-5 cursor-pointer font-semibold text-xs sm:text-sm'
                 onClick={() => setSuccessChangePasswordOpen(false)}
               >
                 Login
               </Button>
-            </DialogDescription>
+            </div>
           </DialogHeader>
         </DialogContent>
       </Dialog>
@@ -605,14 +617,14 @@ export default function Login() {
               <p className='text-red-500 font-bold text-base sm:text-lg mb-1 sm:mb-2'>Error!</p>
               <p className='text-[11px] sm:text-xs text-gray-500'>{errorDialog.message}</p>
             </div>
-            <DialogDescription className='flex flex-col px-6 sm:px-10 mt-3 sm:mt-4'>
+            <div className='flex flex-col px-6 sm:px-10 mt-3 sm:mt-4'>
               <Button
                 className='!rounded-md bg-[#122A48] shadow-[0_8px_6px_-4px_rgba(0,0,0,0.3)] py-4 sm:py-4.5 cursor-pointer font-semibold text-xs sm:text-sm'
                 onClick={() => setErrorDialog({ open: false, message: "" })}
               >
                 Okay
               </Button>
-            </DialogDescription>
+            </div>
           </DialogHeader>
         </DialogContent>
       </Dialog>

@@ -118,21 +118,15 @@ export default function NodeAssignment() {
 
   const allHotspotMarkers = allHotspots.map(h => {
     const assignedNode = assignedNodes.find(n => n.hotspot_details?.hotspot_id === h.hotspot_id)
-    if (assignedNode) {
-      return {
-        latitude: h.latitude,
-        longitude: h.longitude,
-        label: assignedNode.node_name,
-        condition: assignedNode.condition ?? "Normal",
-        sublabel: `Water: ${assignedNode.water_level ?? '—'}cm | Clog: ${assignedNode.clog_pct ?? '—'}%`,
-      }
-    }
     return {
       latitude: h.latitude,
       longitude: h.longitude,
-      label: h.name,
-      condition: "default",
-      sublabel: "Available hotspot",
+      label: assignedNode ? assignedNode.node_name : h.name,
+      condition: assignedNode ? 'Occupied' : 'Available',
+      sublabel: assignedNode 
+        ? `Water: ${assignedNode.water_level ?? '—'}cm | Clog: ${assignedNode.clog_pct ?? '—'}%`
+        : "Available hotspot",
+      usePin: !!assignedNode,
     }
   })
 
@@ -660,7 +654,8 @@ export default function NodeAssignment() {
                         latitude={selectedHotspot?.latitude}
                         longitude={selectedHotspot?.longitude}
                         label={barangay}
-                        showLegend={false}
+                        showLegend={true}
+                        colorMode="availability"
                         markers={allHotspotMarkers}
                       />
                     </div>
@@ -734,6 +729,8 @@ export default function NodeAssignment() {
             <AgosMapWrapper
               markers={allHotspotMarkers}
               zoom={13}
+              showLegend={true}
+              colorMode="availability"
             />
           </div>
           <div className="border-t border-[#C6C6C8] flex justify-between py-3 -mb-4">

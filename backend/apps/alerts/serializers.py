@@ -19,7 +19,7 @@ class AlertSerializer(serializers.ModelSerializer):
         return obj.node.node_name if obj.node else None
 
     def get_barangay_name(self, obj):
-        return obj.node.barangay.barangay_name if obj.node else None
+        return obj.node.barangay.barangay_name
 
     def get_is_read(self, obj):
         user = self.context['request'].user

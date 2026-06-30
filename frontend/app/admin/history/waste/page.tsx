@@ -234,7 +234,7 @@ export default function Waste() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-15">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-base">Failed to waste Classifications. Please try again later.</p>
+                          <p className="text-[#D81010] font-semibold text-base">Failed to load waste classifications. Please try again later.</p>
                           <Button onClick={fetchWaste} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                         </div>
                       </TableCell>

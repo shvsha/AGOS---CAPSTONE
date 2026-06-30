@@ -140,6 +140,8 @@ export default function Dashboard() {
   const [allMonthlyReports, setAllMonthlyReports] = useState<MonthlyReports[]>([])
   const [allNodeHealth, setAllNodeHealth] = useState<NodeHealth[]>([])
 
+  console.log(allBarangays)
+
   // alert dialog state
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)

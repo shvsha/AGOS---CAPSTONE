@@ -46,21 +46,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             'position', 'barangay_id'
         ]
 
-    def validate(self, attrs):
-        role = attrs.get('user_role', '')
-        password = attrs.get('password', None)
-        
-        if role == 'Admin':
-            raise serializers.ValidationError(
-                {'user_role': 'Admin accounts cannot be created through the API.'}
-            )
-    
-        if role == 'Admin' and not password:
-            raise serializers.ValidationError(
-                {'password': 'Password is required for Admin accounts.'}
-            )
-        return attrs
-
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         barangay_id = validated_data.pop('barangay_id', None)

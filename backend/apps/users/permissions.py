@@ -5,7 +5,11 @@ from django.conf import settings
 
 class IsAdmin(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role == 'Admin'
+        return (
+            request.user.is_authenticated 
+            and request.user.user_role == 'Admin'
+            and request.user.status == 'Active'
+        )
 
 
 class IsMENRO(BasePermission):
