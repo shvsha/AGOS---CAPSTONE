@@ -38,6 +38,15 @@ type Clogs = {
     water_level: number | null
     water_flow_rate: number | null
   } | null
+  reading_details: {
+    reading_id: number
+    water_level: number | null
+    water_flow_rate: number | null
+    water_flow: string
+    reading_status: string
+    clog_pct: number | null
+    timestamp: string
+  } | null
   cleared_by_details : {
     user_id: number
     first_name: string
@@ -311,8 +320,8 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                             : '—'}
                         </TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{clog?.node_details?.water_level} cm</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">~ {Number(clog.node_details?.water_flow_rate).toFixed(5)} m/s</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
+                        <TableCell className="text-[#122A48] text-center h-18">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
                         <TableCell className="text-[#122A48] text-center h-18">{clog.status}</TableCell>
                       </TableRow>
                     ))
@@ -401,12 +410,12 @@ useEffect(() => { fetchMedia() }, [selectedClog])
 
                 <div className="flex justify-between text-[13px]">
                   <p>Water Level</p>
-                  <p>{selectedClog.node_details?.water_level} cm</p>
+                  <p>{selectedClog.reading_details?.water_level ?? '—'} cm</p>
                 </div>
 
                 <div className="flex justify-between text-[13px]">
                   <p>Water Flow</p>
-                  <p>~ {selectedClog.node_details?.water_flow_rate} m/s</p>
+                  <p>~ {selectedClog.reading_details?.water_flow_rate ?? '—'} m/s</p>
                 </div>
                 
                 <div className="flex justify-between text-[13px]">

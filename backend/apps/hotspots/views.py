@@ -59,5 +59,6 @@ class HotspotAvailableByBarangayView(generics.ListAPIView):
             if h.is_occupied
         ]
         return Hotspot.objects.select_related('barangay').filter(
-            barangay__barangay_id=barangay_id
+            barangay__barangay_id=barangay_id,
+            is_active=True
         ).exclude(hotspot_id__in=occupied_ids).order_by('name')

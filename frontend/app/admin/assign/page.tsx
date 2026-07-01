@@ -59,6 +59,7 @@ type Hotspot = {
   name: string
   latitude: number
   longitude: number
+  barangay_details?: { barangay_id: number; barangay_name: string } | null
 }
 
 type DialogState = {
@@ -129,6 +130,12 @@ export default function NodeAssignment() {
       usePin: !!assignedNode,
     }
   })
+
+  // Hotspots for the assign-form map preview, scoped to the selected barangay only.
+  // Falls back to all hotspots when no barangay has been chosen yet.
+  const formHotspotMarkers = barangay
+    ? allHotspotMarkers.filter((_, i) => String(allHotspots[i].barangay_details?.barangay_id) === barangay)
+    : allHotspotMarkers
 
   
   // fetch
@@ -656,7 +663,7 @@ export default function NodeAssignment() {
                         label={barangay}
                         showLegend={true}
                         colorMode="availability"
-                        markers={allHotspotMarkers}
+                        markers={formHotspotMarkers}
                       />
                     </div>
                   </div>
