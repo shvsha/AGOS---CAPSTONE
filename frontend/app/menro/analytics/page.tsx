@@ -215,7 +215,7 @@ export default function Analytics() {
 
             <hr />
 
-            <div className="flex items-center gap-6 p-4">
+            <div className="flex items-center gap-15 p-4 ml-15">
               <div className="relative w-40 h-40 shrink-0">
                 <PieChart width={160} height={160}>
                   <Pie

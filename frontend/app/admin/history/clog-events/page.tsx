@@ -5,9 +5,10 @@ import { Upload, Radar, ArchiveRestore, Clock3, ClipboardCheck, FileSearch, Down
 
 // component 
 import { SearchFilter } from "@/components/SearchFilter"
+import { usePolling } from "@/components/hooks/usePolling"
 
 // react
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -124,36 +125,46 @@ export default function ClogEvents() {
     fetchClogs()
   }, [severity])
 
-  useEffect(() => {
-    const fetchBarangays = async () => {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setAllBarangays(data.results ?? data)
-      } catch {}
-    }
-    fetchBarangays()
-  }, [])
+  const fetchBarangays = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllBarangays(data.results ?? data)
+    } catch {}
+  }
 
-  useEffect(() => {
+  useEffect(() => { fetchBarangays() }, [])
+
+  const fetchMedia = async () => {
     if (!selectedClog) {
       setClogMedia([])
       return
     }
-
-    const fetchMedia = async () => {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/report-media/clog-event/${selectedClog.event_id}/`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setClogMedia(data.results ?? data)
-      } catch {
-        setClogMedia([])
-      }
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/report-media/clog-event/${selectedClog.event_id}/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setClogMedia(data.results ?? data)
+    } catch {
+      setClogMedia([])
     }
+  }
+
+useEffect(() => { fetchMedia() }, [selectedClog])
+
+  const fetchClogEventsData = useCallback(() => {
     fetchMedia()
-  }, [selectedClog])
+    fetchClogs()
+    fetchBarangays()
+  }, [])
+
+  useEffect(() => {
+    fetchClogEventsData()
+  }, [])
+
+  usePolling(fetchClogEventsData, 10000)
+
 
   return (
     <>

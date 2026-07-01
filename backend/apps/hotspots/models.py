@@ -28,6 +28,8 @@ class Hotspot(models.Model):
         help_text="Fixed distance in cm from sensor/camera mount to canal floor. Measured once at installation."
     )
 
+    code = models.CharField(max_length=50, blank=True, default='')  # user-entered suffix only
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)

@@ -36,7 +36,7 @@ class AlertListView(generics.ListAPIView):
         # date filter
         date_filter = self.request.query_params.get('date')
         if date_filter == 'Today':
-            qs = qs.filter(timestamp__date=timezone.now().date())
+            qs = qs.filter(timestamp__date=timezone.localtime(timezone.now()).date())
         elif date_filter == '7Days':
             qs = qs.filter(timestamp__gte=timezone.now() - timedelta(days=7))
         elif date_filter == '30Days':

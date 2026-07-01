@@ -50,12 +50,19 @@ type SensorReading = {
   water_level: number | null
   water_flow_rate: number | null
   clog_pct: number | null
+  node_details: {
+    node_id: number
+    hotspot_details: {
+      hotspot_id: number
+      name: string
+    }
+  }
 }
-
 
 
 export default function NodeManagement() {
   const [sensorNodes, setSensorNodes] = useState<SensorNode[]>([])
+  const [nodeCode, setNodeCode] = useState('')
   const [search, setSearch] = useState('')
   const [availabilityFilter, setAvailabilityFilter] = useState('All Status')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -68,8 +75,6 @@ export default function NodeManagement() {
   const [readingsLoading, setReadingsLoading] = useState(false)
   const [readingsError, setReadingsError] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
-
-  const [nodeName, setNodeName] = useState('')
 
   const { toasts, addToast, removeToast } = useToast()
 
@@ -118,15 +123,15 @@ export default function NodeManagement() {
 
   useEffect(() => {
     if (nodeFormDialog.node) {
-      setNodeName(nodeFormDialog.node.node_name ?? '')
+      setNodeCode(nodeFormDialog.node.node_name?.replace(/^SN-/, '') ?? '')
     } else {
-      setNodeName('')
+      setNodeCode('')
       setFieldErrors({})
     }
   }, [nodeFormDialog.open])
 
   const resetForm = () => {
-    setNodeName('')
+    setNodeCode('')
     setFieldErrors({})
   }
 
@@ -169,7 +174,7 @@ export default function NodeManagement() {
   // handlers
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!nodeName.trim()) errors.nodeName = "This field is required."
+    if (!nodeCode.trim()) errors.nodeCode = "This field is required."
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
     setConfirmDialog({ open: true })
@@ -185,7 +190,7 @@ export default function NodeManagement() {
     setConfirmDialog({ open: false })
     setLoadingDialog({ open: true })
 
-    const payload = { node_name: nodeName }
+    const payload = { node_code: nodeCode.trim() }
 
     try {
       if (isEdit) {
@@ -193,16 +198,19 @@ export default function NodeManagement() {
         setSensorNodes(prev => prev.map(n =>
           n.node_id === nodeFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
-        addToast(`${nodeName} has been updated.`, 'success')
+        addToast(`${updated.node_name} has been updated.`, 'success') 
       } else {
         const created = await api.post('/api/sensor-nodes/', payload)
         setSensorNodes(prev => [created, ...prev])
-        addToast(`${nodeName} has been added.`, 'success')
+        addToast(`${created.node_name} has been added.`, 'success')
       }
       setNodeFormDialog({ open: false, node: null })
       resetForm()
     } catch (err: any) {
-      addToast(err?.detail ?? err?.error ?? 'Something went wrong.', 'error')
+      if (err?.node_code) {
+        setFieldErrors(prev => ({ ...prev, nodeCode: Array.isArray(err.node_code) ? err.node_code[0] : err.node_code }))
+      }
+      addToast(err?.detail ?? err?.node_code?.[0] ?? err?.error ?? 'Something went wrong.', 'error')
     } finally {
       setLoadingDialog({ open: false })
     }
@@ -514,17 +522,20 @@ export default function NodeManagement() {
                     <FieldLabel className="text-[#122A48] text-xs md:text-sm">
                       NODE NAME <span className="text-[#FF0000]">*</span>
                     </FieldLabel>
-                    <Input
-                      type="text"
-                      value={nodeName}
-                      onChange={e => {
-                        setNodeName(e.target.value)
-                        if (fieldErrors.nodeName) setFieldErrors(prev => ({ ...prev, nodeName: '' }))
-                      }}
-                      placeholder="e.g. Node A"
-                      className={`text-[#122A48] rounded-lg text-xs bg-[#1565BC05] !font-normal md:h-10.5 ${fieldErrors.nodeName ? 'border-[#FF0000]' : 'border-[#727272]'}`}
-                    />
-                    <FieldError className="text-xs">{fieldErrors.nodeName}</FieldError>
+                    <div className={`flex items-center rounded-lg bg-[#1565BC05] border ${fieldErrors.nodeCode ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                      <span className="pl-3 pr-1 text-xs md:text-sm text-[#727272] font-medium select-none">SN-</span>
+                      <Input
+                        type="text"
+                        value={nodeCode}
+                        onChange={e => {
+                          setNodeCode(e.target.value)
+                          if (fieldErrors.nodeCode) setFieldErrors(prev => ({ ...prev, nodeCode: '' }))
+                        }}
+                        placeholder="1"
+                        className="text-[#122A48] text-xs !font-normal md:h-10.5 border-0 !bg-transparent focus-visible:ring-0 pl-0"
+                      />
+                    </div>
+                    <FieldError className="text-xs">{fieldErrors.nodeCode}</FieldError>
                   </Field>
                 </div>
               </div>
@@ -573,6 +584,7 @@ export default function NodeManagement() {
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">TIMESTAMP</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">HOTSPOT NAME</TableHead>
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">WATER LEVEL</TableHead>
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">FLOW RATE</TableHead>
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">CLOG %</TableHead>
@@ -582,19 +594,19 @@ export default function NodeManagement() {
               <TableBody>
                 {readingsError ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10">
+                    <TableCell colSpan={6} className="text-center py-10">
                       <p className="text-[#D81010] font-semibold text-sm">Failed to load readings.</p>
                     </TableCell>
                   </TableRow>
                 ) : readingsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10">
+                    <TableCell colSpan={6} className="text-center py-10">
                       <p className="text-[#727272] text-sm">Loading readings...</p>
                     </TableCell>
                   </TableRow>
                 ) : nodeReadings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10">
+                    <TableCell colSpan={6} className="text-center py-10">
                       <p className="text-[#727272] text-sm">No readings recorded for this node yet.</p>
                     </TableCell>
                   </TableRow>
@@ -604,6 +616,7 @@ export default function NodeManagement() {
                       <TableCell className="text-center h-11">
                         {new Date(r.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
                       </TableCell>
+                      <TableCell className="text-center h-11">{r.node_details.hotspot_details.name}</TableCell>
                       <TableCell className="text-center h-11">{r.water_level != null ? `${r.water_level} cm` : '—'}</TableCell>
                       <TableCell className="text-center h-11">{r.water_flow_rate != null ? `${Number(r.water_flow_rate).toFixed(5)} m/s` : '—'}</TableCell>
                       <TableCell className="text-center h-11">{r.clog_pct != null ? `${r.clog_pct} %` : '—'}</TableCell>
@@ -649,7 +662,7 @@ export default function NodeManagement() {
         iconColor={DIALOG_COLOR.green}
         title={isEdit ? 'Confirm Changes' : 'Confirm Adding'}
         description={isEdit
-          ? <> Are you sure you want to update <strong>{nodeName}</strong>? </>
+          ? <> Are you sure you want to update <strong>SN-{nodeCode.trim()}</strong>? </>
           : <> Are you sure you want to add this new node? </>
         }
         cancelLabel="Keep Editing"

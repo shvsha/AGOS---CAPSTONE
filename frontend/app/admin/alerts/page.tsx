@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "
 import { Button } from "@/components/ui/button"
 
 // react
-import { useEffect, useState, useMemo  } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 
 // auth
 import { getAccessToken } from "@/lib/auth"
@@ -21,6 +21,7 @@ import { fetchWithAuth } from "@/lib/auth"
 import { AlertCard } from "@/components/Alerts/AlertCard"
 import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
+import { usePolling } from "@/components/hooks/usePolling"
 
 type Alert = {
   alert_id: number
@@ -92,20 +93,31 @@ export default function Alerts() {
     fetchAlerts()
   }, [barangay, alertType, dateFilter])
 
-  useEffect(() => {
-    const fetchBarangays = async () => {
-      try {
-        const token = getAccessToken()
-        const data = await api.get('/api/barangays/', token ?? undefined)
-        setBarangays(data.results ?? data)
-      } catch {}
-    }
-    fetchBarangays()
-  }, [])
+  const fetchBarangays = async () => {
+    try {
+      const token = getAccessToken()
+      const data = await api.get('/api/barangays/', token ?? undefined)
+      setBarangays(data.results ?? data)
+    } catch {}
+  }
+
+  useEffect(() => { fetchBarangays() }, [])
 
   useEffect(() => {
     setCurrentPage(1)
   }, [search])
+
+  const fetchAllAlertData = useCallback(() => {
+    fetchAlerts()
+    fetchBarangays()
+  }, [])
+
+  useEffect(() => {
+    fetchAllAlertData()
+  }, [])
+
+  usePolling(fetchAllAlertData, 10000)
+
 
    return (
      <>

@@ -1,7 +1,7 @@
 "use client"
 
 // react
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 
 // icons
@@ -14,6 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
 import { ALERT_STYLE } from '@/lib/constant'
+import { usePolling } from "@/components/hooks/usePolling"
+
+// auth
+import { fetchWithAuth } from "@/lib/auth"
+
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
   Water_Level_Rising: <Activity size={18} />,
@@ -24,11 +29,6 @@ const ALERT_ICONS: Record<string, JSX.Element> = {
   Sensor_Failure:     <RadioTower size={18} />,
 }
 
-// auth
-import { fetchWithAuth } from "@/lib/auth"
-
-// shadcn
-import { Button } from "@/components/ui/button"
 
 type SensorNodes = {
   node_id: number
@@ -140,14 +140,13 @@ export default function Dashboard() {
   const [allMonthlyReports, setAllMonthlyReports] = useState<MonthlyReports[]>([])
   const [allNodeHealth, setAllNodeHealth] = useState<NodeHealth[]>([])
 
-  console.log(allBarangays)
-
   // alert dialog state
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
+
   // summary cards
-  const totalSensorNodes = allSensorNodes.length
+  const totalSensorNodes = allSensorNodes.filter(b => b.hotspot_details?.hotspot_id).length
   const criticalAlerts = allClogEvents.filter(b => b.severity === 'High').length
   const registeredBarangay = allBarangays.filter(b => b.is_registered).length
   const resolvedClog = allBarangays.filter(b => !b.is_registered).length
@@ -258,6 +257,21 @@ export default function Dashboard() {
     fetchBarangays()
   }, [])
 
+  const fetchAllDashboardData = useCallback(() => {
+    fetchSensorNodes()
+    fetchMonthlyReports()
+    fetchAlerts()
+    fetchNodeHealth()
+    fetchClogEvents()
+    fetchBarangays()
+  }, [])
+
+  useEffect(() => {
+    fetchAllDashboardData()
+  }, [])
+
+  usePolling(fetchAllDashboardData, 10000) // 1000 = 1 sec
+
 
   return (
     <>
@@ -271,7 +285,7 @@ export default function Dashboard() {
         {/* total cards */}
         <div className="flex justify-between w-full text-[#122A48]">
           {[
-            { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Sensor Nodes" },
+            { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Assigned Sensor Nodes" },
             { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAlerts, label: "Critical Clogs" },
             { icon: <MapPinned   size={20} color="#1f518f" />, bg: "bg-[#CDE3DE]", count: registeredBarangay, label: "Registered Barangay" },
             { icon: <Droplets size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: resolvedClog, label: "Resolved this Month" },

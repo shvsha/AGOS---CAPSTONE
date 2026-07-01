@@ -25,7 +25,7 @@ class SensorReadingSerializer(serializers.ModelSerializer):
             'barangay_details': {
                 'barangay_id': node.barangay.barangay_id,
                 'barangay_name': node.barangay.barangay_name,
-            },
+            } if node.barangay else None,
             'hotspot_details': {
                 'hotspot_id': node.hotspot.hotspot_id,
                 'name': node.hotspot.name,
