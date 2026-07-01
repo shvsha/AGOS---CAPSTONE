@@ -58,14 +58,38 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
     ).first()  # ← change .exists() to .first() so we can update it
 
     if not already_open:
-        ClogEvent.objects.create(
+        clog_event = ClogEvent.objects.create(
             node=instance.node,
             barangay=instance.node.barangay,
             severity=severity,
             status='Detected'
         )
     else:
+        clog_event = already_open
         severity_rank = {'Low': 1, 'Medium': 2, 'High': 3}
         if severity_rank.get(severity, 0) > severity_rank.get(already_open.severity, 0):
-            already_open.severity = severity
-            already_open.save()  # ← this triggers clog_events/signals.py now
+            clog_event.severity = severity
+            clog_event.save()  # ← this triggers clog_events/signals.py now
+
+    # Re-alert every 6 hours while the clog event is still unresolved
+    # (status Detected/Responded). This is intentionally separate from the
+    # 1-hour cooldown in clog_events/signals.py, which only guards against
+    # duplicate fires from rapid saves on the same incident. If that signal
+    # already fired moments ago (creation or severity upgrade), the alert
+    # it just created falls inside this 6-hour window too, so no duplicate
+    # is created here. Once the event is Cleared, this block is naturally
+    # skipped because `already_open`/`clog_event` won't be reached again
+    # for that incident.
+    re_alert_type = 'Critical_Clog' if clog_event.severity == 'High' else 'High_Clog_Index'
+    recently_alerted = Alert.objects.filter(
+        node=instance.node,
+        alert_type=re_alert_type,
+        timestamp__gte=timezone.now() - timedelta(hours=6)
+    ).exists()
+    if not recently_alerted:
+        Alert.objects.create(
+            event=clog_event,
+            node=instance.node,
+            alert_type=re_alert_type,
+            alert_context={}
+        )

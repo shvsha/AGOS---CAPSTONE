@@ -4,9 +4,10 @@
 import { SearchFilter } from "@/components/SearchFilter"
 import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
+import { usePolling } from "@/components/hooks/usePolling"
 
 // react
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -72,7 +73,7 @@ export default function Waste() {
     }
   
     const filtered = getFilteredWaste(wasteClassification, barangayFilterOpt, dominantWaste, sensorNode, search)
-    const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+    const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 5)
   
     // summary cards
     const total = wasteClassification.length
@@ -101,29 +102,38 @@ export default function Waste() {
       fetchWaste()
     }, [])
 
-    useEffect(() => {
-      const fetchBarangays = async () => {
-        try {
-          const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
-          if (!res.ok) throw new Error()
-          const data = await res.json()
-          setAllBarangays(data.results ?? data)
-        } catch {}
-      }
-      fetchBarangays()
-    }, [])
+  const fetchBarangays = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllBarangays(data.results ?? data)
+    } catch {}
+  }
 
-    useEffect(() => {
-      const fetchSensorNodes = async () => {
-        try {
-          const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
-          if (!res.ok) throw new Error()
-          const data = await res.json()
-          setAllSensorNodes(data.results ?? data)
-        } catch {}
-      }
-      fetchSensorNodes()
-    }, [])
+  const fetchSensorNodes = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllSensorNodes(data.results ?? data)
+    } catch {}
+  }
+
+  useEffect(() => { fetchBarangays() }, [])
+  useEffect(() => { fetchSensorNodes() }, [])
+
+  const fetchWasteClassificationData = useCallback(() => {
+    fetchWaste()
+    fetchBarangays()
+    fetchSensorNodes()
+  }, [])
+
+  useEffect(() => {
+    fetchWasteClassificationData()
+  }, [])
+
+  usePolling(fetchWasteClassificationData, 10000)
 
 
   return (

@@ -1,8 +1,11 @@
+import re
 from rest_framework import serializers
 from .models import SensorNode, SystemHealthLog
 from apps.barangay.models import Barangay
 from apps.hotspots.models import Hotspot
 from apps.sensor_readings.models import SensorReading
+
+CODE_PATTERN = re.compile(r'^[A-Za-z0-9\-]+$')
 
 
 class SensorNodeSerializer(serializers.ModelSerializer):
@@ -18,6 +21,9 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False
     )
+    # User only ever types this — the "1" in "SN-1"
+    node_code = serializers.CharField(write_only=True, max_length=50)
+
     barangay_details = serializers.SerializerMethodField()
     hotspot_details = serializers.SerializerMethodField()
 
@@ -35,7 +41,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = SensorNode
         fields = [
-            'node_id', 'node_name',
+            'node_id', 'node_name', 'node_code',
             'barangay', 'barangay_details',
             'hotspot', 'hotspot_details',
             'latitude', 'longitude',
@@ -43,9 +49,10 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
             'health_status',
-            'last_reading_at', 
+            'last_reading_at',
         ]
         extra_kwargs = {
+            'node_name': {'read_only': True},
             'installed_at': {'required': False},
         }
 
@@ -105,10 +112,20 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     def get_health_status(self, obj):
         h = self._latest_health(obj)
         return h.status if h else None
-    
+
     def get_last_reading_at(self, obj):
         r = self._latest(obj)
         return r.timestamp if r else None
+
+    def validate_node_code(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("This field is required.")
+        if not CODE_PATTERN.match(value):
+            raise serializers.ValidationError(
+                "Only letters, numbers, and hyphens are allowed."
+            )
+        return value
 
     def validate(self, attrs):
         hotspot = attrs.get('hotspot')
@@ -125,6 +142,18 @@ class SensorNodeSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {'hotspot': 'This hotspot is already occupied by an active node.'}
                 )
+
+        node_code = attrs.get('node_code')
+        if node_code:
+            full_name = f"SN-{node_code}"
+            qs = SensorNode.objects.filter(node_name=full_name)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'node_code': 'A sensor node with this code already exists.'}
+                )
+            attrs['node_name'] = full_name
 
         return attrs
 

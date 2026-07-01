@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from "next/navigation"
 
 // icons
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 // component
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
+import { usePolling } from "@/components/hooks/usePolling"
 
 // lib
 import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
@@ -137,33 +138,31 @@ export default function Monitoring() {
   }, [])
 
   // fetch nodes + alerts
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true)
-        setFetchError(false)
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      setFetchError(false)
 
-        const [nodesRes, alertsRes] = await Promise.all([
-          fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`),
-          fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`),
-        ])
+      const [nodesRes, alertsRes] = await Promise.all([
+        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`),
+        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`),
+      ])
 
-        if (!nodesRes.ok || !alertsRes.ok) throw new Error()
+      if (!nodesRes.ok || !alertsRes.ok) throw new Error()
 
-        const nodesData  = await nodesRes.json()
-        const alertsData = await alertsRes.json()
+      const nodesData  = await nodesRes.json()
+      const alertsData = await alertsRes.json()
 
-        setNodes(nodesData.results ?? nodesData)
-        setAlerts(alertsData.results ?? alertsData)
-      } catch {
-        setFetchError(true)
-      } finally {
-        setLoading(false)
-      }
+      setNodes(nodesData.results ?? nodesData)
+      setAlerts(alertsData.results ?? alertsData)
+    } catch {
+      setFetchError(true)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchData()
-  }, [])
+  useEffect(() => { fetchData() }, [])
 
   const todayAlerts = alerts.filter(alert => {
     const alertDate = new Date(alert.timestamp)
@@ -174,6 +173,16 @@ export default function Monitoring() {
       alertDate.getDate() === today.getDate()
     )
   })
+
+  const fetchAllMonitoringData = useCallback(() => {
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    fetchAllMonitoringData()
+  }, [])
+
+  usePolling(fetchAllMonitoringData, 10000)
 
   return (
     <>
@@ -400,9 +409,9 @@ export default function Monitoring() {
               </div>
               <div className='flex flex-col'>
                 {[
-                  { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', percent: "67-100%", label: "High" },
-                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '34-66%',  label: "Moderate" },
-                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-33%', label: "Low" },
+                  { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', percent: "67-100%", label: "Critical" },
+                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '34-66%',  label: "Warning" },
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-33%', label: "Normal" },
                 ].map(status => (
                   <div key={status.label} className="flex justify-between items-center py-3 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">

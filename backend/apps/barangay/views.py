@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from .models import Barangay
 from .serializers import BarangaySerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENROOrBarangay
+from apps.hotspots.models import Hotspot
 
 
 class BarangayListView(generics.ListCreateAPIView):
@@ -70,6 +71,11 @@ class BarangayUnregisterView(APIView):
             barangay=barangay
         ).exclude(status='Inactive').count()
 
+        active_hotspots = Hotspot.objects.filter(
+            barangay=barangay,                      
+            is_active=True                            
+        ).count()
+
         barangay_users = User.objects.filter(
             barangay=barangay,
             user_role='Barangay',
@@ -79,6 +85,8 @@ class BarangayUnregisterView(APIView):
         issues = []
         if active_nodes > 0:
             issues.append(f"{active_nodes} active sensor node(s)")
+        if active_hotspots > 0:
+            issues.append(f"{active_hotspots} active canal hotspot(s)")
         if barangay_users > 0:
             issues.append(f"{barangay_users} active barangay user(s)")
 
@@ -108,6 +116,11 @@ class BarangayCheckView(APIView):
             barangay=barangay
         ).exclude(status='Inactive').count()
 
+        active_hotspots = Hotspot.objects.filter(
+            barangay=barangay,
+            is_active=True 
+        ).count()     
+
         barangay_users = User.objects.filter(
             barangay=barangay,
             user_role='Barangay',
@@ -117,6 +130,8 @@ class BarangayCheckView(APIView):
         issues = []
         if active_nodes > 0:
             issues.append(f"{active_nodes} active sensor node(s)")
+        if active_hotspots > 0:
+            issues.append(f"{active_hotspots} active canal hotspot(s)")
         if barangay_users > 0:
             issues.append(f"{barangay_users} active barangay user(s)")
 

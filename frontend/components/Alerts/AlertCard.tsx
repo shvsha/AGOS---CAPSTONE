@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { FaWater, FaExclamationTriangle, FaPlug, FaBatteryQuarter, FaSignal, FaExclamationCircle, FaChevronRight, } from "react-icons/fa"
+import { X } from "lucide-react"
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
 import { getAccessToken } from "@/lib/auth"
 import { ALERT_STYLE } from "@/lib/constant"
-import { Signal } from "lucide-react"
 
 
 type ClogContext = {
@@ -241,14 +242,18 @@ interface AlertCardProps {
   onRead?: (id: number) => void
 }
 
+
 export function AlertCard({ alert, onRead }: AlertCardProps) {
   const [isRead, setIsRead] = useState(alert.is_read)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const style  = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
   const meta   = ALERT_META[alert.alert_type]  ?? { label: alert.alert_type.replace(/_/g, " "), Icon: FaExclamationCircle }
   const { Icon } = meta
 
   const handleClick = async () => {
+    setDialogOpen(true)  // ← open dialog on click
+
     if (isRead) return
     try {
       const token = getAccessToken()
@@ -261,63 +266,111 @@ export function AlertCard({ alert, onRead }: AlertCardProps) {
   }
 
   return (
-    <div
-      onClick={handleClick}
-      className={`
-        rounded-lg p-4 bg-[#FAFCFD]
-        border ${style.border}
-        ${style.shadow}
-        cursor-pointer transition-opacity
-        ${isRead ? "opacity-60" : "opacity-100"}
-        hover:opacity-90
-      `}
-    >
-      <div className="flex items-start gap-3">
+    <>
+      <div
+        onClick={handleClick}
+        className={`
+          rounded-lg p-4 bg-[#FAFCFD]
+          border ${style.border}
+          ${style.shadow}
+          cursor-pointer transition-opacity
+          ${isRead ? "opacity-60" : "opacity-100"}
+          hover:opacity-90
+        `}
+      >
+        <div className="flex items-start gap-3">
 
-        {/* icon badge */}
-        <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${style.icon}`}>
-          <Icon size={16} />
-        </div>
+          {/* icon badge */}
+          <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${style.icon}`}>
+            <Icon size={16} />
+          </div>
 
-        {/* content */}
-        <div className="flex-1 min-w-0">
+          {/* content */}
+          <div className="flex-1 min-w-0">
 
-          {/* top row: label + time + unread dot */}
-          <div className="flex justify-between items-start gap-2">
-            <p className="font-bold text-xs text-[#122A48] leading-tight">{meta.label.toUpperCase()}</p>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs text-[#727272]">{formatTime(alert.timestamp)}</span>
-              {!isRead && (
-                <span className={`w-2 h-2 rounded-full ${style.icon.split(" ")[1]}`} />
-              )}
+            {/* top row: label + time + unread dot */}
+            <div className="flex justify-between items-start gap-2">
+              <p className="font-bold text-xs text-[#122A48] leading-tight">{meta.label.toUpperCase()}</p>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-[#727272]">{formatTime(alert.timestamp)}</span>
+                {!isRead && (
+                  <span className={`w-2 h-2 rounded-full ${style.icon.split(" ")[1]}`} />
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* barangay + chevron */}
-          <div className="flex justify-between items-center mt-0.5">
-            <p className="font-semibold text-xs text-[#122A48]">
-              {alert.barangay_name ?? "—"}
+            {/* barangay + chevron */}
+            <div className="flex justify-between items-center mt-0.5">
+              <p className="font-semibold text-xs text-[#122A48]">
+                {alert.barangay_name ?? "—"}
+              </p>
+              <FaChevronRight size={11} className="text-[#727272] shrink-0" />
+            </div>
+
+            {/* node name */}
+            {alert.node_name && (
+              <p className="text-xs text-[#727272] mt-0.5">{alert.node_name}</p>
+            )}
+
+            {/* contextual data */}
+            <div className="mt-1.5">
+              <ContextRow alertType={alert.alert_type} ctx={alert.alert_context} />
+            </div>
+
+            {/* date */}
+            <p className="text-xs text-[#727272] mt-1.5">
+              Detected on {formatDate(alert.timestamp)}
             </p>
-            <FaChevronRight size={11} className="text-[#727272] shrink-0" />
           </div>
 
-          {/* node name */}
-          {alert.node_name && (
-            <p className="text-xs text-[#727272] mt-0.5">{alert.node_name}</p>
-          )}
+        </div>
+      </div>
 
-          {/* contextual data */}
-          <div className="mt-1.5">
+      {/* Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg ${style.icon}`}>
+                  <Icon size={16} />
+                </div>
+                <p className="font-bold text-sm">{meta.label}</p>
+              </div>
+              <button onClick={() => setDialogOpen(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Alert Details</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex justify-between">
+              <p className="text-[#727272]">Node</p>
+              <p className="font-medium">{alert.node_name ?? "—"}</p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-[#727272]">Barangay</p>
+              <p className="font-medium">{alert.barangay_name ?? "—"}</p>
+            </div>
+            <div className="flex justify-between">
+              <p className="text-[#727272]">Detected</p>
+              <p className="font-medium">
+                {new Date(alert.timestamp).toLocaleString("en-PH", {
+                  month: "short", day: "numeric", year: "numeric",
+                  hour: "2-digit", minute: "2-digit", hour12: true
+                })}
+              </p>
+            </div>
+
+            <hr />
+            <p className="font-semibold text-xs text-[#727272]">DETAILS</p>
             <ContextRow alertType={alert.alert_type} ctx={alert.alert_context} />
           </div>
-
-          {/* date */}
-          <p className="text-xs text-[#727272] mt-1.5">
-            Detected on {formatDate(alert.timestamp)}
-          </p>
-        </div>
-
-      </div>
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

@@ -331,11 +331,12 @@ class SensorReadingWithFlowView(APIView):
             open_event.classification = classification
             open_event.save()
 
-            # Create the alert ONCE using this same classification's data
-            Alert.objects.create(
-                node=node,
-                event=open_event,
-                alert_type='High_Clog_Index',
+            # Alert creation itself now lives in clog_events/signals.py
+            # (initial fire) and sensor_readings/signals.py (6-hour
+            # re-alert while unresolved). Here we just patch the context
+            # of the alert(s) tied to this event with the classification
+            # data, since alert_context was empty at creation time.
+            Alert.objects.filter(event=open_event).update(
                 alert_context={
                     'dominant_waste_type': dominant_label,
                     'recyclable_pct':      round(percentages.get('recyclable', 0), 2),

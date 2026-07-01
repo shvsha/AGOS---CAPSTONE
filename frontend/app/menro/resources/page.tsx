@@ -51,7 +51,10 @@ type SensorReadings = {
   clog_pct: number | null
   reading_status: string
   timestamp: string
-  node: number
+  node_details: {
+    node_id: number
+    node_name: string
+  }
 }
 
 type WasteClassification = {
@@ -65,6 +68,7 @@ type WasteClassification = {
     }
     hotspot_details: {
       hotspot_id: number
+      name: string
       max_capacity_kg: number | null
     } | null
   }
@@ -160,21 +164,39 @@ export default function Resources() {
   const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
   const [allClogs, setAllClogs] = useState<Clogs[]>([])
 
+  console.log(allWasteClassification)
+
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
-
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 4)
   
-  const allWasteWithHotspot = [...allWasteClassification]
-    .filter(w => {
-      const node = allSensorNodes.find(n => n.node_id === w.node_details.node_id)
-      return node?.hotspot_details != null
-    })
-    .sort((a, b) => b.estimated_volume - a.estimated_volume)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 3)
+  
+  const latestWastePerNode = Object.values(
+    allWasteClassification.reduce((acc, waste) => {
+      const nodeId = waste.node_details.node_id
 
-  const rankedWaste = allWasteWithHotspot.slice(0, 4)
+      // Ignore nodes without hotspots
+      const node = allSensorNodes.find(n => n.node_id === nodeId)
+      if (!node?.hotspot_details) return acc
+
+      // Keep only the newest classification
+      if (
+        !acc[nodeId] ||
+        waste.classification_id > acc[nodeId].classification_id
+      ) {
+        acc[nodeId] = waste
+      }
+
+      return acc
+    }, {} as Record<number, WasteClassification>)
+  )
+
+
+  const rankedWaste = latestWastePerNode.sort(
+      (a, b) => b.estimated_volume - a.estimated_volume
+  )
   
   const priorityQueue = rankedWaste.map((waste, index) => {
     const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
@@ -270,7 +292,6 @@ export default function Resources() {
   useEffect(() => {
     fetchClogs()
   }, [])
-  
 
 
   // summary cards
@@ -278,6 +299,22 @@ export default function Resources() {
   const criticalAreas = allReadings.filter(n => n.reading_status === 'Critical').length
   const totalWaste = allWasteClassification.length
   const clearedAreas = allClogs.filter(c => c.status === 'Cleared').length
+
+  const latestReadingMap = allReadings.reduce((acc, reading) => {
+    const nodeId = reading.node_details.node_id
+
+    if (
+      !acc[nodeId] ||
+      new Date(reading.timestamp) > new Date(acc[nodeId].timestamp)
+    ) {
+      acc[nodeId] = reading
+    }
+
+    return acc
+  }, {} as Record<number, SensorReadings>)
+
+  console.log(allReadings)
+  console.log(latestReadingMap)
 
   return (
     <>
@@ -302,7 +339,7 @@ export default function Resources() {
         </div>
 
         {/* waste hotspot, trash accumulated, priority */}
-          <div className="flex gap-3 text-[#122A48] mt-2 h-80">
+          <div className="flex gap-3 text-[#122A48] mt-2 h-70">
           {/* waste hotspot */}
             <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD]">
             <div className="w-full">
@@ -328,32 +365,59 @@ export default function Resources() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginated.map((node) => (
-                      <TableRow key={node.node_id}>
-                        <TableCell className="text-center text-xs">{node.node_id}</TableCell>
-                        <TableCell className="text-center text-xs">{node.node_name}</TableCell>
-                        <TableCell className="text-center text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
-                        <TableCell className="text-center text-xs">
-                          {node.status ? (
-                            <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${
-                              node.status === 'Normal'   ? 'text-[#2C7B3C]' :
-                              node.status === 'Warning'  ? 'text-[#F39600]' :
-                              node.status === 'Critical' ? 'text-[#D81010]' :
-                              'bg-[#E5E5E6] text-[#727272]'
-                            }`}>
-                              {node.status}
-                            </span>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell className="text-center text-xs">
-                          {node.installed_at
-                            ? new Date(node.installed_at).toLocaleTimeString('en-PH', {
-                                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                              })
-                            : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    paginated.map((node) => {
+                      const latestReading = latestReadingMap[node.node_id]
+
+                      return (
+                        <TableRow key={node.node_id}>
+                          <TableCell className="text-center text-xs">
+                            {node.node_id}
+                          </TableCell>
+
+                          <TableCell className="text-center text-xs">
+                            {node.node_name}
+                          </TableCell>
+
+                          <TableCell className="text-center text-xs">
+                            {node.barangay_details?.barangay_name ?? "—"}
+                          </TableCell>
+
+                          <TableCell className="text-center text-xs">
+                            {node.condition ? (
+                              <span
+                                className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${
+                                  node.condition === "Normal"
+                                    ? "text-[#2C7B3C]"
+                                    : node.condition === "Warning"
+                                    ? "text-[#F39600]"
+                                    : node.condition === "Critical"
+                                    ? "text-[#D81010]"
+                                    : "bg-[#E5E5E6] text-[#727272]"
+                                }`}
+                              >
+                                {node.condition}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+
+                          <TableCell className="text-center text-xs">
+                            {latestReading
+                              ? new Date(latestReading.timestamp).toLocaleString("en-PH", {
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                  hour12: true,
+                                })
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -373,7 +437,7 @@ export default function Resources() {
                   <TableRow>
                     <TableHead className="text-[#727272] text-center text-xs">RANK</TableHead>
                     <TableHead className="text-[#727272] text-center text-xs">HOTSPOT</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">SEVERITY INDEX</TableHead>
+                    <TableHead className="text-[#727272] text-center text-xs">CLOG SEVERITY INDEX</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -428,9 +492,7 @@ export default function Resources() {
                           {/* Barangay */}
                           <TableCell className="text-center text-xs">
                             {
-                              waste.node_details
-                                .barangay_details
-                                .barangay_name
+                              waste.node_details.hotspot_details?.name
                             }
                           </TableCell>
 
@@ -457,7 +519,7 @@ export default function Resources() {
                   )}
                 </TableBody>
               </Table>
-              <div className="border-t px-4 py-2 mt-34">
+              <div className="border-t px-4 py-2 mt-30">
                 <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#122A48]">
                   <div className="flex flex-col items-center">
                     <div className="flex gap-2">
@@ -511,7 +573,7 @@ export default function Resources() {
             <div className="p-2 border-b">
               <p className="font-bold text-sm">PRIORITY DEPLOYMENT QUEUE</p>
               <p className="text-xs text-[#727272]">
-                Based on trash accumulation severity only
+                Based on trash accumulation severity.
               </p>
             </div>
 
@@ -579,7 +641,7 @@ export default function Resources() {
         </div>
 
         {/* all waste hotspots */}
-        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-90 ">
+        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-62 ">
           <div className="flex gap-2 w-full p-3 items-center">
             <p className="font-bold text-sm">WASTE HOTSPOTS</p> <p className="text-[11px]">&#40;DETAILED LIST&#41;</p>
           </div>
@@ -588,7 +650,7 @@ export default function Resources() {
               <TableRow>
                   <TableHead className="text-center text-xs text-[#727272]">NODE</TableHead>
                   <TableHead className="text-center text-xs text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="text-center text-xs text-[#727272]">SEVERITY INDEX</TableHead>
+                  <TableHead className="text-center text-xs text-[#727272]">CLOG SEVERITY INDEX</TableHead>
                   <TableHead className="text-center text-xs text-[#727272]">TRASH VOLUME (kg)</TableHead>
                   <TableHead className="text-center text-xs text-[#727272]">STATUS</TableHead>
                   <TableHead className="text-center text-xs text-[#727272]">LAST UPDATED</TableHead>
@@ -635,7 +697,7 @@ export default function Resources() {
 
                       // Find the latest reading for this node
                       const nodeReadings = allReadings
-                        .filter(r => r.node === waste.node_details.node_id)
+                        .filter(r => r.node_details.node_id === waste.node_details.node_id)
                         .sort(
                           (a, b) =>
                             new Date(b.timestamp).getTime() -
@@ -701,9 +763,17 @@ export default function Resources() {
                           </TableCell>
 
                           <TableCell className="text-center text-xs">
-                            {waste.reading_details?.timestamp
-                              ? new Date(waste.reading_details.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
-                            : '—'}
+                            {latestReading
+                              ? new Date(latestReading.timestamp).toLocaleString("en-PH", {
+                                  year: "numeric",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                  hour12: true,
+                                })
+                              : "—"}
                           </TableCell>
                           
                             
@@ -715,6 +785,14 @@ export default function Resources() {
                   )}
             </TableBody>
           </Table>
+            <div className='mt-auto'>
+              <TablePagination
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
         </div>
 
         {/* recommend resource allocation

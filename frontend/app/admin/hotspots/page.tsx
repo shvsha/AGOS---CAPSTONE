@@ -119,6 +119,7 @@ export default function HotspotManagement() {
   const [allNodes, setAllNodes] = useState<SensorNode[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  const [hotspotCode, setHotspotCode] = useState("")
 
   // filters
   const [search, setSearch] = useState("")
@@ -127,7 +128,6 @@ export default function HotspotManagement() {
 
   // form state
   const [barangay, setBarangay] = useState("")
-  const [hotspotName, setHotspotName] = useState("")
   const [description, setDescription] = useState("")
   const [latitude, setLatitude] = useState("")
   const [longitude, setLongitude] = useState("")
@@ -178,7 +178,7 @@ export default function HotspotManagement() {
       label: h.name,
       condition: h.is_occupied ? 'Occupied' : 'Available',
       sublabel: assignedNode ? `Assigned: ${assignedNode.node_name}` : 'Available hotspot',
-      usePin: h.is_occupied,  // ← ADD
+      usePin: h.is_occupied,
     }
   })
 
@@ -219,7 +219,7 @@ export default function HotspotManagement() {
       if (formDialog.hotspot) {
         // edit
         setBarangay(String(formDialog.hotspot.barangay_details?.barangay_id ?? ""))
-        setHotspotName(formDialog.hotspot.name)
+        setHotspotCode(formDialog.hotspot.code ?? "")
         setDescription(formDialog.hotspot.description ?? "")
         setLatitude(String(formDialog.hotspot.latitude))
         setLongitude(String(formDialog.hotspot.longitude))
@@ -233,7 +233,7 @@ export default function HotspotManagement() {
       }
     } else {
       setBarangay("")
-      setHotspotName("")
+      setHotspotCode("")
       setDescription("")
       setLatitude("")
       setLongitude("")
@@ -321,7 +321,7 @@ export default function HotspotManagement() {
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
     if (!barangay) errors.barangay = "This field is required."
-    if (!hotspotName.trim()) errors.hotspotName = "This field is required."
+    if (!hotspotCode.trim()) errors.hotspotCode = "This field is required."
     if (!description.trim()) errors.description = "This field is required."
     if (!latitude) errors.latitude = "Please click on the map to set the location."
     if (!longitude) errors.longitude = "Please click on the map to set the location."
@@ -335,7 +335,7 @@ export default function HotspotManagement() {
       // scroll to first error
       if (errors.barangay) {
         barangayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } else if (errors.hotspotName) {
+      } else if (errors.hotspotCode) {
         hotspotNameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       } else if (errors.description) {
         descriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -363,7 +363,7 @@ export default function HotspotManagement() {
 
     const payload = {
       barangay: parseInt(barangay),
-      name: hotspotName.trim(),
+      code: hotspotCode.trim(),
       description: description.trim(),
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
@@ -376,23 +376,23 @@ export default function HotspotManagement() {
       if (isEdit) {
         const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
         setHotspots(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
-        addToast(`${hotspotName} has been updated.`, "success")
+        addToast(`${updated.name} has been updated.`, "success")   // was: ${hotspotName}
       } else {
         const created = await api.post("/api/hotspots/", payload)
         setHotspots(prev => [created, ...prev])
-        addToast(`${hotspotName} has been added.`, "success")
+        addToast(`${created.name} has been added.`, "success")
       }
       setFormDialog({ open: false, hotspot: null })
     } catch (err: any) {
       if (err && typeof err === "object") {
         const backendErrors: Record<string, string> = {}
         for (const key in err) {
-          backendErrors[key] = Array.isArray(err[key]) ? err[key][0] : err[key]
+          const value = Array.isArray(err[key]) ? err[key][0] : err[key]
+          backendErrors[key === "code" ? "hotspotCode" : key] = value
         }
-        setFieldErrors(backendErrors)
-        setFormDialog(prev => ({ ...prev })) // keep dialog open
+        setFieldErrors(prev => ({ ...prev, ...backendErrors }))
       }
-      addToast(err?.detail ?? err?.name ?? "Something went wrong.", "error")
+      addToast(err?.detail ?? err?.code?.[0] ?? err?.name ?? "Something went wrong.", "error")
     } finally {
       setLoadingDialog({ open: false })
     }
@@ -421,7 +421,7 @@ export default function HotspotManagement() {
 
   // selected barangay object for map center fallback
   const selectedBarangay = allBarangays.find(b => String(b.barangay_id) === barangay)
-
+  const selectedBarangayName = selectedBarangay?.barangay_name
 
   return (
     <>
@@ -656,21 +656,26 @@ export default function HotspotManagement() {
 
                   {/* Hotspot name */}
                   <div ref={hotspotNameRef} className="flex-1">
-                    <Field className="flex gap-1.5 flex-col flex-1">
+                    <Field className="flex gap-1.5 flex-col">
                       <FieldLabel className="text-[#122A48] text-xs md:text-sm">
                         HOTSPOT NAME <span className="text-[#FF0000]">*</span>
                       </FieldLabel>
-                      <Input
-                        type="text"
-                        value={hotspotName}
-                        onChange={e => {
-                          setHotspotName(e.target.value)
-                          if (fieldErrors.hotspotName) setFieldErrors(prev => ({ ...prev, hotspotName: "" }))
-                        }}
-                        placeholder="e.g. Canal Bridge near Purok 3"
-                        className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal md:h-10.5 bg-[#1565BC05] ${fieldErrors.hotspotName ? "border-[#FF0000]" : "border-[#727272]"}`}
-                      />
-                      <FieldError className="text-xs">{fieldErrors.hotspotName}</FieldError>
+                      <div className={`flex items-center rounded-lg bg-[#1565BC05] border ${fieldErrors.hotspotCode ? "border-[#FF0000]" : "border-[#727272]"}`}>
+                        <span className="pl-3 pr-1 text-xs md:text-sm text-[#727272] font-medium select-none whitespace-nowrap">
+                          CN-{selectedBarangayName ?? "…"}-
+                        </span>
+                        <Input
+                          type="text"
+                          value={hotspotCode}
+                          onChange={e => {
+                            setHotspotCode(e.target.value)
+                            if (fieldErrors.hotspotCode) setFieldErrors(prev => ({ ...prev, hotspotCode: "" }))
+                          }}
+                          placeholder="2"
+                          className="text-[#122A48] rounded-lg text-xs !font-normal md:h-10.5 border-0 !bg-transparent focus-visible:ring-0 pl-0"
+                        />
+                      </div>
+                      <FieldError className="text-xs">{fieldErrors.hotspotCode}</FieldError>
                     </Field>
                   </div>
                 </div>
@@ -830,7 +835,7 @@ export default function HotspotManagement() {
                           ...(latitude && longitude ? [{
                             latitude: parseFloat(latitude),
                             longitude: parseFloat(longitude),
-                            label: hotspotName || "New Hotspot",
+                            label: selectedBarangayName ? `CN-${selectedBarangayName}-${hotspotCode || '…'}` : "New Hotspot",
                             condition: "Normal",
                             sublabel: "Selected location",
                           }] : []),
@@ -964,7 +969,7 @@ export default function HotspotManagement() {
         iconColor={DIALOG_COLOR.green}
         title={isEdit ? "Confirm Changes" : "Confirm Adding Hotspot"}
         description={isEdit
-          ? <> Are you sure you want to update <strong>{hotspotName}</strong>?</>
+          ? <> Are you sure you want to update <strong>CN-{selectedBarangayName}-{hotspotCode.trim()}</strong>?</>
           : <> Are you sure you want to add this new hotspot?</>
         }
         cancelLabel="Keep Editing"

@@ -1,7 +1,6 @@
 "use client"
 
-import * as React from "react"
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef , useCallback, } from "react"
 import { RadioTower, Calendar as CalendarIcon, ChevronDown } from "lucide-react"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,6 +8,7 @@ import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
 import { SearchFilter } from "@/components/SearchFilter"
 import { api } from "@/lib/api"
+import { usePolling } from "@/components/hooks/usePolling"
 
 const affectedTableLabels: Record<string, string> = {
   tbl_user: 'User Management',
@@ -112,7 +112,7 @@ export default function Audit() {
 
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 15)
 
-  async function fetchAudits() {
+  const fetchAudits = async () => {
     setLoading(true)
     setFetchError(false)
     try {
@@ -133,6 +133,16 @@ export default function Audit() {
   useEffect(() => {
     setCurrentPage(1)
   }, [search, startDate, endDate, setCurrentPage])
+
+  const fetchAuditLogsData = useCallback(() => {
+    fetchAudits()
+  }, [])
+
+  useEffect(() => {
+    fetchAuditLogsData()
+  }, [])
+
+  usePolling(fetchAuditLogsData, 10000)
 
   // Generate dynamic button label text 
   const dateLabel = useMemo(() => {
