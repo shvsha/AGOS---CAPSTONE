@@ -95,16 +95,36 @@ export default function Analytics() {
   ]
 
 
-  // fetch waste classifications
+  // fetch waste classifications — this month only, paging through ALL
+  // results. The backend defaults to 20 records per page; without paging
+  // through, totals only reflected whichever 20 records happened to be
+  // "most recent" at fetch time, which is why they looked like they were
+  // randomly increasing/decreasing as new readings came in and older ones
+  // fell out of that window.
   const fetchWaste = async () => {
     setLoading(true)
     setFetchError(false)
     try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      console.log('waste data:', JSON.stringify(data.results ?? data, null, 2))
-      setWasteClassification(data.results ?? data)
+      let url: string | null =
+        `${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?range=month&page_size=100`
+      let all: WasteClassification[] = []
+
+      while (url) {
+        const res = await fetchWithAuth(url)
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+
+        if (Array.isArray(data)) {
+          // Non-paginated response shape — nothing more to fetch
+          all = data
+          url = null
+        } else {
+          all = all.concat(data.results ?? [])
+          url = data.next
+        }
+      }
+
+      setWasteClassification(all)
     } catch {
       setFetchError(true)
     } finally {
@@ -151,7 +171,7 @@ export default function Analytics() {
         {/* total cards */}
         <div className="flex justify-between w-full text-[#122A48] gap-3 mt-1">
           {[
-            { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Detected" },
+            { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Collected" },
             { icon: <Recycle size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: totalRecyclable, label: "Recyclable" },
             { icon: <Leaf size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalBiodegradable, label: "Biodegradable" },
             { icon: <Trash2 size={20} color="#122A48CC" />, bg: "bg-[#D9D9D9]", count: totalResidual, label: "Residual" },
@@ -342,4 +362,3 @@ export default function Analytics() {
     </>
   )
 }
-
