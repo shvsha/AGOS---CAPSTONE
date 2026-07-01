@@ -1,13 +1,15 @@
 """
 Waste volume/weight estimation utilities.
 
-Implements the formula documented in
-"Trash Volume Estimation — AGOS System Notes.txt":
-
-    clog_depth_m      = (sensor_height_cm - water_level_cm) / 100
     waste_thickness_m = BASE_THICKNESS[dominant_waste_type] * (clog_pct / 100)
-    volume_m3         = canal_width_m * clog_depth_m * waste_thickness_m
+    volume_m3         = canal_width_m * waste_thickness_m
     estimated_kg      = volume_m3 * DENSITY[dominant_waste_type]
+
+`sensor_height`/`water_level` are only used to check that there's physical
+room for waste to sit (sensor above the water line) — they no longer
+multiply into the volume. Using that vertical sensor-to-water gap as a
+footprint multiplier used to inflate estimates for hotspots with a tall
+sensor mount, regardless of how much waste was actually visible in frame.
 
 `max_capacity_kg` uses the same formula with clog_pct fixed at 100% and the
 worst-case waste type ("Special Waste") so the severity ceiling stays
@@ -35,6 +37,13 @@ DENSITY = {
 WORST_CASE_WASTE_TYPE = "Special Waste"
 
 
+def _raw_estimate_kg(canal_width, clog_pct, waste_type):
+    """Core formula, no validation/clamping. Internal use only."""
+    waste_thickness_m = BASE_THICKNESS[waste_type] * (clog_pct / 100)
+    volume_m3 = canal_width * waste_thickness_m
+    return volume_m3 * DENSITY[waste_type]
+
+
 def estimate_weight_kg(canal_width, sensor_height, water_level, clog_pct, waste_type):
     """
     Estimate the weight (kg) of waste accumulated at a hotspot.
@@ -53,15 +62,18 @@ def estimate_weight_kg(canal_width, sensor_height, water_level, clog_pct, waste_
     if clog_pct < 0:
         clog_pct = 0
 
+    # sensor_height/water_level only gate *whether* there's room for waste
+    # (sensor above the water line) — they don't multiply into the volume.
     clog_depth_m = (sensor_height - water_level) / 100
     if clog_depth_m <= 0:
-        # No gap between sensor and water surface (or water above sensor) —
-        # no room for waste to accumulate.
         return 0.0
 
-    waste_thickness_m = BASE_THICKNESS[waste_type] * (clog_pct / 100)
-    volume_m3 = canal_width * clog_depth_m * waste_thickness_m
-    estimated_kg = volume_m3 * DENSITY[waste_type]
+    estimated_kg = _raw_estimate_kg(canal_width, clog_pct, waste_type)
+
+    # Defensive ceiling: never report more than the hotspot could
+    # physically hold, even if upstream inputs drift.
+    cap = _raw_estimate_kg(canal_width, 100, WORST_CASE_WASTE_TYPE)
+    estimated_kg = min(estimated_kg, cap)
 
     return max(estimated_kg, 0.0)
 
@@ -72,13 +84,9 @@ def max_capacity_kg(canal_width, sensor_height):
     severity reference instead of a flat global constant.
 
     Same formula as `estimate_weight_kg`, with clog_pct fixed at 100% and
-    the worst-case waste type as inputs. Returns None if required hotspot
-    dimensions are missing.
+    the worst-case waste type. Returns None if required hotspot dimensions
+    are missing.
     """
-    return estimate_weight_kg(
-        canal_width=canal_width,
-        sensor_height=sensor_height,
-        water_level=0,
-        clog_pct=100,
-        waste_type=WORST_CASE_WASTE_TYPE,
-    ) if canal_width is not None and sensor_height is not None else None
+    if canal_width is None or sensor_height is None:
+        return None
+    return _raw_estimate_kg(canal_width, 100, WORST_CASE_WASTE_TYPE)

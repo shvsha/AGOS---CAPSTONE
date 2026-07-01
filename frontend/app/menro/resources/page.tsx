@@ -85,6 +85,7 @@ type WasteClassification = {
   }
   confidence: number
   estimated_volume: number
+  timestamp: string
 }
 
 type Clogs = {
@@ -108,50 +109,42 @@ type Clogs = {
   } | null
 }
 
-const getSeverityIndex = (weight: number, maxCapacity: number | null | undefined) => {
-  if (!maxCapacity || maxCapacity <= 0) return null
-
-  return Math.min(
-    Math.round((weight / maxCapacity) * 100),
-    100
-  )
+// Clog severity based on the node's actual clog_pct (water level/flow derived),
+// NOT trash weight. Thresholds match lib/constant.ts getClogClass and the
+// backend's clog_events/signals.py severity bands, so this stays consistent
+// with the rest of the app.
+const getClogSeverity = (clogPct: number | null) => {
+  if (clogPct === null) {
+    return { label: "Unknown", barColor: "bg-[#9CA3AF]", textClass: "text-[#727272] font-semibold" }
+  }
+  if (clogPct >= 75) {
+    return { label: "Critical", barColor: "bg-[#D81010]", textClass: "text-[#D81010] font-semibold" }
+  }
+  if (clogPct >= 50) {
+    return { label: "Warning", barColor: "bg-[#FF9705]", textClass: "text-[#FF9705] font-semibold" }
+  }
+  return { label: "Normal", barColor: "bg-[#1565BC]", textClass: "text-[#1565BC] font-semibold" }
 }
 
-const getSeverityLevel = (weight: number, maxCapacity: number | null | undefined) => {
-  const pct = getSeverityIndex(weight, maxCapacity)
-
-  if (pct === null) {
-    return {
-      label: "Unknown",
-      color: "bg-[#9CA3AF]"
-    }
+// 4-tier ranking used by "Trash Accumulation Severity Ranking" and the
+// Priority Deployment Queue. Thresholds match the backend's clog_events
+// severity bands (High >=80, Medium >=60, Low >=30), so a node's rank here
+// always lines up with its ClogEvent severity and its row in the detailed
+// Waste Hotspots table below.
+const getClogRankLevel = (clogPct: number | null) => {
+  if (clogPct === null) {
+    return { label: "UNKNOWN", color: "bg-[#9CA3AF]", action: "AWAITING CANAL DATA" }
   }
-
-  if (pct >= 81) {
-    return {
-      label: "Critical",
-      color: "bg-[#E85656]"
-    }
+  if (clogPct >= 80) {
+    return { label: "CRITICAL", color: "bg-[#E85656]", action: "IMMEDIATE ACTION" }
   }
-
-  if (pct >= 61) {
-    return {
-      label: "High",
-      color: "bg-[#F39600]"
-    }
+  if (clogPct >= 60) {
+    return { label: "HIGH", color: "bg-[#F39600]", action: "WITHIN 12 HOURS" }
   }
-
-  if (pct >= 41) {
-    return {
-      label: "Medium",
-      color: "bg-[#FFCC00]"
-    }
+  if (clogPct >= 30) {
+    return { label: "MEDIUM", color: "bg-[#FFCC00]", action: "WITHIN 24 HOURS" }
   }
-
-  return {
-    label: "Low",
-    color: "bg-[#2C7B3C]"
-  }
+  return { label: "LOW", color: "bg-[#2C7B3C]", action: "MONITOR CLOSELY" }
 }
 
 
@@ -170,6 +163,23 @@ export default function Resources() {
   const [fetchError, setFetchError] = useState(false)
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
+
+  // Single source of truth for "how clogged is this node right now" — used by
+  // the ranking sort, the Priority Deployment Queue, and the detailed table,
+  // so all three always agree on the same node's number.
+  const getLatestClogPct = (nodeId: number) => {
+    const nodeReadings = allReadings
+      .filter(r => r.node_details.node_id === nodeId)
+      .sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+    const latestReading = nodeReadings[0] ?? null
+    const fallbackNode = allSensorNodes.find(n => n.node_id === nodeId)
+    return {
+      clogPct: latestReading?.clog_pct ?? fallbackNode?.clog_pct ?? null,
+      latestReading,
+    }
+  }
   
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 3)
   
@@ -181,10 +191,10 @@ export default function Resources() {
       const node = allSensorNodes.find(n => n.node_id === nodeId)
       if (!node?.hotspot_details) return acc
 
-      // Keep only the newest classification
+      // Keep only the newest classification (by actual timestamp, not id)
       if (
         !acc[nodeId] ||
-        waste.classification_id > acc[nodeId].classification_id
+        new Date(waste.timestamp).getTime() > new Date(acc[nodeId].timestamp).getTime()
       ) {
         acc[nodeId] = waste
       }
@@ -194,41 +204,23 @@ export default function Resources() {
   )
 
 
-  const rankedWaste = latestWastePerNode.sort(
-      (a, b) => b.estimated_volume - a.estimated_volume
-  )
+  const rankedWaste = [...latestWastePerNode].sort((a, b) => {
+    const clogA = getLatestClogPct(a.node_details.node_id).clogPct ?? -1
+    const clogB = getLatestClogPct(b.node_details.node_id).clogPct ?? -1
+    return clogB - clogA
+  })
   
   const priorityQueue = rankedWaste.map((waste, index) => {
-    const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
-    const pct = getSeverityIndex(waste.estimated_volume, maxCapacity)
-
-    let action = ""
-    let label = ""
-
-    if (pct === null) {
-      action = "AWAITING CANAL DATA"
-      label = "UNKNOWN"
-    } else if (pct >= 81) {
-      action = "IMMEDIATE ACTION"
-      label = "CRITICAL"
-    } else if (pct >= 61) {
-      action = "WITHIN 12 HOURS"
-      label = "HIGH"
-    } else if (pct >= 41) {
-      action = "WITHIN 24 HOURS"
-      label = "MEDIUM"
-    } else {
-      action = "MONITOR CLOSELY"
-      label = "LOW"
-    }
+    const pct = getLatestClogPct(waste.node_details.node_id).clogPct
+    const rankInfo = getClogRankLevel(pct)
 
     return {
       rank: index + 1,
       barangay: waste.node_details.barangay_details.barangay_name,
       node_name: waste.node_details.node_name,
       pct,
-      label,
-      action,
+      label: rankInfo.label,
+      action: rankInfo.action,
     }
   })
 
@@ -367,6 +359,8 @@ export default function Resources() {
                   ) : (
                     paginated.map((node) => {
                       const latestReading = latestReadingMap[node.node_id]
+                      const clogPct = getLatestClogPct(node.node_id).clogPct
+                      const clogSeverity = getClogSeverity(clogPct)
 
                       return (
                         <TableRow key={node.node_id}>
@@ -383,23 +377,11 @@ export default function Resources() {
                           </TableCell>
 
                           <TableCell className="text-center text-xs">
-                            {node.condition ? (
-                              <span
-                                className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${
-                                  node.condition === "Normal"
-                                    ? "text-[#2C7B3C]"
-                                    : node.condition === "Warning"
-                                    ? "text-[#F39600]"
-                                    : node.condition === "Critical"
-                                    ? "text-[#D81010]"
-                                    : "bg-[#E5E5E6] text-[#727272]"
-                                }`}
-                              >
-                                {node.condition}
-                              </span>
-                            ) : (
-                              "—"
-                            )}
+                            <span
+                              className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}
+                            >
+                              {clogSeverity.label}
+                            </span>
                           </TableCell>
 
                           <TableCell className="text-center text-xs">
@@ -470,14 +452,8 @@ export default function Resources() {
                     </TableRow>
                   ) : (
                     rankedWaste.map((waste, index) => {
-                      const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
-                      const severityPct = getSeverityIndex(
-                        waste.estimated_volume, maxCapacity
-                      )
-
-                      const severity = getSeverityLevel(
-                        waste.estimated_volume, maxCapacity
-                      )
+                      const clogPct = getLatestClogPct(waste.node_details.node_id).clogPct
+                      const rankInfo = getClogRankLevel(clogPct)
 
                       return (
                         <TableRow
@@ -501,15 +477,15 @@ export default function Resources() {
                             <div className="flex items-center gap-3">
                               <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
                                 <div
-                                  className={`${severity.color} h-full rounded-full`}
+                                  className={`${rankInfo.color} h-full rounded-full`}
                                   style={{
-                                    width: `${severityPct ?? 0}%`
+                                    width: `${clogPct ?? 0}%`
                                   }}
                                 />
                               </div>
 
                               <span className="text-xs min-w-[40px]">
-                                {severityPct === null ? "—" : `${severityPct}%`}
+                                {clogPct === null ? "—" : `${Math.round(clogPct)}%`}
                               </span>
                             </div>
                           </TableCell>
@@ -524,7 +500,7 @@ export default function Resources() {
                   <div className="flex flex-col items-center">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#E85656]" />
-                      <span>81% - 100%</span>
+                      <span>80% - 100%</span>
                     </div>
                     <div>
                       <p>Critical</p>
@@ -534,7 +510,7 @@ export default function Resources() {
                   <div className="flex flex-col items-center">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#F39600]" />
-                      <span>61% - 80%</span>
+                      <span>60% - 79%</span>
                     </div>
                     <div>
                       <p>High</p>
@@ -544,7 +520,7 @@ export default function Resources() {
                   <div className="flex flex-col items-center">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#FFCC00]" />
-                      <span>41% - 60%</span>
+                      <span>30% - 59%</span>
                     </div>
                     <div>
                       <p>Medium</p>
@@ -554,7 +530,7 @@ export default function Resources() {
                   <div className="flex items-center flex-col">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#2C7B3C]" />
-                      <span>0% - 40%</span>
+                      <span>0% - 29%</span>
                     </div>
                     <div>
                       <p>Low</p>
@@ -686,25 +662,8 @@ export default function Resources() {
                     </TableRow>
                   ) : (
                     rankedWaste.map((waste, index) => {
-                      const maxCapacity = waste.node_details.hotspot_details?.max_capacity_kg
-                      const severityPct = getSeverityIndex(
-                        waste.estimated_volume, maxCapacity
-                      )
-
-                      const severity = getSeverityLevel(
-                        waste.estimated_volume, maxCapacity
-                      )
-
-                      // Find the latest reading for this node
-                      const nodeReadings = allReadings
-                        .filter(r => r.node_details.node_id === waste.node_details.node_id)
-                        .sort(
-                          (a, b) =>
-                            new Date(b.timestamp).getTime() -
-                            new Date(a.timestamp).getTime()
-                        )
-
-                      const latestReading = nodeReadings[0] ?? null
+                      const { clogPct, latestReading } = getLatestClogPct(waste.node_details.node_id)
+                      const clogSeverity = getClogSeverity(clogPct)
 
                       return (
                         <TableRow
@@ -727,20 +686,20 @@ export default function Resources() {
                             }
                           </TableCell>
 
-                          {/* Severity Index */}
+                          {/* Severity Index (clog_pct based) */}
                           <TableCell className="flex justify-center">
                             <div className="flex items-center gap-3">
                               <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
                                 <div
-                                  className={`${severity.color} h-full rounded-full`}
+                                  className={`${clogSeverity.barColor} h-full rounded-full`}
                                   style={{
-                                    width: `${severityPct ?? 0}%`
+                                    width: `${clogPct ?? 0}%`
                                   }}
                                 />
                               </div>
 
                               <span className="text-xs min-w-[40px]">
-                                {severityPct === null ? "—" : `${severityPct}%`}
+                                {clogPct === null ? "—" : `${Math.round(clogPct)}%`}
                               </span>
                             </div>
                           </TableCell>
@@ -749,17 +708,12 @@ export default function Resources() {
                             {waste.estimated_volume.toFixed(2)} kg
                           </TableCell>
 
+                          {/* Status — derived from the same clog_pct as the Severity Index above,
+                              so the two columns can never disagree in the same row. */}
                           <TableCell className="text-center text-xs">
-                            {latestReading ? (
-                              <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                                latestReading.reading_status === 'Normal'   ? 'text-[#2C7B3C]' :
-                                latestReading.reading_status === 'Warning' ? 'text-[#F39600]' :
-                                latestReading.reading_status === 'Critical' ? 'text-[#D81010]' :
-                                'bg-[#E5E5E6] text-[#727272]'
-                              }`}>
-                                {latestReading.reading_status}
-                              </span>
-                            ) : '—'}
+                            <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}>
+                              {clogSeverity.label}
+                            </span>
                           </TableCell>
 
                           <TableCell className="text-center text-xs">
@@ -808,4 +762,3 @@ export default function Resources() {
     </>
   )
 }
-

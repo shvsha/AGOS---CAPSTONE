@@ -151,7 +151,7 @@ export default function Analytics() {
         {/* total cards */}
         <div className="flex justify-between w-full text-[#122A48] gap-3 mt-1">
           {[
-            { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Collected" },
+            { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Detected" },
             { icon: <Recycle size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: totalRecyclable, label: "Recyclable" },
             { icon: <Leaf size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalBiodegradable, label: "Biodegradable" },
             { icon: <Trash2 size={20} color="#122A48CC" />, bg: "bg-[#D9D9D9]", count: totalResidual, label: "Residual" },

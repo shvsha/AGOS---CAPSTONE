@@ -23,9 +23,9 @@ export const ALERT_STYLE: Record<string, { border: string; icon: string; shadow:
     shadow: "shadow-[0_0_3px_rgba(255,151,5,0.57)]"
   },
   High_Clog_Index: {
-    border: "border-[#FFD6D6]",
-    icon: "bg-[#FFE5E5] text-[#D81010]",
-    shadow: "shadow-[0_0_3px_rgba(216,16,16,0.50)]"
+    border: "border-[#FF6A00]",
+    icon: "bg-[#FFD6A0] text-[#D27000]",
+    shadow: "shadow-[0_0_3px_rgba(255,106,0,0.57)]"
   },
   Critical_Clog: {
     border: "border-[#FFD6D6]",
