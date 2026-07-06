@@ -106,8 +106,17 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         return r.clog_pct if r else None
 
     def get_condition(self, obj):
+        # condition is shown next to clog_pct in the UI, so derive it from
+        # clog_pct (same cutoffs as the Clog Level Legend) rather than
+        # reading_status, which reflects water level and can disagree.
         r = self._latest(obj)
-        return r.reading_status if r else None
+        if not r or r.clog_pct is None:
+            return None
+        if r.clog_pct >= 67:
+            return 'Critical'
+        if r.clog_pct >= 34:
+            return 'Warning'
+        return 'Normal'
 
     def get_health_status(self, obj):
         h = self._latest_health(obj)
@@ -154,6 +163,11 @@ class SensorNodeSerializer(serializers.ModelSerializer):
                     {'node_code': 'A sensor node with this code already exists.'}
                 )
             attrs['node_name'] = full_name
+
+        # node_code isn't a real model field — it only exists to derive
+        # node_name above. Drop it so it doesn't get passed into
+        # SensorNode.objects.create(**validated_data)/update(...).
+        attrs.pop('node_code', None)
 
         return attrs
 

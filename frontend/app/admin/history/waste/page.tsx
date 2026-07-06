@@ -133,7 +133,7 @@ export default function Waste() {
     fetchWasteClassificationData()
   }, [])
 
-  usePolling(fetchWasteClassificationData, 10000)
+  usePolling(fetchWasteClassificationData, 3000)
 
 
   return (
