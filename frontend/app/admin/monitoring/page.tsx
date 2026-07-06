@@ -182,7 +182,7 @@ export default function Monitoring() {
     fetchAllMonitoringData()
   }, [])
 
-  usePolling(fetchAllMonitoringData, 10000)
+  usePolling(fetchAllMonitoringData, 3000)
 
   return (
     <>

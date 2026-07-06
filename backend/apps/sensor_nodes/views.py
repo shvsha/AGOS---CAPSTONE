@@ -118,6 +118,43 @@ class SensorNodeRetireView(APIView):
         return Response({'message': f'Node {node_id} has been retired'}, status=status.HTTP_200_OK)
 
 
+class SensorNodeConfigView(APIView):
+    """
+    Lightweight config endpoint for IoT devices.
+
+    Given a node_id, returns just what a physical sensor node needs to
+    configure itself at boot — currently the sensor_height stored on the
+    linked hotspot. This lets one physical board be reassigned to a
+    different logical node (e.g. during testing/demo) by changing which
+    node_id it reports, with no firmware re-flash required — the board
+    always fetches the correct sensor height for whichever node_id it's
+    currently set to.
+    """
+    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+    permission_classes = [IsIoTDevice | IsAdminOrMENROOrBarangay]
+
+    def get(self, request, node_id):
+        try:
+            node = SensorNode.objects.get(node_id=node_id)
+        except SensorNode.DoesNotExist:
+            return Response({'error': 'Sensor node not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if node.availability_status == 'Retired':
+            return Response({'error': 'Node is retired'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sensor_height = node.hotspot.sensor_height if node.hotspot else None
+
+        return Response({
+            'node_id': node.node_id,
+            'node_name': node.node_name,
+            'hotspot_id': node.hotspot.hotspot_id if node.hotspot else None,
+            'hotspot_name': node.hotspot.name if node.hotspot else None,
+            'sensor_height': sensor_height,
+            'availability_status': node.availability_status,
+            'status': node.status,
+        }, status=status.HTTP_200_OK)
+
+
 class SystemHealthLogListView(generics.ListCreateAPIView):
     queryset = SystemHealthLog.objects.all().order_by('-checked_at')
     serializer_class = SystemHealthLogSerializer

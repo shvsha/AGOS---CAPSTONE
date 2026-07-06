@@ -142,7 +142,7 @@ export default function Audit() {
     fetchAuditLogsData()
   }, [])
 
-  usePolling(fetchAuditLogsData, 10000)
+  usePolling(fetchAuditLogsData, 3000)
 
   // Generate dynamic button label text 
   const dateLabel = useMemo(() => {

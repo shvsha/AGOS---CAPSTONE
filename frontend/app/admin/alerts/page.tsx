@@ -116,7 +116,7 @@ export default function Alerts() {
     fetchAllAlertData()
   }, [])
 
-  usePolling(fetchAllAlertData, 10000)
+  usePolling(fetchAllAlertData, 3000)
 
 
    return (

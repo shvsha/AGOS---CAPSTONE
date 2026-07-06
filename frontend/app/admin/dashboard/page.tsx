@@ -270,7 +270,7 @@ export default function Dashboard() {
     fetchAllDashboardData()
   }, [])
 
-  usePolling(fetchAllDashboardData, 10000) // 1000 = 1 sec
+  usePolling(fetchAllDashboardData, 3000) // 1000 = 1 sec
 
 
   return (

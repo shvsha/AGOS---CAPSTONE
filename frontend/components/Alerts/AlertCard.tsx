@@ -124,7 +124,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
             <div className="flex flex-wrap gap-x-4">
               <span>Dominant: <span className="font-semibold text-[#122A48]">{c.dominant_waste_type}</span></span>
               {c.estimated_volume != null && (
-                <span>Est. Volume: <span className="font-semibold text-[#122A48]">{c.estimated_volume} kg</span></span>
+                <span>Est. Volume: <span className="font-semibold text-[#122A48]">{Number(c.estimated_volume).toFixed(2)} kg</span></span>
               )}
               {c.confidence != null && (
                 <span>Confidence: <span className="font-semibold text-[#122A48]">{Math.round(c.confidence)}%</span></span>

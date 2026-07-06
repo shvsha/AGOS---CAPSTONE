@@ -172,7 +172,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
     fetchClogEventsData()
   }, [])
 
-  usePolling(fetchClogEventsData, 10000)
+  usePolling(fetchClogEventsData, 3000)
 
 
   return (
