@@ -31,4 +31,5 @@ urlpatterns = [
     path('api/', include('apps.alerts.urls')),
     path('api/', include('apps.reports.urls')),
     path('api/', include('apps.audit_logs.urls')),
+    path('api/', include('apps.training_captures.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
