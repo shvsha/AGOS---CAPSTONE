@@ -27,7 +27,7 @@ ai_model/review_validation/
 ai_model/saved_model/*.keras
 
 # YOLO
-media/training_captures/
+backend/media/training_captures
 
 # ─── Next.js ───
 frontend/.next/
