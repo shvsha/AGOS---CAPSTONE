@@ -34,7 +34,11 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4', 'finale-concave-angles.ngrok-free.dev', 'batman-bye-tradition-nuts.trycloudflare.com', 'services-inform-spiritual-pulled.trycloudflare.com']
+ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4', 
+                 
+                 'finale-concave-angles.ngrok-free.dev', 'batman-bye-tradition-nuts.trycloudflare.com', 'services-inform-spiritual-pulled.trycloudflare.com'
+                 
+                 ]
 
 
 # Application definition
@@ -66,6 +70,8 @@ INSTALLED_APPS = [
     'apps.reports',
     'apps.audit_logs',
     'apps.hotspots',
+
+    # not part of the main process of the system
     'apps.training_captures',
 ]
 
