@@ -28,6 +28,7 @@ ai_model/saved_model/*.keras
 
 # YOLO
 backend/media/training_captures
+runs/
 
 # ─── Next.js ───
 frontend/.next/
