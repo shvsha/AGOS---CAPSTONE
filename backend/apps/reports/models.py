@@ -22,14 +22,12 @@ class BarangayMonthlyReport(models.Model):
         db_column='municipal_report_id'
     )
     report_month = models.DateField()
-    entry_date = models.DateField()
+    clearing_date = models.DateField()
     recyclables_kg = models.FloatField(default=0)
-    amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     biodegradable_kg = models.FloatField(default=0)
-    composting_kg = models.FloatField(null=True, blank=True)
     residual_waste_kg = models.FloatField(default=0)
     special_waste_kg = models.FloatField(null=True, blank=True)
-    clog_events_addressed = models.IntegerField(default=0)
+    amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -84,7 +82,7 @@ class ReportMedia(models.Model):
         db_column='event_id'
     )
     media_category = models.CharField(max_length=20, choices=MEDIA_CATEGORY_CHOICES, default='Sensor_Detection')
-    file = models.FileField(upload_to='report_media/', null=True, blank=True)
+    file_path = models.FileField(upload_to='report_media/', null=True, blank=True)
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(
@@ -111,11 +109,11 @@ class MunicipalMonthlyReport(models.Model):
     municipal_report_id = models.AutoField(primary_key=True)
     report_month = models.DateField(unique=True)
     total_recyclables_kg = models.FloatField(default=0)
-    total_amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_biodegradable_kg = models.FloatField(default=0)
     total_composting_kg = models.FloatField(null=True, blank=True)
     total_residual_waste_kg = models.FloatField(default=0)
     total_special_waste_kg = models.FloatField(null=True, blank=True)
+    total_amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_barangays_reported = models.IntegerField(default=0)
     total_clog_events = models.IntegerField(default=0)
     generated_by = models.ForeignKey(
