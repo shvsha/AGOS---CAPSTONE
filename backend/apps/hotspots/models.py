@@ -27,8 +27,12 @@ class Hotspot(models.Model):
         null=True, blank=True,
         help_text="Fixed distance in cm from sensor/camera mount to canal floor. Measured once at installation."
     )
+    canal_depth = models.FloatField(
+        null=True, blank=True,
+        help_text="Registered depth in cm of the canal at this hotspot, used for water-level percentage classification (Normal/Warning/Critical). Distinct from sensor_height."
+    )
 
-    code = models.CharField(max_length=50, blank=True, default='')  # user-entered suffix only
+    code = models.CharField(max_length=50, blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

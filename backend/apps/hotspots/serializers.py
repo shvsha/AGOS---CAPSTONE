@@ -20,7 +20,7 @@ class HotspotSerializer(serializers.ModelSerializer):
             'hotspot_id', 'barangay', 'barangay_details',
             'name', 'code', 'description',
             'latitude', 'longitude',
-            'canal_width', 'canal_shape', 'sensor_height',
+            'canal_width', 'canal_shape', 'sensor_height', 'canal_depth',
             'is_occupied',
             'created_at', 'updated_at',
         ]
