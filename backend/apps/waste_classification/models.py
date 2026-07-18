@@ -32,7 +32,6 @@ class WasteClassification(models.Model):
     residual_pct = models.FloatField(default=0)
     special_waste_pct = models.FloatField(default=0)
     none_pct = models.FloatField(default=0)
-    
     confidence = models.FloatField(default=0)
     is_mixed = models.BooleanField(default=False)
     present_waste_types = models.JSONField(default=list, blank=True)

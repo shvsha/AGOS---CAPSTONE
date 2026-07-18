@@ -72,8 +72,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function ClogEvents() {
   // filter states
   const [search, setSearch] = useState<string>('')
-  const [barangay, setBarangay] = useState('All Barangay')
-  const [severity, setSeverity] = useState('All Severity')
+  const [barangay, setBarangay] = useState<string>('All Barangay')
+  const [severity, setSeverity] = useState<string>('All Severity')
 
   // table state
   const [clogs, setClogs] = useState<Clogs[]>([])

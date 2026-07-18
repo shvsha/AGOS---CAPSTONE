@@ -60,7 +60,7 @@ const navItems: Record<string, NavItem[]> = {
       children: [
         { label: "User Management",     href: "/admin/users",   icon: <Users size={14} /> },
         { label: "Barangay Management", href: "/admin/barangay",icon: <MapPin size={14} /> },
-        // { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
+        { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
         { label: "System Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
       ]
     },
