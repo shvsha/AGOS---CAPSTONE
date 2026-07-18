@@ -136,6 +136,8 @@ export default function NavBar() {
     }
   }
 
+  const bothExpanded = openDropdowns['History'] && openDropdowns['Utilities']
+
   return (  
     <>
       <aside
@@ -160,7 +162,7 @@ export default function NavBar() {
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="flex flex-col mt-7 overflow-y-auto flex-1">
+        <nav className="flex flex-col mt-7 overflow-y-auto flex-1 min-h-0">
           {items.map(({ href, label, icon, children }) => {
             const isActive = pathname === href
             const isChildActive = children?.some(c => pathname === c.href)
@@ -222,8 +224,9 @@ export default function NavBar() {
                 key={label}
                 href={href!}
                 className={`
-                  flex items-center gap-3 px-[13px] py-2.5 mx-3.5 my-0.5 text-[12px] font-medium
+                  flex items-center gap-3 px-[13px] mx-3.5 my-0.5 text-[12px] font-medium
                   transition-all duration-200 rounded-lg overflow-hidden whitespace-nowrap
+                  ${bothExpanded ? 'py-5' : 'py-2.5'}
                   ${isActive
                     ? 'bg-[#58D07159] text-[#122A48]'
                     : 'text-[#122A48] hover:bg-[#eaedf2]'
