@@ -134,6 +134,7 @@ export default function HotspotManagement() {
   const [canalWidth, setCanalWidth] = useState("")
   const [canalShape, setCanalShape] = useState("rectangular")
   const [sensorHeight, setSensorHeight] = useState("")
+  const [canalDepth, setCanalDepth] = useState("")
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // boundary state
@@ -168,6 +169,7 @@ export default function HotspotManagement() {
   const descriptionRef = useRef<HTMLDivElement>(null)
   const canalWidthRef = useRef<HTMLDivElement>(null)
   const sensorHeightRef = useRef<HTMLDivElement>(null)
+  const canalDepthRef = useRef<HTMLDivElement>(null)
   const latitudeRef = useRef<HTMLDivElement>(null)
 
   const allHotspotMarkers = hotspots.map(h => {
@@ -328,6 +330,7 @@ export default function HotspotManagement() {
     if (!canalWidth) errors.canalWidth = "This field is required."
     if (!canalShape) errors.canalShape = "This field is required."
     if (!sensorHeight) errors.sensorHeight = "This field is required."
+    if (!canalDepth) errors.canalDepth = "This field is required."
 
     setFieldErrors(errors)
 
@@ -343,6 +346,8 @@ export default function HotspotManagement() {
         canalWidthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       } else if (errors.sensorHeight) {
         sensorHeightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else if (errors.canalDepth) {
+        canalDepthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       } else if (errors.latitude || errors.longitude) {
         latitudeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
@@ -370,6 +375,7 @@ export default function HotspotManagement() {
       canal_width: canalWidth ? parseFloat(canalWidth) : null,
       canal_shape: canalShape,
       sensor_height: sensorHeight ? parseFloat(sensorHeight) : null,
+      canal_depth: canalDepth ? parseFloat(canalDepth) : null,
     }
 
     try {
@@ -765,6 +771,29 @@ export default function HotspotManagement() {
                     </Field>
                   </div>
 
+                </div>
+
+                <div className="flex gap-3 -mt-5 p-2.5 md:p-4">   
+                  {/* Canal Depth */}
+                  <div ref={canalDepthRef} className="flex-1">
+                    <Field className="flex gap-1.5 flex-col flex-1">
+                      <FieldLabel className="text-[#122A48] text-xs md:text-sm">
+                        CANAL DEPTH (cm)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        value={canalDepth}
+                        onChange={e => {
+                          setCanalDepth(e.target.value)
+                          if (fieldErrors.canalDepth) setFieldErrors(prev => ({ ...prev, canalDepth: "" }))
+                        }}
+                        placeholder="e.g. 150"
+                        className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal md:h-10.5 bg-[#1565BC05] ${fieldErrors.canalDepth ? "border-[#FF0000]" : "border-[#727272]"}`}
+                      />
+                      <FieldError className="text-xs">{fieldErrors.canalDepth}</FieldError>
+                    </Field>
+                  </div>
+
                   {/* Sensor Height */}
                   <div ref={sensorHeightRef} className="flex-1">
                     <Field className="flex gap-1.5 flex-col flex-1">
@@ -784,6 +813,7 @@ export default function HotspotManagement() {
                       <FieldError className="text-xs">{fieldErrors.sensorHeight}</FieldError>
                     </Field>
                   </div>
+
                 </div>
               </div>
             </div>
