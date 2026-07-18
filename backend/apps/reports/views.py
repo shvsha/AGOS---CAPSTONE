@@ -5,7 +5,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum
 from .models import BarangayMonthlyReport, ReportMedia, MunicipalMonthlyReport
 from .serializers import ( BarangayMonthlyReportSerializer, ReportMediaSerializer, MunicipalMonthlyReportSerializer )
-from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay
+from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay, IsAdminOrMENROOfficer 
 from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -43,13 +43,13 @@ class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = BarangayMonthlyReport.objects.all()
     serializer_class = BarangayMonthlyReportSerializer
     lookup_field = 'monthly_report_id'
-    permission_classes = [IsAdminOrMENRO]
+    permission_classes = [IsAdminOrMENROOfficer  ]
 
 
 class ReportMediaListView(generics.ListAPIView):
     queryset = ReportMedia.objects.all()
     serializer_class = ReportMediaSerializer
-    permission_classes = [IsAdminOrMENRO]
+    permission_classes = [IsAdminOrMENROOfficer ]
 
 
 class ReportMediaUploadView(APIView):
@@ -116,7 +116,7 @@ class ReportMediaByClogEventView(generics.ListAPIView):
 class MunicipalMonthlyReportListView(generics.ListAPIView):
     queryset = MunicipalMonthlyReport.objects.all().order_by('-generated_at')
     serializer_class = MunicipalMonthlyReportSerializer
-    permission_classes = [IsAdminOrMENRO]
+    permission_classes = [IsAdminOrMENROOfficer ]
 
     def perform_update(self, serializer):
         old_status = serializer.instance.status
@@ -135,4 +135,4 @@ class MunicipalMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = MunicipalMonthlyReport.objects.all()
     serializer_class = MunicipalMonthlyReportSerializer
     lookup_field = 'municipal_report_id'
-    permission_classes = [IsAdminOrMENRO]
+    permission_classes = [IsAdminOrMENROOfficer ]

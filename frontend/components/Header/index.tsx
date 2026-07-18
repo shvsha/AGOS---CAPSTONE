@@ -49,6 +49,7 @@ const pageTitles: Record<string, string> = {
 const alertRoutes: Record<string, string> = {
   Admin: "/admin/alerts",
   MENRO: "/menro/alerts",
+  MENRO_Staff: "/menro/alerts",
   Barangay: "/barangay/alerts",
 }
 

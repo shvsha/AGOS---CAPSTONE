@@ -33,6 +33,7 @@ class User(AbstractBaseUser):
     ROLE_CHOICES = [
         ('Admin', 'Admin'),
         ('MENRO', 'MENRO'),
+        ('MENRO_Staff', 'MENRO Staff'),
         ('Barangay', 'Barangay'),
     ]
     STATUS_CHOICES = [
@@ -44,7 +45,7 @@ class User(AbstractBaseUser):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
-    user_role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    user_role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     position = models.CharField(max_length=50, null=True, blank=True)
     barangay = models.ForeignKey(
         Barangay,

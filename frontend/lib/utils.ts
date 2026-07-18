@@ -55,6 +55,7 @@ export const getErrorMessage = (error: unknown): string => {
 // Role display mapping
 export const ROLE_DISPLAY: Record<string, string> = {
   MENRO: 'MENRO Officer',
+  MENRO_Staff: 'MENRO Staff', 
   Barangay: 'Barangay Personnel',
   Admin: 'Admin',
 }
@@ -62,6 +63,7 @@ export const ROLE_DISPLAY: Record<string, string> = {
 // Convert friendly name back to backend value
 export const ROLE_VALUE: Record<string, string> = {
   'MENRO Officer': 'MENRO',
+  'MENRO Staff': 'MENRO_Staff',
   'Barangay Personnel': 'Barangay',
   Admin: 'Admin',
 }

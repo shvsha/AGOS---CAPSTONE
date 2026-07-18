@@ -41,6 +41,7 @@ const MENRO_OFFICE = "MENRO Office"
 
 const ROLE_DISPLAY: Record<string, string> = {
   'MENRO': 'MENRO Officer',
+  'MENRO_Staff': 'MENRO Staff',
   'Barangay': 'Barangay Personnel',
   'Admin': 'Admin',
 }
@@ -142,9 +143,9 @@ export default function Form() {
     const errors: Record<string, string> = {}
     if (!fname.trim())                                          errors.fname      = 'This field is required.'
     if (!lname.trim())                                          errors.lname      = 'This field is required.'
-    if (role !== 'MENRO' && role !== 'Admin' && !position.trim()) errors.position   = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && !position.trim()) errors.position   = 'This field is required.'
     if (!role)                                                  errors.role       = 'This field is required.'
-    if (role !== 'MENRO' && role !== 'Admin' && !barangayId)     errors.barangayId = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'MENRO_Staff' &&  role !== 'Admin' && !barangayId)     errors.barangayId = 'This field is required.'
     if (!email.trim())                                          errors.email      = 'This field is required.'
 
     setFieldErrors(errors)
@@ -186,8 +187,8 @@ export default function Form() {
         last_name: lname,
         email,
         user_role: role,
-        position: role === 'Admin' || role === 'MENRO' ? '' : position,
-        barangay_id: role === 'Admin' || role === 'MENRO' ? null : barangayId,
+        position: role === 'Admin' || role === 'MENRO' || role === 'MENRO_Staff' ? '' : position,
+        barangay_id: role === 'Admin' || role === 'MENRO' || role === 'MENRO_Staff' ? null : barangayId,
       }
 
       if (isEdit) {
@@ -410,7 +411,7 @@ export default function Form() {
                           value={role}
                           onValueChange={(value) => {
                             setRole(value)
-                            if (value === 'MENRO' || value === 'Admin') {
+                            if (value === 'MENRO' || value === 'MENRO_Staff' || value === 'Admin') {
                               setBarangayId(null)
                               setPosition('')
                             }
@@ -423,6 +424,7 @@ export default function Form() {
                           <SelectContent position="popper" side="bottom">
                             <SelectItem className="text-[#122A48] p-2 text-sm" value="Admin">Admin</SelectItem>
                             <SelectItem className="text-[#122A48] p-2 text-sm" value="MENRO">MENRO Officer</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-sm" value="MENRO_Staff">MENRO Staff</SelectItem>
                             <SelectItem className="text-[#122A48] p-2 text-sm" value="Barangay">Barangay Personnel</SelectItem>
                           </SelectContent>
                         </Select>
@@ -431,7 +433,7 @@ export default function Form() {
                   </div>
                   
                   {/* barangay */}
-                  {role !== 'MENRO' && role !== 'Admin' && (
+                  {role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && (
                     <div ref={barangayRef}>
                       <Field className="flex gap-1.5 flex-col w-[400px]">
                         <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
@@ -460,7 +462,7 @@ export default function Form() {
                 </div>
 
                 {/* position/designation */}
-                {role !== 'MENRO' && role !== 'Admin' && (
+                {role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && (
                   <div className="mt-3">
                     <div ref={positionRef}>
                       <Field className="flex gap-1.5 flex-col w-100">
@@ -714,7 +716,7 @@ export default function Form() {
                     value={role}
                     onValueChange={(value) => {
                       setRole(value)
-                      if (value === 'MENRO' || value === 'Admin') {
+                      if (value === 'MENRO' || value === 'MENRO_Staff' || value === 'Admin') {
                         setBarangayId(null)
                         setPosition('')
                       }
@@ -727,6 +729,7 @@ export default function Form() {
                     <SelectContent position="popper" side="bottom">
                       <SelectItem className="text-[#122A48] p-2 text-xs" value="Admin">Admin</SelectItem>
                       <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO">MENRO Officer</SelectItem>
+                      <SelectItem className="text-[#122A48] p-2 text-xs" value="MENRO_Staff">MENRO Staff</SelectItem>
                       <SelectItem className="text-[#122A48] p-2 text-xs" value="Barangay">Barangay Personnel</SelectItem>
                     </SelectContent>
                   </Select>
