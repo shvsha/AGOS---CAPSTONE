@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'apps.reports',
     'apps.audit_logs',
     'apps.hotspots',
+    'apps.rainfall',
 
     # not part of the main process of the system
     'apps.training_captures',

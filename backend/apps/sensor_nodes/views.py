@@ -143,6 +143,7 @@ class SensorNodeConfigView(APIView):
             return Response({'error': 'Node is retired'}, status=status.HTTP_400_BAD_REQUEST)
 
         sensor_height = node.hotspot.sensor_height if node.hotspot else None
+        canal_depth = node.hotspot.canal_depth if node.hotspot else None
 
         return Response({
             'node_id': node.node_id,
@@ -150,6 +151,7 @@ class SensorNodeConfigView(APIView):
             'hotspot_id': node.hotspot.hotspot_id if node.hotspot else None,
             'hotspot_name': node.hotspot.name if node.hotspot else None,
             'sensor_height': sensor_height,
+            'canal_depth': canal_depth,
             'availability_status': node.availability_status,
             'status': node.status,
         }, status=status.HTTP_200_OK)
