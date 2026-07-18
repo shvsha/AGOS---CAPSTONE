@@ -55,6 +55,7 @@ type DialogState = {
 
 const getAvatarColor = (role: string) => {
   if (role === "MENRO") return "#2C7B3C"
+  if (role === "MENRO_Staff") return "#37b851"
   if (role === "Barangay") return "#1565BC"
   return "#122A48"
 }
@@ -197,7 +198,8 @@ export default function Users() {
               </SelectTrigger>
               <SelectContent position="popper" className='w-27 min-w-0'>
                 <SelectItem className="p-2 text-[#122A48]" value="All">All Users</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="MENRO">MENRO</SelectItem>
+                <SelectItem className="p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
+                <SelectItem className="p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
                 <SelectItem className="p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
               </SelectContent>
             </Select>

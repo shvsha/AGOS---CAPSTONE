@@ -24,12 +24,17 @@ class IsBarangay(BasePermission):
 
 class IsAdminOrMENRO(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO']
+        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO', 'MENRO_Staff']
 
 
 class IsAdminOrMENROOrBarangay(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO', 'Barangay']
+        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO', 'MENRO_Staff', 'Barangay']
+    
+class IsAdminOrMENROOfficer(BasePermission):
+    """Officer only — excludes MENRO Staff. Used for barangay/municipal reports."""
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO']
     
 # for iot
 class IoTDeviceAuthentication(BaseAuthentication):

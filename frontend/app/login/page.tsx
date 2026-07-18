@@ -93,6 +93,7 @@ export default function Login() {
       }
       if (parsed.user_role === "Admin") router.replace("/admin/dashboard")
       else if (parsed.user_role === "MENRO") router.replace("/menro/map")
+      else if (parsed.user_role === "MENRO_Staff") router.replace("/menro/map") 
       else if (parsed.user_role === "Barangay") router.replace("/barangay/map")
     }
   }, [])
@@ -128,6 +129,7 @@ export default function Login() {
       const userRole = data.user.user_role
       if (userRole === "Admin") router.replace("/admin/dashboard")
       else if (userRole === "MENRO") router.replace("/menro/map")
+      else if (userRole === "MENRO_Staff") router.replace("/menro/map")
       else if (userRole === "Barangay") router.replace("/barangay/map")
       else setLoginError("Unknown user role.")
     } catch (err) {

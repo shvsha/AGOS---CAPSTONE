@@ -74,6 +74,13 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Barangay Reports", href: "/menro/barangay-reports", icon: <FileBarChart size={18} /> },
     { label: "Monthly Reports",  href: "/menro/reports",          icon: <CalendarDays size={18} /> },
   ],
+  MENRO_Staff: [
+    { label: "Reginal Map",       href: "/menro/map",        icon: <Map size={18} /> },
+    { label: "Alerts",            href: "/menro/alerts",     icon: <Siren size={18} /> },
+    { label: "Waste Analytics",   href: "/menro/analytics",  icon: <ChartNoAxesCombined size={18} /> },
+    { label: "Resource Optimization", href: "/menro/resources", icon: <Package size={18} /> },
+    { label: "Canal Hotspots",    href: "/menro/hotspots",   icon: <Target size={18} /> },
+  ],
   Barangay: [
     { label: "Localized Map",    href: "/barangay/map",           icon: <MapPin size={18} /> },
     { label: "Alerts",           href: "/barangay/alerts",        icon: <Siren size={18} /> },

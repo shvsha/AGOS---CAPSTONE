@@ -65,7 +65,7 @@ class UpdateClogStatusView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            if user.user_role == 'MENRO' and new_status not in ['Verified']:
+            if user.user_role in ('MENRO', 'MENRO_Staff') and new_status not in ['Verified']:
                 return Response(
                     {'error': 'MENRO can only set Verified'},
                     status=status.HTTP_403_FORBIDDEN
