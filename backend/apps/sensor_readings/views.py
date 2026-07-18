@@ -224,6 +224,34 @@ class SensorReadingWithFlowView(APIView):
             node = SensorNode.objects.get(node_id=node_id)
         except SensorNode.DoesNotExist:
             return Response({'error': 'Sensor node not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not node.hotspot:
+            return Response(
+                {'error': 'Sensor node has no assigned hotspot — cannot classify reading'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        canal_depth = node.hotspot.canal_depth
+        if not canal_depth or canal_depth <= 0:
+            return Response(
+                {'error': 'Hotspot has no valid canal_depth set — cannot classify reading'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not node.barangay:
+            return Response(
+                {'error': 'Sensor node has no assigned barangay — cannot classify reading'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from apps.rainfall.services import classify_water_level
+
+        classification = classify_water_level(
+            water_level=water_level,
+            canal_depth=canal_depth,
+            barangay=node.barangay,
+        )
+        reading_status = classification['status']
 
         frames_bytes = []
         for i in range(1, FRAME_COUNT + 1):
