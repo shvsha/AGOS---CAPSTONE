@@ -68,6 +68,14 @@ class AlertThreshold(models.Model):
     critical_pct = models.FloatField(
         help_text="Water level % of canal_depth that triggers a Critical classification."
     )
+    reading_interval_seconds = models.PositiveIntegerField(
+        default=300,
+        help_text="Recommended seconds between sensor readings for this rainfall condition."
+    )
+    clear_streak_count = models.PositiveIntegerField(
+        default=5,
+        help_text="Consecutive confirmed-clear readings (clog_pct < 30) required to auto-clear an open ClogEvent."
+    )
 
     class Meta:
         db_table = 'tbl_alert_thresholds'

@@ -4,13 +4,14 @@ from django.conf import settings
 
 class Alert(models.Model):
     ALERT_TYPE_CHOICES = [
-        ('Water_Level_Rising', 'Water Level Rising'),
-        ('Critical_Clog',      'Critical Clog'),
-        ('High_Clog_Index',    'High Clog Index'),
-        ('Node_Offline',       'Node Offline'),
-        ('Low_Battery',        'Low Battery'),
-        ('Weak_Signal',        'Weak Signal'),
-        ('Sensor_Failure',     'Sensor Failure'),
+        ('Water_Level_Rising',  'Water Level Rising'),
+        ('Low_Clog_Alert',      'Low Clog Alert'),
+        ('Moderate_Clog_Alert', 'Moderate Clog Alert'),
+        ('Critical_Clog',       'Critical Clog'),
+        ('Node_Offline',        'Node Offline'),
+        ('Low_Battery',         'Low Battery'),
+        ('Weak_Signal',         'Weak Signal'),
+        ('Sensor_Failure',      'Sensor Failure'),
     ]
 
     alert_id = models.AutoField(primary_key=True)

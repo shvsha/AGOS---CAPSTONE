@@ -35,7 +35,12 @@ class ClogEvent(models.Model):
         blank=True,
         db_column='classification_id'
     )
+    clear_streak = models.PositiveIntegerField(default=0)
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES)
+    first_severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, null=True, blank=True)
+    peak_severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, null=True, blank=True)
+
+    
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Detected')
     detected_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)

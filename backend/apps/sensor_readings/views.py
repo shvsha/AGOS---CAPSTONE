@@ -57,7 +57,10 @@ def compute_optical_flow(frames_bytes: list, camera_height_cm: float):
         return None
 
     first_arr = np.frombuffer(frames_bytes[0], dtype=np.uint8)
-    first_frame = cv2.imdecode(first_arr, cv2.IMREAD_GRAYSCALE)
+    try:
+        first_frame = cv2.imdecode(first_arr, cv2.IMREAD_GRAYSCALE)
+    except cv2.error:
+        first_frame = None
     if first_frame is None:
         return None
 
@@ -83,7 +86,10 @@ def compute_optical_flow(frames_bytes: list, camera_height_cm: float):
 
     for i in range(1, len(frames_bytes)):
         curr_arr = np.frombuffer(frames_bytes[i], dtype=np.uint8)
-        curr_gray = cv2.imdecode(curr_arr, cv2.IMREAD_GRAYSCALE)
+        try:
+            curr_gray = cv2.imdecode(curr_arr, cv2.IMREAD_GRAYSCALE)
+        except cv2.error:
+            curr_gray = None
         if curr_gray is None:
             continue
 
@@ -146,16 +152,15 @@ def compute_trend_contribution(node, current_water_level: float) -> float:
 # clog_pct
 # ------------------------------------------------------------------
 
-def compute_clog_pct(flow_rate, trend_contribution: float) -> float:
+def compute_clog_pct(flow_rate, trend_contribution: float):
     if flow_rate is None:
-        flow_contribution = 0.5
-    else:
-        normalized_flow = min(flow_rate / MAX_FLOW_RATE, 1.0)
-        flow_contribution = 1.0 - normalized_flow
+        return None
+
+    normalized_flow = min(flow_rate / MAX_FLOW_RATE, 1.0)
+    flow_contribution = 1.0 - normalized_flow
 
     clog = (WEIGHT_FLOW * flow_contribution) + (WEIGHT_TREND * trend_contribution)
     return round(min(clog * 100, 100.0), 2)
-
 
 # ------------------------------------------------------------------
 # water_flow category
@@ -285,7 +290,7 @@ class SensorReadingWithFlowView(APIView):
             clog_pct=clog_pct,
         )
 
-        if clog_pct >= CLASSIFY_THRESHOLD:
+        if clog_pct is not None and clog_pct >= CLASSIFY_THRESHOLD:
             self._handle_clog_classification(
                 node=node,
                 reading=reading,

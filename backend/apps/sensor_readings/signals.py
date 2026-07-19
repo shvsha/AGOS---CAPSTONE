@@ -8,10 +8,27 @@ from .models import SensorReading
 from apps.clog_events.models import ClogEvent
 from apps.alerts.models import Alert
 
+from apps.rainfall.services import get_effective_condition
+from apps.rainfall.models import AlertThreshold
+
+
+def get_clear_streak_count(barangay):
+    condition = get_effective_condition(barangay) if barangay else 'None'
+    try:
+        return AlertThreshold.objects.get(condition=condition).clear_streak_count
+    except AlertThreshold.DoesNotExist:
+        return 5  # safe fallback
+
 CLOG_PCT_THRESHOLDS = {
     'High':   80,
     'Medium': 60,
     'Low':    30,
+}
+
+CLOG_SEVERITY_RANK = {
+    'Low': 1,
+    'Medium': 2,
+    'High': 3,
 }
 
 WATER_LEVEL_SEVERITY_RANK = {
@@ -21,6 +38,7 @@ WATER_LEVEL_SEVERITY_RANK = {
 }
 
 WATER_LEVEL_COOLDOWN = timedelta(hours=1)
+CLOG_ALERT_COOLDOWN = timedelta(hours=1)
 
 
 def get_clog_severity(clog_pct):
@@ -71,41 +89,80 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
                 }
             )
 
-    # --- ClogEvent — only if none already open ---------------------
-    severity = get_clog_severity(instance.clog_pct)
-    if severity is None:
-        return
+    CLOG_ALERT_TYPE_BY_SEVERITY = {
+        'Low':    'Low_Clog_Alert',
+        'Medium': 'Moderate_Clog_Alert',
+        'High':   'Critical_Clog',
+    }
 
+    # --- ClogEvent ---------------------------------------------------
     already_open = ClogEvent.objects.filter(
         node=instance.node,
         status__in=['Detected', 'Responded']
     ).first()
 
+    severity = get_clog_severity(instance.clog_pct)
+
+    if severity is None:
+        if instance.clog_pct is None:
+            return
+
+        # Genuine confirmed-clear reading (clog_pct is a real number, just < 30%).
+        if already_open:
+            already_open.clear_streak += 1
+            required = get_clear_streak_count(already_open.barangay)
+            if already_open.clear_streak >= required:
+                already_open.status = 'Cleared'
+                already_open.resolved_at = timezone.now()
+            already_open.save()
+        return
+
+    # From here on, this reading is a genuine Low/Medium/High clog.
     if not already_open:
         clog_event = ClogEvent.objects.create(
             node=instance.node,
             barangay=instance.node.barangay,
             severity=severity,
+            first_severity=severity,
+            peak_severity=severity,
+            clear_streak=0,
             status='Detected'
         )
     else:
         clog_event = already_open
-        severity_rank = {'Low': 1, 'Medium': 2, 'High': 3}
-        if severity_rank.get(severity, 0) > severity_rank.get(already_open.severity, 0):
-            clog_event.severity = severity
-            clog_event.save()
+        clog_event.clear_streak = 0  # any real clog reading breaks the clear streak
 
-    # Re-alert every 6 hours while the clog event is still unresolved.
-    re_alert_type = 'Critical_Clog' if clog_event.severity == 'High' else 'High_Clog_Index'
-    recently_alerted = Alert.objects.filter(
+        if severity != clog_event.severity:
+            clog_event.severity = severity
+
+        if CLOG_SEVERITY_RANK.get(severity, 0) > CLOG_SEVERITY_RANK.get(clog_event.peak_severity, 0):
+            clog_event.peak_severity = severity
+
+        clog_event.save()
+
+    last_alert = Alert.objects.filter(
         node=instance.node,
-        alert_type=re_alert_type,
-        timestamp__gte=timezone.now() - timedelta(hours=6)
-    ).exists()
-    if not recently_alerted:
+        event=clog_event,
+    ).order_by('-timestamp').first()
+
+    re_alert_type = CLOG_ALERT_TYPE_BY_SEVERITY[clog_event.severity]
+
+    should_alert = False
+    if last_alert is None:
+        should_alert = True
+    else:
+        cooldown_expired = (timezone.now() - last_alert.timestamp) >= CLOG_ALERT_COOLDOWN
+        last_severity = last_alert.alert_context.get('severity', clog_event.severity)
+        is_escalation = (
+            CLOG_SEVERITY_RANK.get(clog_event.severity, 0)
+            > CLOG_SEVERITY_RANK.get(last_severity, 0)
+        )
+        should_alert = cooldown_expired or is_escalation
+
+    if should_alert:
         Alert.objects.create(
             event=clog_event,
             node=instance.node,
             alert_type=re_alert_type,
-            alert_context={}
+            alert_context={'severity': clog_event.severity}
         )
