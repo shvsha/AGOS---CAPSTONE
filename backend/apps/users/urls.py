@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (LoginView, LogoutView, MeView, UserListView, UserDetailView, ForgotPasswordView, VerifyOTPView, ResetPasswordView, InitialSetupView, TokenRefreshView, ChangePasswordView
+from .views import (LoginView, LogoutView, MeView, UserListView, UserDetailView, ForgotPasswordView, VerifyOTPView, ResetPasswordView, InitialSetupView, TokenRefreshView, ChangePasswordView, MobileLoginView, MobileTokenRefreshView, MobileLogoutView,
 )
 
 urlpatterns = [
@@ -14,4 +14,9 @@ urlpatterns = [
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/<int:user_id>/', UserDetailView.as_view(), name='user-detail'),
+
+    # mobile
+    path('auth/mobile-login/', MobileLoginView.as_view(), name='mobile-login'),
+    path('auth/mobile-token/refresh/', MobileTokenRefreshView.as_view(), name='mobile-token-refresh'),
+    path('auth/mobile-logout/', MobileLogoutView.as_view(), name='mobile-logout'),
 ]
