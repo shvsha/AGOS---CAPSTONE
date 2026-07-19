@@ -322,3 +322,104 @@ class ChangePasswordView(APIView):
         user.save()
 
         return Response({'message': 'Password changed successfully'})
+    
+
+class MobileLoginView(APIView):
+    """
+    Login endpoint for the AGOS mobile app (Barangay personnel only).
+    Returns tokens in the JSON body instead of cookies — Expo stores
+    them itself via expo-secure-store.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        if not email or not password:
+            return Response(
+                {'error': 'Email and password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = authenticate(request, email=email, password=password)
+
+        if not user:
+            return Response(
+                {'error': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if user.status == 'Inactive':
+            return Response(
+                {'error': 'Account is inactive'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if user.user_role != 'Barangay':
+            return Response(
+                {'error': 'This app is for Barangay personnel accounts only'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        refresh = RefreshToken.for_user(user)
+        access_token  = str(refresh.access_token)
+        refresh_token = str(refresh)
+        user_data     = UserSerializer(user).data
+
+        log_action(
+            user=user,
+            action='Login',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({
+            'access': access_token,
+            'refresh': refresh_token,
+            'user': user_data
+        })
+
+
+class MobileTokenRefreshView(APIView):
+    """
+    Refresh endpoint for mobile — reads the refresh token from the
+    request body instead of a cookie.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'error': 'No refresh token provided'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            token = RefreshToken(refresh_token)
+            new_access = str(token.access_token)
+            return Response({'access': new_access})
+        except Exception:
+            return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+
+class MobileLogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get('refresh')
+            if refresh_token:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+
+            log_action(
+                user=request.user,
+                action='Logout',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+
+            return Response({'message': 'Logged out successfully'})
+
+        except Exception:
+            return Response(
+                {'error': 'Invalid token'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
