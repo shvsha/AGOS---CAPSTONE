@@ -5,6 +5,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 
+import "../global.css";
 
 function AuthGate() {
   const { user, isLoading } = useAuth();
