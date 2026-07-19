@@ -6,6 +6,7 @@ from .models import SensorNode, SystemHealthLog
 from .serializers import SensorNodeSerializer, SystemHealthLogSerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.rainfall.services import get_effective_condition, AlertThreshold
 
 
 class SensorNodeListView(generics.ListCreateAPIView):
@@ -145,6 +146,14 @@ class SensorNodeConfigView(APIView):
         sensor_height = node.hotspot.sensor_height if node.hotspot else None
         canal_depth = node.hotspot.canal_depth if node.hotspot else None
 
+        reading_interval_seconds = 300
+        if node.barangay:
+            condition = get_effective_condition(node.barangay)
+            try:
+                reading_interval_seconds = AlertThreshold.objects.get(condition=condition).reading_interval_seconds
+            except AlertThreshold.DoesNotExist:
+                pass
+
         return Response({
             'node_id': node.node_id,
             'node_name': node.node_name,
@@ -152,6 +161,7 @@ class SensorNodeConfigView(APIView):
             'hotspot_name': node.hotspot.name if node.hotspot else None,
             'sensor_height': sensor_height,
             'canal_depth': canal_depth,
+            'reading_interval_seconds': reading_interval_seconds,
             'availability_status': node.availability_status,
             'status': node.status,
         }, status=status.HTTP_200_OK)
