@@ -67,8 +67,6 @@ export default function Login() {
         <View style={styles.card}>
           {/* logo */}
           <View style={styles.logoWrap}>
-            {/* swap this View for an <Image source={require('../assets/agos-logo.png')} .../>
-                once the logo asset is in the mobile project */}
             <Text style={styles.logoText}>AGOS</Text>
           </View>
 
