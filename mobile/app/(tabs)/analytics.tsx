@@ -3,8 +3,18 @@ import { View, Text, StyleSheet } from 'react-native'
 
 export default function analytics() {
   return (
-    <View>
-      <Text>ANALYTICS</Text>
+    <View style={styles.container}>
+      <Text style={styles.text}>ANALYTICS</Text>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white'
+  },
+  text: { fontSize: 16}
+})

@@ -1,9 +1,13 @@
 import { useState } from 'react'
-import { View, Text, Button, StyleSheet } from 'react-native'
+import { View, Text, Button, StyleSheet, Pressable } from 'react-native'
+
+import { useAuth } from '@/lib/AuthContext'
 
 const BASE_URL = 'http://192.168.1.6:8000'
 
 export default function TabOneScreen() {
+  const { logout } = useAuth()
+
   const [result, setResult] = useState('Not tested yet')
 
   const testConnection = async () => {
@@ -25,11 +29,15 @@ export default function TabOneScreen() {
     <View style={styles.container}>
       <Text style={styles.text}>{result}</Text>
       <Button title="Test Backend Connection" onPress={testConnection} />
+
+      <Pressable onPress={logout}>
+        <Text style={styles.text}>Log out (temp)</Text>
+      </Pressable>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 20 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 20, backgroundColor: 'white' },
   text: { fontSize: 16, textAlign: 'center' },
 })
