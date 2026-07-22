@@ -34,10 +34,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4', 
-                 
-                 'finale-concave-angles.ngrok-free.dev', 'batman-bye-tradition-nuts.trycloudflare.com', 'services-inform-spiritual-pulled.trycloudflare.com', 'pizza-figure-guaranteed-data.trycloudflare.com'
-                 
+ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4','10.151.227.172', 'competing-elite-warming-toolbox.trycloudflare.com'
                  ]
 
 

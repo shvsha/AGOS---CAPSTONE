@@ -59,7 +59,7 @@ export default function ReportProgressBar({ reports, month }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center -mt-10 mr-25">
+      <div className="flex items-center -mt-10 mr-25 -mb-3">
         {legend.map((item, i) => (
           <div key={item.label} className="flex items-center flex-1">
             {i > 0 && <div className="w-px h-8 bg-[#C6C6C8] shrink-0 mr-4" />}
