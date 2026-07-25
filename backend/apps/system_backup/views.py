@@ -4,6 +4,7 @@ from django.http import FileResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from datetime import datetime
 from rest_framework.parsers import MultiPartParser
 
 from apps.users.permissions import IsAdmin
@@ -20,6 +21,12 @@ class ManualBackupView(APIView):
         try:
             archive_path = create_backup_archive(tmp_dir)
             file_name = os.path.basename(archive_path)
+
+            config = BackupConfig.objects.filter(config_id=1).first()
+            if config and config.server_backup_path and os.path.isdir(config.server_backup_path):
+                import shutil
+                server_copy_path = os.path.join(config.server_backup_path, file_name)
+                shutil.copy2(archive_path, server_copy_path)
 
             BackupLog.objects.create(
                 backup_type='manual',
@@ -138,3 +145,72 @@ class BackupLogListView(APIView):
         logs = BackupLog.objects.all().order_by('-created_at')[:20]
         serializer = BackupLogSerializer(logs, many=True)
         return Response(serializer.data)
+
+
+class RestorePointListView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        config = BackupConfig.objects.filter(config_id=1).first()
+
+        if not config or not config.server_backup_path or not os.path.isdir(config.server_backup_path):
+            return Response([])
+
+        entries = []
+        for filename in os.listdir(config.server_backup_path):
+            if not filename.endswith('.zip'):
+                continue
+            full_path = os.path.join(config.server_backup_path, filename)
+            entries.append({
+                'file_name': filename,
+                'size_bytes': os.path.getsize(full_path),
+                'modified_at': datetime.fromtimestamp(os.path.getmtime(full_path)).isoformat(),
+            })
+
+        entries.sort(key=lambda e: e['modified_at'], reverse=True)
+        return Response(entries)
+
+
+class RestoreFromServerView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        file_name = request.data.get('file_name')
+
+        if not file_name:
+            return Response({'error': 'file_name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        config = BackupConfig.objects.filter(config_id=1).first()
+        if not config or not config.server_backup_path:
+            return Response({'error': 'No server backup path configured.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prevent path traversal — only allow a bare filename, not "../../something"
+        safe_name = os.path.basename(file_name)
+        full_path = os.path.join(config.server_backup_path, safe_name)
+
+        if not os.path.isfile(full_path):
+            return Response({'error': f'Backup file not found: {safe_name}'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            restore_backup_archive(full_path)
+
+            BackupLog.objects.create(
+                backup_type='restore',
+                status='success',
+                triggered_by=request.user,
+                file_name=safe_name,
+            )
+            return Response({'message': 'System restored successfully.'})
+
+        except Exception as e:
+            BackupLog.objects.create(
+                backup_type='restore',
+                status='failed',
+                triggered_by=request.user,
+                file_name=safe_name,
+                error_message=str(e),
+            )
+            return Response(
+                {'error': f'Restore failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
