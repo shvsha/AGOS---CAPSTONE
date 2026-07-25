@@ -33,6 +33,7 @@ const pageTitles: Record<string, string> = {
   "/admin/history/monthly-reports": "Municipal Reports",
   "/admin/health": "Sensor Nodes Health",
   "/admin/audit": "System Audit Logs",
+  "/admin/settings": "Settings",
   "/menro/map": "Regional Map Monitoring",
   "/menro/alerts": "Alerts",
   "/menro/analytics": "Waste Analytics",

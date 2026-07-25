@@ -1,0 +1,532 @@
+"use client"
+
+// react
+import { useEffect, useRef, useState } from "react"
+
+// icons
+import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert } from "lucide-react"
+
+// lib
+import { api } from "@/lib/api"
+import { getAccessToken } from "@/lib/auth"
+
+//d shadcn components
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table"
+import { DialogModal } from "@/components/DialogModal"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
+
+// components 
+import { SpinnerIcon } from "@/components/SpinnerIcon"
+
+// table pagination
+import { usePagination } from "@/components/hooks/usePagination";
+import { TablePagination } from "@/components/TablePagination";
+
+
+type BackupConfig = {
+  config_id: number
+  auto_backup_enabled: boolean
+  frequency: "daily" | "weekly" | "monthly"
+  server_backup_path: string | null
+  updated_at: string
+}
+
+type BackupLog = {
+  log_id: number
+  backup_type: "manual" | "scheduled" | "restore"
+  status: "success" | "failed"
+  triggered_by_name: string
+  file_name: string | null
+  error_message: string | null
+  created_at: string
+}
+
+type RestorePoint = {
+  file_name: string
+  size_bytes: number
+  modified_at: string
+}
+
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
+
+export default function Page() {
+  const { toasts, addToast, removeToast } = useToast()
+
+  const [loading, setLoading] = useState(true)
+  const [config, setConfig] = useState<BackupConfig | null>(null)
+  const [logs, setLogs] = useState<BackupLog[]>([])
+
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [backingUp, setBackingUp] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+
+  const [pathInput, setPathInput] = useState("")
+  const [frequencyInput, setFrequencyInput] = useState<"daily" | "weekly" | "monthly">("weekly")
+  const [autoEnabled, setAutoEnabled] = useState(false)
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [confirmRestoreOpen, setConfirmRestoreOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [restorePoints, setRestorePoints] = useState<RestorePoint[]>([])
+  const [selectedRestorePoint, setSelectedRestorePoint] = useState<RestorePoint | null>(null)
+  const [confirmServerRestoreOpen, setConfirmServerRestoreOpen] = useState(false)
+  const [restoringFromServer, setRestoringFromServer] = useState(false)
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(logs, 8)
+
+  const lastManual = logs.find(l => l.backup_type === "manual" && l.status === "success")
+  const lastScheduled = logs
+    .filter(l => l.backup_type === "scheduled")
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+  async function loadData() {
+    try {
+      const [configRes, logsRes, restorePointsRes] = await Promise.all([
+        api.get("/api/backup/config/"),
+        api.get("/api/backup/logs/"),
+        api.get("/api/backup/restore-points/"),
+      ])
+      setConfig(configRes)
+      setPathInput(configRes.server_backup_path ?? "")
+      setFrequencyInput(configRes.frequency)
+      setAutoEnabled(configRes.auto_backup_enabled)
+      setLogs(logsRes)
+      setRestorePoints(restorePointsRes)
+    } catch {
+      addToast("Failed to load backup settings.", "error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function handleSaveConfig() {
+    setSavingConfig(true)
+    try {
+      await api.patch("/api/backup/config/", {
+        auto_backup_enabled: autoEnabled,
+        frequency: frequencyInput,
+        server_backup_path: pathInput,
+      })
+      addToast("Backup settings saved.")
+      loadData()
+    } catch (err: any) {
+      addToast(err?.error || "Failed to save backup settings.", "error")
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  async function handleManualBackup() {
+    setBackingUp(true)
+    try {
+      const token = getAccessToken()
+      const res = await fetch(`${BASE_URL}/api/backup/manual/`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+      })
+
+      if (!res.ok) throw new Error("Backup failed")
+
+      const blob = await res.blob()
+      const disposition = res.headers.get("Content-Disposition")
+      const match = disposition?.match(/filename="?([^"]+)"?/)
+      const filename = match?.[1] || `agos_backup_${Date.now()}.zip`
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      addToast("Backup downloaded successfully.")
+      loadData()
+    } catch {
+      addToast("Failed to create backup.", "error")
+    } finally {
+      setBackingUp(false)
+    }
+  }
+
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.name.endsWith(".zip")) {
+      addToast("Please select a valid .zip backup file.", "error")
+      return
+    }
+    setSelectedFile(file)
+  }
+
+  async function handleConfirmRestore() {
+    if (!selectedFile) return
+    setRestoring(true)
+    try {
+      const token = getAccessToken()
+      const formData = new FormData()
+      formData.append("backup_file", selectedFile)
+
+      const res = await fetch(`${BASE_URL}/api/backup/restore/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+        body: formData,
+      })
+
+      const result = await res.json()
+      if (!res.ok) throw new Error(result?.error || "Restore failed")
+
+      addToast("System restored successfully. Restart the backend for AI model changes to take effect.")
+      loadData()
+    } catch (err: any) {
+      addToast(err?.message || "Restore failed.", "error")
+    } finally {
+      setRestoring(false)
+      setSelectedFile(null)
+      setConfirmRestoreOpen(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  function formatFileSize(bytes: number) {
+    const mb = bytes / (1024 * 1024)
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`
+  }
+
+  async function handleConfirmServerRestore() {
+    if (!selectedRestorePoint) return
+    setRestoringFromServer(true)
+    try {
+      await api.post("/api/backup/restore-from-server/", {
+        file_name: selectedRestorePoint.file_name,
+      })
+      addToast("System restored successfully. Restart the backend for AI model changes to take effect.")
+      loadData()
+    } catch (err: any) {
+      addToast(err?.error || "Restore failed.", "error")
+    } finally {
+      setRestoringFromServer(false)
+      setSelectedRestorePoint(null)
+      setConfirmServerRestoreOpen(false)
+    }
+  }
+
+  return (
+    <>
+      <Toast toasts={toasts} onRemove={removeToast} />
+
+      <div className="hidden md:flex flex-col gap-3">
+
+        {/* Alert Sound section */}
+        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9]">
+          <h2 className="font-bold text-[#122A48] text-lg mb-1">Alert Sound</h2>
+          <p className="text-[#727272] text-sm">Coming soon.</p>
+        </div>
+
+        {/* Backup & Restore section */}
+        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-[#58D07159]">
+              <DatabaseBackup className="w-4 h-4" color="#2C7B3C" />
+            </div>
+            <h2 className="font-bold text-[#122A48] text-base">Backup & Restore</h2>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center h-122">
+              <div className="flex flex-col items-center gap-3 -mt-17">
+                <SpinnerIcon size={24} color="#122A48" />
+                <p className="text-[#122A48]">Loading...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Manual Backup */}
+              <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2">
+                <h3 className="font-semibold text-[#122A48] text-sm">Manual Backup</h3>
+                <p className="text-[#727272] text-xs">
+                  Download a full backup (database, media, and AI models) to your device.
+                </p>
+                <div className="flex items-center justify-between -mt-2">
+                  <span className="text-[#727272] text-xs">
+                    Last manual backup:{" "}
+                    {lastManual
+                      ? new Date(lastManual.created_at).toLocaleString()
+                      : "Never"}
+                  </span>
+                  <Button
+                    onClick={handleManualBackup}
+                    disabled={backingUp}
+                    className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    {backingUp ? "Backing up..." : "Backup Now"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Scheduled Backup */}
+              <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2">
+                <h3 className="font-semibold text-[#122A48] text-sm">Scheduled Backup</h3>
+
+                <div className="flex items-center justify-between">
+                  <label className="text-[#122A48] text-xs font-medium">Enable auto-backup</label>
+                  <button
+                    onClick={() => setAutoEnabled(!autoEnabled)}
+                    className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${autoEnabled ? "bg-[#2C7B3C]" : "bg-[#C6C6C8]"}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${autoEnabled ? "translate-x-5" : "translate-x-0"}`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <label className="text-[#122A48] text-xs font-medium">Frequency</label>
+                  <Select value={frequencyInput} onValueChange={(v) => setFrequencyInput(v as any)}>
+                    <SelectTrigger className="cursor-pointer w-36 h-8 text-xs border-[#C6C6C8]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem className="cursor-pointer" value="daily">Daily</SelectItem>
+                      <SelectItem className="cursor-pointer" value="weekly">Weekly</SelectItem>
+                      <SelectItem className="cursor-pointer" value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[#122A48] text-xs font-medium">Server backup path</label>
+                  <Input
+                    value={pathInput}
+                    onChange={(e) => setPathInput(e.target.value)}
+                    placeholder="e.g. C:\Users\admin\Desktop\agos_scheduled_backups"
+                    className="h-6 py-4 !text-xs border-[#C6C6C8]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[#727272] text-xs flex items-center gap-1 flex-wrap">
+                    Last scheduled backup:{" "}
+                    {lastScheduled ? (
+                      <>
+                        {new Date(lastScheduled.created_at).toLocaleString()}
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] ${
+                            lastScheduled.status === "failed"
+                              ? "bg-[#FFE5E5] text-[#D81010]"
+                              : "bg-[#B2FBC173] text-[#2C7B3C]"
+                          }`}
+                        >
+                          {lastScheduled.status === "failed" ? "Failed" : "Success"}
+                        </span>
+                      </>
+                    ) : (
+                      "Never"
+                    )}
+                  </span>
+                  <Button
+                    onClick={handleSaveConfig}
+                    disabled={savingConfig}
+                    className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-4 h-8 text-xs cursor-pointer"
+                  >
+                    {savingConfig ? "Saving..." : "Save Settings"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Restore */}
+              <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2">
+                <h3 className="font-semibold text-[#122A48] text-sm flex items-center gap-2">
+                  <TriangleAlert className="w-4 h-4 text-[#BB2325]" />
+                  Restore
+                </h3>
+                <p className="text-[#727272] text-xs">
+                  Restoring will overwrite current system data with the contents of the selected backup.
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip"
+                  onChange={handleFileSelected}
+                  className="hidden"
+                  id="restore-file-input"
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-2.5 h-8 text-xs cursor-pointer flex items-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Choose Backup File
+                  </Button>
+
+                  {selectedFile && (
+                    <>
+                      <span className="text-[#122A48] text-xs bg-[#EDEBEB] px-2 py-1 rounded">
+                        {selectedFile.name}
+                      </span>
+                      <Button
+                        onClick={() => setConfirmRestoreOpen(true)}
+                        className="rounded-lg bg-[#BB2325] hover:bg-[#9a1c1e] text-white px-4 h-8 text-xs cursor-pointer"
+                      >
+                        Restore
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                {/* Restore Points */}
+                <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2 flex-1 h-114 overflow-auto-y">
+                  <h3 className="font-semibold text-[#122A48] text-sm">Restore Points</h3>
+                  <p className="text-[#727272] text-xs">
+                    Snapshots available on the server, from scheduled and manual backups.
+                  </p>
+
+                  {restorePoints.length === 0 ? (
+                    <p className="text-[#727272] text-xs italic mt-1">No restore points available yet.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2 mt-1">
+                      {restorePoints.map((point) => (
+                        <div
+                          key={point.file_name}
+                          className="flex items-center justify-between border border-[#C6C6C8] rounded-lg px-3 py-2"
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-[#122A48] text-xs font-medium">{point.file_name}</span>
+                            <span className="text-[#727272] text-[11px]">
+                              {new Date(point.modified_at).toLocaleString()} · {formatFileSize(point.size_bytes)}
+                            </span>
+                          </div>
+                          <Button
+                            onClick={() => {
+                              setSelectedRestorePoint(point)
+                              setConfirmServerRestoreOpen(true)
+                            }}
+                            className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-7 text-xs cursor-pointer"
+                          >
+                            Restore
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Backup History */}
+                <div className="border border-[#C6C6C8] rounded-lg flex-1">
+                  <h3 className="font-semibold text-[#122A48] text-sm p-3">Recent Backup Activity</h3>
+                  <Table>
+                    <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
+                      <TableRow>
+                        <TableHead className='text-xs font-semibold text-center text-[#727272]'>TYPE</TableHead>
+                        <TableHead className='text-xs font-semibold text-center text-[#727272]'>STATUS</TableHead>
+                        <TableHead className='text-xs font-semibold text-center text-[#727272]'>BY</TableHead>
+                        <TableHead className='text-xs font-semibold text-center text-[#727272]'>FILE</TableHead>
+                        <TableHead className='text-xs font-semibold text-center text-[#727272]'>DATE</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginated.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-[#727272] text-xs py-4">
+                            No backup activity yet.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginated.map((log) => (
+                          <TableRow key={log.log_id}>
+                            <TableCell className="capitalize text-xs">{log.backup_type}</TableCell>
+                            <TableCell className="text-xs flex justify-center">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${
+                                log.status === 'failed'   ? 'bg-[#FFE5E5] text-[#D81010]' :
+                                'bg-[#B2FBC173] text-[#2C7B3C]'
+                              }`}>
+                                {log.status === 'failed' ? 'Failed' : 'Success'}
+
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs">{log.triggered_by_name}</TableCell>
+                            <TableCell className="text-xs">{log.file_name || "—"}</TableCell>
+                            <TableCell className="text-xs">
+                              {new Date(log.created_at).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+
+                  <div className='mt-auto'>
+                    <TablePagination
+                      totalItems={totalItems}
+                      itemsPerPage={itemsPerPage}
+                      currentPage={currentPage}
+                      onPageChange={setCurrentPage}
+                    />
+                  </div>
+
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <DialogModal
+        open={confirmRestoreOpen}
+        onClose={() => setConfirmRestoreOpen(false)}
+        onConfirm={handleConfirmRestore}
+        color="#F8D7DA"
+        icon={ShieldAlert}
+        iconColor="#BB2325"
+        title="Restore System?"
+        description={
+          <>
+            This will overwrite your current database, media files, and AI models with
+            the contents of <strong>{selectedFile?.name}</strong>. This action cannot be undone.
+          </>
+        }
+        cancelLabel="Cancel"
+        confirmLabel={restoring ? "Restoring..." : "Restore"}
+      />
+
+      <DialogModal
+        open={confirmServerRestoreOpen}
+        onClose={() => setConfirmServerRestoreOpen(false)}
+        onConfirm={handleConfirmServerRestore}
+        color="#F8D7DA"
+        icon={ShieldAlert}
+        iconColor="#BB2325"
+        title="Restore System?"
+        description={
+          <>
+            This will overwrite your current database, media files, and AI models with
+            the contents of <strong>{selectedRestorePoint?.file_name}</strong>. This action cannot be undone.
+          </>
+        }
+        cancelLabel="Cancel"
+        confirmLabel={restoringFromServer ? "Restoring..." : "Restore"}
+      />
+    </>
+  )
+}

@@ -20,16 +20,16 @@ export function TablePagination({ totalItems, itemsPerPage, currentPage, onPageC
 
   return (
     <div className="border-t border-[#C6C6C8] flex justify-between">
-      <div className="p-4 text-[#88898D] text-[13px]">
+      <div className="p-3 text-[#88898D] text-[13px]">
         <p>
           Page
           <span> {currentPage}</span> of <span>{totalPages}</span>
         </p>
       </div>
 
-      <div className="flex gap-4 mt-3 mr-4 font-medium">
+      <div className="flex gap-3 items-center mr-4 font-medium">
         <Button
-          className="text-[#88898D] text-[13px] bg-[#FAFCFD] hover:bg-[#e9eff3] cursor-pointer border border-[#C6C6C8]"
+          className="text-[#88898D] text-[12px] bg-[#FAFCFD] hover:bg-[#e9eff3] cursor-pointer border border-[#C6C6C8]"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={isFirst}
         >
@@ -37,7 +37,7 @@ export function TablePagination({ totalItems, itemsPerPage, currentPage, onPageC
           Previous
         </Button>
         <Button
-          className="text-[#88898D] text-[13px] bg-[#FAFCFD] hover:bg-[#e9eff3] cursor-pointer border border-[#C6C6C8]"
+          className="text-[#88898D] text-[12px] bg-[#FAFCFD] hover:bg-[#e9eff3] cursor-pointer border border-[#C6C6C8]"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={isLast}
         >
