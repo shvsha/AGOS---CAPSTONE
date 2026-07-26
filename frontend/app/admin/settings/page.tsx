@@ -4,11 +4,12 @@
 import { useEffect, useRef, useState } from "react"
 
 // icons
-import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert } from "lucide-react"
+import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert, Bell } from "lucide-react"
 
 // lib
 import { api } from "@/lib/api"
 import { getAccessToken } from "@/lib/auth"
+import { resolveSoundUrl} from '@/lib/soundUtils'
 
 //d shadcn components
 import { Button } from "@/components/ui/button"
@@ -55,6 +56,13 @@ type RestorePoint = {
   modified_at: string
 }
 
+type UploadedSound = { 
+  sound_id: number; 
+  original_filename: string; 
+  file: string; 
+  duration_seconds: number 
+}
+
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -82,6 +90,17 @@ export default function Page() {
   const [confirmServerRestoreOpen, setConfirmServerRestoreOpen] = useState(false)
   const [restoringFromServer, setRestoringFromServer] = useState(false)
 
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [tierValues, setTierValues] = useState({
+    critical: "preset:critical",
+    warning: "preset:warning",
+    info: "preset:info",
+  })
+  const [uploadedSounds, setUploadedSounds] = useState<UploadedSound[]>([])
+  const [uploadingSound, setUploadingSound] = useState(false)
+  const [savingSoundConfig, setSavingSoundConfig] = useState(false)
+  const soundFileInputRef = useRef<HTMLInputElement>(null)
+
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(logs, 8)
 
   const lastManual = logs.find(l => l.backup_type === "manual" && l.status === "success")
@@ -91,10 +110,12 @@ export default function Page() {
 
   async function loadData() {
     try {
-      const [configRes, logsRes, restorePointsRes] = await Promise.all([
+      const [configRes, logsRes, restorePointsRes, soundConfigRes, uploadedSoundsRes] = await Promise.all([
         api.get("/api/backup/config/"),
         api.get("/api/backup/logs/"),
         api.get("/api/backup/restore-points/"),
+        api.get("/api/alert-sounds/config/"),
+        api.get("/api/alert-sounds/"),
       ])
       setConfig(configRes)
       setPathInput(configRes.server_backup_path ?? "")
@@ -102,6 +123,13 @@ export default function Page() {
       setAutoEnabled(configRes.auto_backup_enabled)
       setLogs(logsRes)
       setRestorePoints(restorePointsRes)
+      setSoundEnabled(soundConfigRes.sound_enabled)
+      setTierValues({
+        critical: soundConfigRes.critical_sound,
+        warning: soundConfigRes.warning_sound,
+        info: soundConfigRes.info_sound,
+      })
+      setUploadedSounds(uploadedSoundsRes)
     } catch {
       addToast("Failed to load backup settings.", "error")
     } finally {
@@ -228,6 +256,49 @@ export default function Page() {
     }
   }
 
+  async function handleUploadSound(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingSound(true)
+    try {
+      const token = getAccessToken()
+      const formData = new FormData()
+      formData.append("sound_file", file)
+      const res = await fetch(`${BASE_URL}/api/alert-sounds/upload/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result?.error || "Upload failed")
+      addToast("Sound uploaded successfully.")
+      loadData()
+    } catch (err: any) {
+      addToast(err?.message || "Upload failed.", "error")
+    } finally {
+      setUploadingSound(false)
+      if (soundFileInputRef.current) soundFileInputRef.current.value = ""
+    }
+  }
+
+  async function handleSaveSoundConfig() {
+    setSavingSoundConfig(true)
+    try {
+      await api.patch("/api/alert-sounds/config/", {
+        sound_enabled: soundEnabled,
+        critical_sound: tierValues.critical,
+        warning_sound: tierValues.warning,
+        info_sound: tierValues.info,
+      })
+      addToast("Alert sound settings saved.")
+    } catch (err: any) {
+      addToast(err?.error || "Failed to save.", "error")
+    } finally {
+      setSavingSoundConfig(false)
+    }
+  }
+
+
   return (
     <>
       <Toast toasts={toasts} onRemove={removeToast} />
@@ -235,9 +306,79 @@ export default function Page() {
       <div className="hidden md:flex flex-col gap-3">
 
         {/* Alert Sound section */}
-        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9]">
-          <h2 className="font-bold text-[#122A48] text-lg mb-1">Alert Sound</h2>
-          <p className="text-[#727272] text-sm">Coming soon.</p>
+        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-[#58D07159]">
+              <Bell className="w-4 h-4" color="#2C7B3C" />
+            </div>
+            <h2 className="font-bold text-[#122A48] text-base">Alert Sound</h2>
+          </div>
+
+          <div className="flex items-center justify-between border border-[#C6C6C8] rounded-lg p-3">
+            <label className="text-[#122A48] text-xs font-medium">Enable alert sounds</label>
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${soundEnabled ? "bg-[#2C7B3C]" : "bg-[#C6C6C8]"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${soundEnabled ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
+
+          {(["critical", "warning", "info"] as const).map((tier) => (
+            <div key={tier} className="border border-[#C6C6C8] rounded-lg p-3 flex items-center justify-between gap-3">
+              <span className="text-[#122A48] text-xs font-medium capitalize w-16">{tier}</span>
+
+              <Select
+                value={tierValues[tier]}
+                onValueChange={(v) => setTierValues(prev => ({ ...prev, [tier]: v }))}
+              >
+                <SelectTrigger className="cursor-pointer flex-1 h-8 text-xs border-[#C6C6C8]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value={`preset:${tier}`}>Default ({tier})</SelectItem>
+                  {uploadedSounds.map((s) => (
+                    <SelectItem key={s.sound_id} value={s.file}>
+                      {s.original_filename}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch(() => {})}
+                className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-8 text-xs cursor-pointer"
+              >
+                ▶ Preview
+              </Button>
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between">
+            <input
+              ref={soundFileInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={handleUploadSound}
+              className="hidden"
+            />
+            <Button
+              onClick={() => soundFileInputRef.current?.click()}
+              disabled={uploadingSound}
+              className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-9 text-xs cursor-pointer flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              {uploadingSound ? "Uploading..." : "Upload Custom Sound"}
+            </Button>
+
+            <Button
+              onClick={handleSaveSoundConfig}
+              disabled={savingSoundConfig}
+              className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer"
+            >
+              {savingSoundConfig ? "Saving..." : "Save Settings"}
+            </Button>
+          </div>
         </div>
 
         {/* Backup & Restore section */}
