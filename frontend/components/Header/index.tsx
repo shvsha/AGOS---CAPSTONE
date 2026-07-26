@@ -8,12 +8,26 @@ import Link from 'next/link'
 
 // react
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 
 // lib
 import { fetchWithAuth, getUserRole } from '@/lib/auth'
 import { useDrawer } from '@/lib/drawer-context' 
+import { resolveSoundUrl} from '@/lib/soundUtils'
+
+
+const SEVERITY_MAP: Record<string, "critical" | "warning" | "info"> = {
+  Critical_Clog: "critical",
+  Moderate_Clog_Alert: "warning",
+  Water_Level_Rising: "warning",
+  Low_Clog_Alert: "info",
+  Node_Offline: "info",
+  Low_Battery: "info",
+  Weak_Signal: "info",
+  Sensor_Failure: "info",
+}
+
 
 // map pathnames to page titles
 const pageTitles: Record<string, string> = {
@@ -54,11 +68,23 @@ const alertRoutes: Record<string, string> = {
   Barangay: "/barangay/alerts",
 }
 
+type AlertSoundConfig = {
+  sound_enabled: boolean
+  critical_sound: string
+  warning_sound: string
+  info_sound: string
+}
+
+
 export default function Header() {
   const pathname = usePathname()
   const [alertHref, setAlertHref] = useState("#")
   const [unreadCount, setUnreadCount] = useState(0)
   const { setDrawerOpen } = useDrawer()
+
+  const lastSeenAlertId = useRef<number | null>(null)
+  const soundConfigRef = useRef<AlertSoundConfig | null>(null)
+
 
   useEffect(() => {
     const role = getUserRole()
@@ -79,6 +105,64 @@ export default function Header() {
     fetchUnread()
     // poll every 30 seconds for live updates
     const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Load sound settings once on mount
+  useEffect(() => {
+    async function loadSoundConfig() {
+      try {
+        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alert-sounds/config/`)
+        if (res.ok) soundConfigRef.current = await res.json()
+      } catch {}
+    }
+
+    loadSoundConfig()
+    const interval = setInterval(loadSoundConfig, 3000) //change this later on (3s sya atm)
+    return () => clearInterval(interval)
+  }, [])
+
+  function playAlertSound(alertType: string) {
+    const config = soundConfigRef.current
+    if (!config || !config.sound_enabled) return
+
+    const severity = SEVERITY_MAP[alertType] ?? "info"
+    const soundValue =
+      severity === "critical" ? config.critical_sound :
+      severity === "warning" ? config.warning_sound :
+      config.info_sound
+
+    const audio = new Audio(resolveSoundUrl(soundValue))
+    audio.play().catch(() => {
+      // Browsers block autoplay until the user has interacted with the page at least once — expected, not an error
+    })
+  }
+
+  // Poll for the newest alert, detect genuinely new ones, play a sound once per new alert
+  useEffect(() => {
+    async function checkNewAlert() {
+      try {
+        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/?page_size=1`)
+        if (!res.ok) return
+        const data = await res.json()
+        const latest = data.results?.[0]
+        if (!latest) return
+
+        if (lastSeenAlertId.current === null) {
+          // First load: just remember it, don't play a sound for something that already existed
+          lastSeenAlertId.current = latest.alert_id
+          return
+        }
+
+        if (latest.alert_id > lastSeenAlertId.current) {
+          lastSeenAlertId.current = latest.alert_id
+          playAlertSound(latest.alert_type)
+        }
+      } catch {}
+    }
+
+    checkNewAlert()
+    const interval = setInterval(checkNewAlert, 3000)
     return () => clearInterval(interval)
   }, [])
 

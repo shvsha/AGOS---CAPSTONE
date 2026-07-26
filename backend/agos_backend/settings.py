@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     # not part of the main process of the system
     'apps.training_captures',
     'apps.system_backup',
+    'apps.alert_sounds',
 ]
 
 MIDDLEWARE = [
