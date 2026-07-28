@@ -389,20 +389,20 @@ export default function HotspotManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-120">
+        <div className="flex gap-4 mt-3 h-130">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Hotspot List</p>
 
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">ID</TableHead>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">HOTSPOT NAME</TableHead>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">DESCRIPTION</TableHead>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">LOCATION</TableHead>
-                  {isMENRO && <TableHead className="font-semibold text-center text-[#727272] text-xs">ACTIONS</TableHead>}
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ID</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT NAME</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">DESCRIPTION</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                  {isMENRO && <TableHead className="font-semibold text-left text-[#727272] text-xs">ACTIONS</TableHead>}
                 </TableRow>
               </TableHeader>
 
@@ -444,14 +444,14 @@ export default function HotspotManagement() {
                 ) : (
                   paginated.map(hotspot => (
                     <TableRow key={hotspot.hotspot_id} className="border-b border-[#C6C6C8] text-xs">
-                      <TableCell className="text-[#122A48] text-center h-18">{hotspot.hotspot_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18">{hotspot.barangay_details?.barangay_name}</TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18 font-medium">{hotspot.name}</TableCell>
-                      <TableCell className="text-[#727272] text-center h-18 text-xs max-w-48 truncate">
+                      <TableCell className="text-[#122A48] text-left h-18">{hotspot.hotspot_id}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-18">{hotspot.barangay_details?.barangay_name}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-18 font-medium">{hotspot.name}</TableCell>
+                      <TableCell className="text-[#727272] text-left h-18 text-xs max-w-48 truncate">
                         {hotspot.description || "—"}
                       </TableCell>
 
-                      <TableCell className="text-center h-18">
+                      <TableCell className="text-left h-18">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
                           hotspot.is_occupied
                             ? "bg-[#DBEAFE] text-[#1565BC]"
@@ -462,7 +462,7 @@ export default function HotspotManagement() {
                         </span>
                       </TableCell>
 
-                      <TableCell className="text-[#122A48] text-center h-18">
+                      <TableCell className="text-[#122A48] text-left h-18">
                         <Button
                           onClick={() => setViewMapDialog({ open: true, hotspot })}
                           className="rounded-lg text-xs text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-3 px-3"
@@ -472,7 +472,7 @@ export default function HotspotManagement() {
                       </TableCell>
 
                       {isMENRO && (
-                        <TableCell className="text-[#122A48] flex gap-3 justify-center items-center h-18">
+                        <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-18">
                           <Button
                             onClick={() => setFormDialog({ open: true, hotspot })}
                             className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3 text-xs px-3"

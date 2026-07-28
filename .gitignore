@@ -19,12 +19,16 @@ ai_model/__pycache__/
 ai_model/raw_photos/
 ai_model/raw_photos_pure/
 ai_model/raw_photos_mixed/
+ai_model/raw_photos_removed/
 ai_model/dataset/
 
 ai_model/review/
 ai_model/review_validation/
 
 ai_model/saved_model/*.keras
+
+# plan for ai model
+ai_model/PLANNING.md
 
 # YOLO
 backend/media/training_captures

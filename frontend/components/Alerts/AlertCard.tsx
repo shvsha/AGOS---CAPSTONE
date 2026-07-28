@@ -69,10 +69,11 @@ function getSignalLevel(dbm: number): string {
 }
 
 
-const ALERT_META: Record<string, { label: string; Icon: React.ElementType }> = {
+export const ALERT_META: Record<string, { label: string; Icon: React.ElementType }> = {
   Water_Level_Rising: { label: "Water Level Rising",    Icon: FaWater              },
   Critical_Clog:      { label: "Critical Clog Detected", Icon: FaExclamationTriangle },
-  High_Clog_Index:    { label: "High Clog Index",        Icon: FaExclamationTriangle },
+  Low_Clog_Alert:      { label: "Low Clog Detected",      Icon: FaExclamationTriangle },
+  Moderate_Clog_Alert: { label: "Moderate Clog Detected",  Icon: FaExclamationTriangle },
   Node_Offline:       { label: "Node Offline",           Icon: FaPlug               },
   Low_Battery:        { label: "Low Battery",            Icon: FaBatteryQuarter     },
   Weak_Signal:        { label: "Weak Signal",            Icon: FaSignal             },
@@ -97,7 +98,7 @@ function formatDate(ts: string) {
 }
 
 
-function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }) {
+export function  ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }) {
   if (alertType === "Critical_Clog") {
     const c = ctx as WaterContext & HighClogContext & { clog_pct?: number }
     return (
@@ -166,7 +167,7 @@ function ContextRow({ alertType, ctx }: { alertType: string; ctx: AlertContext }
     )
   }
 
-  if (alertType === "High_Clog_Index") {
+  if (alertType === "Low_Clog_Alert" || alertType === "Moderate_Clog_Alert") {
     const c = ctx as HighClogContext
     if (!c.dominant_waste_type) return null
     return (

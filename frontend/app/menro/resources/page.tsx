@@ -341,11 +341,11 @@ export default function Resources() {
               <Table>
                 <TableHeader className="bg-[#F5F6F9]">
                   <TableRow>
-                    <TableHead className="text-[#727272] text-center text-xs">NODE ID</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">NAME</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">LOCATION</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">STATUS</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">LAST UPDATED</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">NODE ID</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">NAME</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">LOCATION</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">STATUS</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">LAST UPDATED</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -364,19 +364,19 @@ export default function Resources() {
 
                       return (
                         <TableRow key={node.node_id}>
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {node.node_id}
                           </TableCell>
 
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {node.node_name}
                           </TableCell>
 
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {node.barangay_details?.barangay_name ?? "—"}
                           </TableCell>
 
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             <span
                               className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}
                             >
@@ -384,7 +384,7 @@ export default function Resources() {
                             </span>
                           </TableCell>
 
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {latestReading
                               ? new Date(latestReading.timestamp).toLocaleString("en-PH", {
                                   year: "numeric",
@@ -417,9 +417,9 @@ export default function Resources() {
               <Table>
                 <TableHeader className="bg-[#F5F6F9]">
                   <TableRow>
-                    <TableHead className="text-[#727272] text-center text-xs">RANK</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">HOTSPOT</TableHead>
-                    <TableHead className="text-[#727272] text-center text-xs">CLOG SEVERITY INDEX</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">RANK</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">HOTSPOT</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">CLOG SEVERITY INDEX</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -461,19 +461,19 @@ export default function Resources() {
                           className="border-b-0"
                         >
                           {/* Rank */}
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {index + 1}
                           </TableCell>
 
                           {/* Barangay */}
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {
                               waste.node_details.hotspot_details?.name
                             }
                           </TableCell>
 
                           {/* Severity Index */}
-                          <TableCell className="flex justify-center">
+                          <TableCell className="flex justify-left">
                             <div className="flex items-center gap-3">
                               <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
                                 <div
@@ -617,19 +617,19 @@ export default function Resources() {
         </div>
 
         {/* all waste hotspots */}
-        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-62 ">
+        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-71 ">
           <div className="flex gap-2 w-full p-3 items-center">
             <p className="font-bold text-sm">WASTE HOTSPOTS</p> <p className="text-[11px]">&#40;DETAILED LIST&#41;</p>
           </div>
           <Table>
               <TableHeader className="bg-[#CFD8D] border">
               <TableRow>
-                  <TableHead className="text-center text-xs text-[#727272]">NODE</TableHead>
-                  <TableHead className="text-center text-xs text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="text-center text-xs text-[#727272]">CLOG SEVERITY INDEX</TableHead>
-                  <TableHead className="text-center text-xs text-[#727272]">TRASH VOLUME (kg)</TableHead>
-                  <TableHead className="text-center text-xs text-[#727272]">STATUS</TableHead>
-                  <TableHead className="text-center text-xs text-[#727272]">LAST UPDATED</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">NODE</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">CLOG SEVERITY INDEX</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">TRASH VOLUME (kg)</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">STATUS</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">LAST UPDATED</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -673,12 +673,12 @@ export default function Resources() {
 
                           
                           {/* Rank */}
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {waste.node_details.node_id}
                           </TableCell>
 
                           {/* Barangay */}
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {
                               waste.node_details
                                 .barangay_details
@@ -687,7 +687,7 @@ export default function Resources() {
                           </TableCell>
 
                           {/* Severity Index (clog_pct based) */}
-                          <TableCell className="flex justify-center">
+                          <TableCell className="flex justify-left">
                             <div className="flex items-center gap-3">
                               <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
                                 <div
@@ -704,19 +704,19 @@ export default function Resources() {
                             </div>
                           </TableCell>
                           
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {waste.estimated_volume.toFixed(2)} kg
                           </TableCell>
 
                           {/* Status — derived from the same clog_pct as the Severity Index above,
                               so the two columns can never disagree in the same row. */}
-                          <TableCell className="text-center text-xs">
-                            <span className={`text-xs inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}>
+                          <TableCell className="text-left text-xs">
+                            <span className={`text-xs inline-flex items-center gap-1.5 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}>
                               {clogSeverity.label}
-                            </span>
+                            </span> 
                           </TableCell>
 
-                          <TableCell className="text-center text-xs">
+                          <TableCell className="text-left text-xs">
                             {latestReading
                               ? new Date(latestReading.timestamp).toLocaleString("en-PH", {
                                   year: "numeric",
@@ -729,10 +729,6 @@ export default function Resources() {
                                 })
                               : "—"}
                           </TableCell>
-                          
-                            
-
-
                         </TableRow>
                       )
                     })

@@ -225,17 +225,17 @@ export default function Waste() {
         <div className="flex gap-2 mt-2">
           
           {/* TABLE  */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-120 w-250 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-126 w-250 rounded-lg flex flex-col'>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
-                  <TableHead className='font-semibold text-center text-[#727272]'>CLASSIFICATION ID</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>DOMINANT WASTE TYPE</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>TIMESTAMP</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>NODE</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>LOCATION  </TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>READING ID</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>CONFIDENCE</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>CLASSIFICATION ID</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>DOMINANT WASTE TYPE</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>TIMESTAMP</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>NODE</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION  </TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>READING ID</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>CONFIDENCE</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -278,8 +278,8 @@ export default function Waste() {
                         }`}
                         onClick={() => setSelectedWaste(waste)}
                       >
-                        <TableCell className="text-[#122A48] text-center h-18">WCL-20261026-00{waste.classification_id}</TableCell>
-                        <TableCell className="text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">WCL-20261026-00{waste.classification_id}</TableCell>
+                        <TableCell className="text-left h-18">
                           <span className="inline-flex items-center gap-2">
                             <span className={`rounded-full p-1.5 flex items-center justify-center ${
                               waste.dominant_waste_type === 'Biodegradable' ? 'bg-[#51C96A]' :
@@ -296,17 +296,17 @@ export default function Waste() {
                             <span className="text-[#122A48] ">{waste.dominant_waste_type}</span>
                           </span>
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">
                           {waste.timestamp
                             ? new Date(waste.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
                             : '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">
                           {waste.node_details?.node_name ?? '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{waste.node_details?.barangay_details?.barangay_name ?? '—'}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">RDG-0{waste.reading ?? '—'}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{waste.confidence ?? '—'}%</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{waste.node_details?.barangay_details?.barangay_name ?? '—'}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">RDG-0{waste.reading ?? '—'}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{waste.confidence ?? '—'}%</TableCell>
                       </TableRow>
                     ))
 

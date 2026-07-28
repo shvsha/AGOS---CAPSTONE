@@ -1,13 +1,13 @@
 "use client"
 
 // icons
-import { FaSearch } from "react-icons/fa"
-import { Siren } from "lucide-react"
+import { Siren, X } from "lucide-react"
 
 // shadcn
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // react
 import { useEffect, useState, useMemo, useCallback } from "react"
@@ -18,10 +18,13 @@ import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
 
 // component
-import { AlertCard } from "@/components/Alerts/AlertCard"
 import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
 import { usePolling } from "@/components/hooks/usePolling"
+import { ALERT_META, ContextRow } from "@/components/Alerts/AlertCard"
+import { ALERT_STYLE } from "@/lib/constant"
+import { SearchFilter } from "@/components/SearchFilter"
+
 
 type Alert = {
   alert_id: number
@@ -30,12 +33,25 @@ type Alert = {
   barangay_name: string | null
   timestamp: string
   is_read: boolean
+  alert_context: Record<string, any> 
 }
 
 type Barangay = {
   barangay_id: number
   barangay_name: string
 }
+
+const ALERT_TYPES = [
+  { value: "All Alert", label: "All" },
+  { value: "Water_Level_Rising", label: "Water Level Rising" },
+  { value: "Low_Clog_Alert", label: "Low Clog" },
+  { value: "Moderate_Clog_Alert", label: "Moderate Clog" },
+  { value: "Critical_Clog", label: "Critical Clog" },
+  { value: "Node_Offline", label: "Node Offline" },
+  { value: "Low_Battery", label: "Low Battery" },
+  { value: "Weak_Signal", label: "Weak Signal" },
+  { value: "Sensor_Failure", label: "Sensor Failure" },
+]
 
 
 export default function Alerts() {
@@ -51,6 +67,10 @@ export default function Alerts() {
   const [loading, setLoading] = useState<boolean>(true)
   const [fetchError, setFetchError] = useState<boolean>(false)
 
+  // select state
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
   const filteredAlerts = useMemo(() => {
     if (!search.trim()) return alerts
     const q = search.toLowerCase()
@@ -61,7 +81,7 @@ export default function Alerts() {
     )
   }, [alerts, search])
 
-  const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, 5)
+  const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, 9)
 
   const fetchAlerts = async () => {
     setLoading(true)
@@ -118,6 +138,19 @@ export default function Alerts() {
 
   usePolling(fetchAllAlertData, 30000)
 
+  const handleRowClick = async (alert: Alert) => {
+    setSelectedAlert(alert)
+    setDialogOpen(true)
+
+    if (alert.is_read) return
+    try {
+      const token = getAccessToken()
+      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {}, token ?? undefined)
+      setAlerts(prev => prev.map(a =>
+        a.alert_id === alert.alert_id ? { ...a, is_read: true } : a
+      ))
+    } catch {}
+  }
 
    return (
      <>
@@ -126,98 +159,122 @@ export default function Alerts() {
         {/* filter container */}
         <div className="flex justify-between">
           {/* search filter */}
-            <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-11">
-              <FaSearch size={18} className="text-[#C6C6C8]" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search notifications..."
-                className="bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-[500px]"
-              />
-            </div>
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search notification...' height="h-9" width="w-100" />
 
             <div className="flex gap-3">
               {/* barangay filter */}
               <Select value={barangay} onValueChange={setBarangay}>
-                <SelectTrigger className="w-40 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectTrigger className="text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent position="popper" className='w-40 min-w-0'>
-                  <SelectItem value="All Barangay">All Barangay</SelectItem>
+                  <SelectItem className="text-xs" value="All Barangay">All Barangay</SelectItem>
                     {barangays.map(b => (
-                      <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                      <SelectItem className="text-xs" key={b.barangay_id} value={String(b.barangay_id)}>
                         {b.barangay_name}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
 
-              {/* alert type filter */}
-              <Select value={alertType} onValueChange={setAlertType}>
-                <SelectTrigger className="w-45 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent position="popper" className='w-45 min-w-0'>
-                  <SelectItem className="p-2 text-[#122A48]" value="All Alert">All Alert</SelectItem>
-                  <SelectItem value="Water_Level_Rising">Water Level Rising</SelectItem>
-                  <SelectItem value="High_Clog_Index">High Clog Index</SelectItem>
-                  <SelectItem value="Critical_Clog">Critical Clog</SelectItem>
-                  <SelectItem value="Node_Offline">Node Offline</SelectItem>
-                  <SelectItem value="Low_Battery">Low Battery</SelectItem>
-                  <SelectItem value="Weak_Signal">Weak Signal</SelectItem>
-                  <SelectItem value="Sensor_Failure">Sensor Failure</SelectItem>
-                </SelectContent>
-              </Select>
-
               {/* date filter */}
               <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-35 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectTrigger className="text-xs w-35 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent position="popper" className='w-35 min-w-0'>
-                  <SelectItem className="p-2 text-[#122A48]" value="Today">Today</SelectItem>
-                  <SelectItem className="p-2 text-[#122A48]" value="7Days">Last 7 days</SelectItem>
-                  <SelectItem className="p-2 text-[#122A48]" value="30Days">Last 30 days</SelectItem>
+                  <SelectItem className="p-2 text-xs text-[#122A48]" value="Today">Today</SelectItem>
+                  <SelectItem className="p-2 text-xs text-[#122A48]" value="7Days">Last 7 days</SelectItem>
+                  <SelectItem className="p-2 text-xs text-[#122A48]" value="30Days">Last 30 days</SelectItem>
                 </SelectContent>
               </Select>
             </div>
         </div>
 
         {/* notif list container */}
-        <div className="bg-[#F8F9FA] rounded-lg mt-4 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col min-h-[calc(100vh-10rem)]">
-          <div className="flex w-full p-3">
+        <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col h-151">
+          <div className="flex w-full p-3 items-center justify-between flex-wrap gap-2">
             <p className="text-[#122A48] font-semibold">Notifications</p>
+            <div className="flex gap-2 flex-wrap">
+              {ALERT_TYPES.map(t => (
+                <Button
+                  key={t.value}
+                  onClick={() => setAlertType(t.value)}
+                  className={`cursor-pointer rounded-full border px-4 py-1.5 text-xs font-medium transition-colors
+                    ${alertType === t.value
+                      ? "bg-[#1565BC] hover:bg-[#135aa6] text-white"
+                      : "bg-transparent text-[#122A48] border-[#C6C6C8] hover:bg-[#c3dffe]"
+                    }`}
+                >
+                  {t.label}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <hr />
 
-          {/* alert cards */}
-          <div className="flex flex-col gap-3 p-3 flex-1">
-            {/* error fetch */}
-            {fetchError ? (
-              <div className="flex flex-col gap-3 p-3 flex-1 justify-center items-center">
-                <p className="text-[#D81010] font-semibold text-base">Failed to load alerts. Please try again later.</p>
-                <Button onClick={fetchAlerts} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-              </div>
-
-            // no notif
-            ) : filteredAlerts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 flex-1">
-                <div className="rounded-full bg-[#E5E5E6] p-4">
-                  <Siren size={36} color="#727272" />
-                </div>
-                <p className="text-[#122A48] font-bold">No alerts today</p>
-                <p className="text-[#727272] text-sm">
-                  No alerts have been added today.
-                </p>
-              </div>
-
-            // load alerts
-            ) : (
-              paginated.map(alert => (
-                <AlertCard key={alert.alert_id} alert={alert} />
-              ))
-            )}
+          {/* alert table */}
+          <div className="flex flex-col gap-3 flex-1">
+            <Table>
+              <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
+                <TableRow>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>TYPE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DETECTED</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fetchError ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-40">
+                      <div className="flex flex-col gap-3 p-3 flex-1 justify-center items-center">
+                        <p className="text-[#D81010] font-semibold text-sm">Failed to load alerts. Please try again later.</p>
+                        <Button onClick={fetchAlerts} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredAlerts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-40">
+                      <div className="flex flex-col items-center justify-center gap-1 flex-1">
+                        <div className="rounded-full bg-[#E5E5E6] p-4 my-2">
+                          <Siren size={30} color="#727272" />
+                        </div>
+                        <p className="text-[#122A48] font-bold text-sm">No alerts today</p>
+                        <p className="text-[#727272] text-xs">
+                          No alerts have been added today.
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginated.map(alert => {
+                    const meta = ALERT_META[alert.alert_type] ?? { label: alert.alert_type.replace(/_/g, " "), Icon: null }
+                    const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
+                    return (
+                      <TableRow
+                        key={alert.alert_id}
+                        className={`border-b border-[#C6C6C8] cursor-pointer ${alert.is_read ? "opacity-60" : ""} hover:bg-[#f5f5f5]`}
+                        onClick={() => handleRowClick(alert)}
+                      >
+                        <TableCell className="text-[#122A48] text-left h-[50.5px] text-xs">{alert.node_name ?? "—"}</TableCell>
+                        <TableCell className="text-left h-[50.5px] text-xs">
+                          <span className={`inline-flex items-center gap-1.5 px-2 text-[11px] py-1 rounded-full font-semibold ${style.icon}`}>
+                            {meta.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-[#122A48] text-left h-[50.5px] text-xs">{alert.barangay_name ?? "—"}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-[50.5px] text-xs">
+                          {new Date(alert.timestamp).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
 
           {/* pagination */}
@@ -233,8 +290,62 @@ export default function Alerts() {
         </div>
 
       </div>
+
+      {/* Alert Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          {selectedAlert && (() => {
+            const meta = ALERT_META[selectedAlert.alert_type] ?? { label: selectedAlert.alert_type.replace(/_/g, " "), Icon: null }
+            const style = ALERT_STYLE[selectedAlert.alert_type] ?? ALERT_STYLE.default
+            const Icon = meta.Icon
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${style.icon}`}>
+                        {Icon && <Icon size={16} />}
+                      </div>
+                      <p className="font-bold text-sm">{meta.label}</p>
+                    </div>
+                    <button onClick={() => setDialogOpen(false)} className="cursor-pointer">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </DialogHeader>
+
+                <DialogTitle className="sr-only">Alert Details</DialogTitle>
+                <hr />
+
+                <div className="flex flex-col gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <p className="text-[#727272]">Node</p>
+                    <p className="font-medium">{selectedAlert.node_name ?? "—"}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p className="text-[#727272]">Barangay</p>
+                    <p className="font-medium">{selectedAlert.barangay_name ?? "—"}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p className="text-[#727272]">Detected</p>
+                    <p className="font-medium">
+                      {new Date(selectedAlert.timestamp).toLocaleString("en-PH", {
+                        month: "short", day: "numeric", year: "numeric",
+                        hour: "2-digit", minute: "2-digit", hour12: true
+                      })}
+                    </p>
+                  </div>
+
+                  <hr />
+                  <p className="font-semibold text-xs text-[#727272]">DETAILS</p>
+                  <ContextRow alertType={selectedAlert.alert_type} ctx={selectedAlert.alert_context} />
+                </div>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
      
      </>
    )
  }
- 

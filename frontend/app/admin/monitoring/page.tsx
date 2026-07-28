@@ -118,7 +118,7 @@ export default function Monitoring() {
   const [alertDialog, setAlertDialog] = useState(false)
 
   const filtered = getFilteredNode(nodes, condition, search)
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 5)
 
   // summary cards
   const occupiedNodes = nodes
@@ -221,7 +221,7 @@ export default function Monitoring() {
         </div>
 
         {/* body */}
-        <div className='flex gap-4 mt-3 h-120'>
+        <div className='flex gap-4 mt-3 h-129'>
 
           {/* table */}
           <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-205 rounded-lg flex flex-col'>
@@ -250,13 +250,13 @@ export default function Monitoring() {
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
                 <TableRow>
-                  <TableHead className='font-semibold text-center text-[#727272]'>NODE ID</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>BARANGAY</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>WATER LEVEL</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>FLOW RATE</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>CLOG</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>CONDITION</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>NODE ID</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>BARANGAY</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>WATER LEVEL</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>FLOW RATE</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>CLOG</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>CONDITION</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -292,9 +292,9 @@ export default function Monitoring() {
                 ) : (
                   paginated.map(node => (
                     <TableRow key={node.node_id} className='font-medium text-[#122A48]'>
-                      <TableCell className='text-center h-14'>{node.node_id}</TableCell>
-                      <TableCell className='text-center'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
-                      <TableCell className='text-center'>
+                      <TableCell className='text-leftleft h-14'>{node.node_id}</TableCell>
+                      <TableCell className='text-leftleft'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
+                      <TableCell className='text-leftleft'>
                         <Button
                           onClick={() => setViewMapDialog({ open: true, node: node })}
                           className="text-[13px] rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-2.5 px-2"
@@ -303,13 +303,13 @@ export default function Monitoring() {
                           View on map
                         </Button>
                       </TableCell>
-                      <TableCell className='text-center'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
-                      <TableCell className='text-center'>
+                      <TableCell className='text-leftleft'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
+                      <TableCell className='text-leftleft'>
                         {node.water_flow_rate != null ? `${Number(node.water_flow_rate).toFixed(5)} m/s` : "—"}
                         
                       </TableCell>
-                      <TableCell className={`text-center ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
-                      <TableCell className={`text-center font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
+                      <TableCell className={`text-leftleft ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
+                      <TableCell className={`text-left font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -399,7 +399,7 @@ export default function Monitoring() {
                 </div>
 
               </div>
-            </div> */}
+            </div>
 
             {/* clog level legend */}
             <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col'>

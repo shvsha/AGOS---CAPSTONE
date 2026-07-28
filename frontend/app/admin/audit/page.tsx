@@ -110,7 +110,7 @@ export default function Audit() {
     })
   }, [audits, search, startDate, endDate])
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 15)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 13)
 
   const fetchAudits = async () => {
     setLoading(true)
@@ -142,7 +142,7 @@ export default function Audit() {
     fetchAuditLogsData()
   }, [])
 
-  usePolling(fetchAuditLogsData, 3000)
+  usePolling(fetchAuditLogsData, 30000)
 
   // Generate dynamic button label text 
   const dateLabel = useMemo(() => {
@@ -153,7 +153,7 @@ export default function Audit() {
   }, [startDate, endDate])
 
   return (
-    <div className="w-full flex flex-col gap-2 p-3 max-w-full box-border">
+    <div className="w-full flex flex-col gap-2 max-w-full box-border">
 
       {/* Toolbar */}
       <div className="w-full flex gap-3 items-end items-center justify-between ">

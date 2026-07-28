@@ -38,27 +38,7 @@ class AlertSerializer(serializers.ModelSerializer):
         """
         t = obj.alert_type
 
-        if t == 'Critical_Clog':
-            if obj.event and obj.event.classification:
-                classification = obj.event.classification
-                reading = classification.reading
-                return {
-                    'water_level':         reading.water_level,
-                    'water_flow':          reading.water_flow,
-                    'water_flow_rate':     reading.water_flow_rate,
-                    'clog_pct':            reading.clog_pct,
-                    'dominant_waste_type': classification.dominant_waste_type,
-                    'recyclable_pct':      classification.recyclable_pct,
-                    'biodegradable_pct':   classification.biodegradable_pct,
-                    'residual_pct':        classification.residual_pct,
-                    'special_waste_pct':   classification.special_waste_pct,
-                    'confidence':          classification.confidence,
-                    'estimated_volume':    classification.estimated_volume,
-                }
-            # Fallback — use whatever was stored at alert creation time
-            return obj.alert_context if obj.alert_context else {}
-
-        if t == 'High_Clog_Index':
+        if t == 'Critical_Clog' or t in ('Low_Clog_Alert', 'Moderate_Clog_Alert'):
             if obj.event and obj.event.classification:
                 classification = obj.event.classification
                 reading = classification.reading

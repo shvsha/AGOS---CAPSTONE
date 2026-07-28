@@ -123,7 +123,7 @@ export default function Users() {
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 4)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 5)
 
   // summary cards
   const total    = users.length
@@ -284,18 +284,18 @@ export default function Users() {
         </div>
         
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-[435px]">
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-122">
           <p className="text-[#122A48] font-bold mx-3 mb-2">User Accounts</p>
 
-          <div className="h-84">
+          <div>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
-                  <TableHead className="text-[#727272] text-center font-semibold w-12">ID</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold w-2/5">USER</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold w-1/5">ROLE</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold w-1/6">STATUS</TableHead>
-                  <TableHead className="text-[#727272] text-center font-semibold w-1/5">ACTIONS</TableHead>
+                  <TableHead className="text-[#727272] text-left font-semibold w-12">ID</TableHead>
+                  <TableHead className="text-[#727272] text-left font-semibold w-2/5">USER</TableHead>
+                  <TableHead className="text-[#727272] text-left font-semibold w-1/5">ROLE</TableHead>
+                  <TableHead className="text-[#727272] text-left font-semibold w-1/6">STATUS</TableHead>
+                  <TableHead className="text-[#727272] text-left font-semibold w-1/5">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -337,10 +337,10 @@ export default function Users() {
                   ) : (
                     paginated.map(user => (
                       <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
-                        <TableCell className="text-[#122A48] text-center h-18 !min-w-20 ">{user.user_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-17.5 !min-w-20 ">{user.user_id}</TableCell>
 
-                        <TableCell className="text-[#122A48] h-18">
-                          <div className="flex gap-3 items-center ml-35">
+                        <TableCell className="text-[#122A48] h-17.5">
+                          <div className="flex gap-3 items-left">
                             <div
                               className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
                               style={{ backgroundColor: getAvatarColor(user.user_role) }}
@@ -354,13 +354,13 @@ export default function Users() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-[#122A48] h-18">
-                          <div className="w-32 mx-auto text-left">
+                        <TableCell className="text-[#122A48] h-17.5">
+                          <div className="mx-auto text-left">
                             {ROLE_DISPLAY[user.user_role] ?? user.user_role}
                           </div>
                         </TableCell>
                         
-                        <TableCell className="text-center h-18">
+                        <TableCell className="text-left h-17.5">
                           <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
                             user.status === 'Active'
                               ? 'bg-[#B2FBC173] text-[#2C7B3C]'
@@ -373,7 +373,7 @@ export default function Users() {
                           </span>
                         </TableCell>
 
-                        <TableCell className="text-[#122A48] flex gap-3 justify-center items-center h-18">
+                        <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-17.5">
                           <Button 
                             onClick={() => router.push(`/admin/users/form?id=${user.user_id}`)}
                             className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
@@ -408,12 +408,14 @@ export default function Users() {
             </Table>
           </div>
   
-          <TablePagination
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-          />
+          <div className="mt-auto">
+            <TablePagination
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          </div>
 
         </div>
 
