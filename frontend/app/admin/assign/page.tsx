@@ -376,20 +376,20 @@ export default function NodeAssignment() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-108.5">
+        <div className="flex gap-4 mt-3 h-123">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-3 font-bold text-[#122A48]">Assigned Canal Nodes</p>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
-                  <TableHead className="font-semibold text-center text-[#727272]">NODE</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">HOTSPOT</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">INSTALLED</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">ACTIONS</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">NODE</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">BARANGAY</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">NODE NAME</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">HOTSPOT</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">STATUS</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">INSTALLED</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -423,11 +423,11 @@ export default function NodeAssignment() {
                 ) : (
                   paginated.map(node => (
                     <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-center h-18">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18">{node.node_name}</TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18">{node.hotspot_details?.name ?? '—'}</TableCell>
-                      <TableCell className="text-center h-18">
+                      <TableCell className="text-[#122A48] text-left h-18">{node.node_id}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-18">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-18">{node.node_name}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-18">{node.hotspot_details?.name ?? '—'}</TableCell>
+                      <TableCell className="text-left h-18">
                         <Button
                           className="text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
                           onClick={() => setViewMapDialog({ open: true, node })}
@@ -435,7 +435,7 @@ export default function NodeAssignment() {
                           <Map size={16} /> View on map
                         </Button>
                       </TableCell>
-                      <TableCell className="text-center h-18">
+                      <TableCell className="text-left h-18">
                         <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
                           node.status === 'Active' ? 'bg-[#B2FBC173] text-[#2C7B3C]' : 'bg-[#FFE5E5] text-[#D81010]'
                         }`}>
@@ -445,14 +445,14 @@ export default function NodeAssignment() {
                           {node.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18">
+                      <TableCell className="text-[#122A48] text-left h-18">
                         {node.installed_at
                           ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
                               year: 'numeric', month: 'short', day: 'numeric'
                             })
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-center items-center h-18">
+                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-18">
                         <Button
                           onClick={() => setAssignFormDialog({ open: true, node })}
                           className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"

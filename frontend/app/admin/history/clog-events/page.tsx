@@ -215,10 +215,10 @@ useEffect(() => { fetchMedia() }, [selectedClog])
           </div>
 
           <div>
-            {/* <Button className="text-[#122A48] border border-[#C6C6C8] rounded-lg bg-[#FAFCFD] px-3 py-5 cursor-pointer hover:bg-[#d8e9f2]">
+            <Button className="text-[#122A48] border border-[#C6C6C8] rounded-lg bg-[#FAFCFD] px-3 py-5 cursor-pointer hover:bg-[#d8e9f2]">
               <Upload size={23}/>
               Export
-            </Button> */}
+            </Button>
           </div>
 
         </div>
@@ -245,18 +245,18 @@ useEffect(() => { fetchMedia() }, [selectedClog])
         <div className="flex gap-3 mt-3 ">
 
           {/* Table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-112 w-250 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-125 w-250 rounded-lg flex flex-col'>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
-                  <TableHead className='font-semibold text-center text-[#727272]'>EVENT ID</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>SEVERITY</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>DETECTED AT</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>RESOLVED AT</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>WATER LEVEL</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>WATER FLOW</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>STATUS</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>EVENT ID</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>SEVERITY</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>DETECTED AT</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>RESOLVED AT</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>WATER LEVEL</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>WATER FLOW</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>STATUS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -299,8 +299,8 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                         }`}
                         onClick={() => setSelectedClog(clog)}
                        >
-                        <TableCell className="text-[#122A48] text-center h-18">{clog.event_id}</TableCell>
-                        <TableCell className="text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">{clog.event_id}</TableCell>
+                        <TableCell className="text-left h-18">
                           <span className={`inline-flex items-center px-5 py-1 rounded-full text-[13px] font-semibold ${
                             clog.severity === 'High'   ? 'bg-[#FFE5E5] text-[#D81010]' :
                             clog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#E4B600]' :
@@ -309,20 +309,20 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                             {clog.severity}
                           </span>
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">
                           {clog.detected_at
                             ? new Date(clog.detected_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
                             : '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">
                           {clog.resolved_at
                             ? new Date(clog.resolved_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
                             : '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{clog.status}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{clog.status}</TableCell>
                       </TableRow>
                     ))
                   )}

@@ -73,7 +73,7 @@ export default function Analytics() {
   )
 
   const filtered = wasteClassification
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 5)
 
   const wasteByBarangay = allBarangays
     .map(b => {
@@ -171,7 +171,7 @@ export default function Analytics() {
         {/* total cards */}
         <div className="flex justify-between w-full text-[#122A48] gap-3 mt-1">
           {[
-            { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Collected" },
+            { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste Detected" },
             { icon: <Recycle size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: totalRecyclable, label: "Recyclable" },
             { icon: <Leaf size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalBiodegradable, label: "Biodegradable" },
             { icon: <Trash2 size={20} color="#122A48CC" />, bg: "bg-[#D9D9D9]", count: totalResidual, label: "Residual" },
@@ -287,16 +287,16 @@ export default function Analytics() {
           <Table>
             <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
               <TableRow>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>CLASSIFICATION ID</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>NODE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>DOMINANT WASTE TYPE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>RECYCLABLE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>BIODEGRADABLE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>RESIDUAL</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>SPECIAL WASTE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>CONFIDENCE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>ESTIMATED VOLUME</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-xs'>TIMESTAMP</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>CLASSIFICATION ID</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>NODE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>DOMINANT WASTE TYPE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>RECYCLABLE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>BIODEGRADABLE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>RESIDUAL</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>SPECIAL WASTE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>CONFIDENCE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>ESTIMATED VOLUME</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs'>TIMESTAMP</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -328,16 +328,16 @@ export default function Analytics() {
                   ) : (
                     paginated.map(w => (
                       <TableRow key={w.classification_id}>
-                        <TableCell className="text-center text-xs h-10">{w.classification_id}</TableCell>
-                        <TableCell className="text-center text-xs">{w.node_details?.node_name ?? "—"}</TableCell>
-                        <TableCell className="text-center text-xs">{w.dominant_waste_type}</TableCell>
-                        <TableCell className="text-center text-xs">{w.recyclable_pct?.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-xs">{w.biodegradable_pct?.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-xs">{w.residual_pct?.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-xs">{w.special_waste_pct?.toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-xs">{(w.confidence).toFixed(2)}%</TableCell>
-                        <TableCell className="text-center text-xs">{w.estimated_volume.toFixed(2)} kg</TableCell>
-                        <TableCell className="text-center text-xs">
+                        <TableCell className="text-left text-xs h-[35px]">{w.classification_id}</TableCell>
+                        <TableCell className="text-left text-xs">{w.node_details?.node_name ?? "—"}</TableCell>
+                        <TableCell className="text-left text-xs">{w.dominant_waste_type}</TableCell>
+                        <TableCell className="text-left text-xs">{w.recyclable_pct?.toFixed(2)}%</TableCell>
+                        <TableCell className="text-left text-xs">{w.biodegradable_pct?.toFixed(2)}%</TableCell>
+                        <TableCell className="text-left text-xs">{w.residual_pct?.toFixed(2)}%</TableCell>
+                        <TableCell className="text-left text-xs">{w.special_waste_pct?.toFixed(2)}%</TableCell>
+                        <TableCell className="text-left text-xs">{(w.confidence).toFixed(2)}%</TableCell>
+                        <TableCell className="text-left text-xs">{w.estimated_volume.toFixed(2)} kg</TableCell>
+                        <TableCell className="text-left text-xs">
                           {new Date(w.timestamp).toLocaleString()}
                         </TableCell>
                       </TableRow>

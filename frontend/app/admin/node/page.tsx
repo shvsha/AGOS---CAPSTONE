@@ -296,16 +296,16 @@ export default function NodeManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-108.5 overflow-visible">
+        <div className="flex gap-4 mt-3 h-123 overflow-visible">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-3 font-bold text-[#122A48]">IoT Sensor Nodes</p>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
-                  <TableHead className="font-semibold text-center text-[#727272]">NODE ID</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">AVAILABILITY</TableHead>
-                  <TableHead className="font-semibold text-center text-[#727272]">ACTIONS</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">NODE ID</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">NODE NAME</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">AVAILABILITY</TableHead>
+                  <TableHead className="font-semibold text-left text-[#727272]">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -339,9 +339,9 @@ export default function NodeManagement() {
                 ) : (
                   paginated.map(node => (
                     <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-center h-18">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-center h-18">{node.node_name}</TableCell>
-                      <TableCell className="text-center h-18">
+                      <TableCell className="text-[#122A48] text-left h-18">{node.node_id}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-18">{node.node_name}</TableCell>
+                      <TableCell className="text-left h-18">
                         <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
                           node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
                           node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
@@ -355,7 +355,7 @@ export default function NodeManagement() {
                           {node.availability_status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-center items-center h-18 relative">
+                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-18 relative">
                         {/* Available */}
                         {node.availability_status === 'Available' && (
                           <>

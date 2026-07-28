@@ -306,14 +306,14 @@ export default function BarangayReports() {
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg'>
                 <TableRow>
-                  <TableHead className='font-semibold text-center text-[#727272]'>REPORT MONTH</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>RECYCLABLE (kg)</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>BIODEGRADABLE (kg)</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>RESIDUAL (kg)</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>SPECIAL WASTE(kg)</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>AMOUNT SOLD</TableHead>
-                  <TableHead className='font-semibold text-center text-[#727272]'>STATUS</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>REPORT MONTH</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>RECYCLABLE (kg)</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>BIODEGRADABLE (kg)</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>RESIDUAL (kg)</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>SPECIAL WASTE(kg)</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>AMOUNT SOLD</TableHead>
+                  <TableHead className='font-semibold text-left text-[#727272]'>STATUS</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -349,14 +349,14 @@ export default function BarangayReports() {
                   ) : (
                     paginated.map(reports => (
                       <TableRow key={reports.monthly_report_id}>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.report_month}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.barangay_details.barangay_name}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.recyclables_kg}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.biodegradable_kg}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.residual_waste_kg}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.special_waste_kg}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">{reports.amount_sold}</TableCell>
-                        <TableCell className="text-[#122A48] text-center h-18">
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.report_month}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.barangay_details.barangay_name}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.recyclables_kg}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.biodegradable_kg}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.residual_waste_kg}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.special_waste_kg}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">{reports.amount_sold}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-18">
                           <span className={`inline-flex items-center px-5 py-1 rounded-full text-[13px] font-semibold ${
                             reports.status === 'Pending'   ? 'bg-[#F4E4A7] text-[#E4B600]' :
                             'bg-[#B2FBC173] text-[#2C7B3C]'

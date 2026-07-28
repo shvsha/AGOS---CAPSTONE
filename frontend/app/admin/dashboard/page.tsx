@@ -380,16 +380,16 @@ export default function Dashboard() {
 
         {/* sensor node health summary */}
         <>
-          {/* <div className="bg-[#FAFCFD] rounded-lg border border-[#00000040] text-[#122A48] mt-2 p-3">
+          <div className="bg-[#FAFCFD] rounded-lg border border-[#00000040] text-[#122A48] mt-2 p-3">
             <div className="mb-2">
               <p className="font-semibold text-sm">Sensor Node Health Summary</p>
               <p className="text-[12px] text-[#727272]">Average across all active sensor nodes</p>
             </div>
 
-            <div className="flex gap-3"> */}
+            <div className="flex gap-3">
 
               {/* Battery Voltage */}
-              {/* <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Battery size={15} />
@@ -408,10 +408,10 @@ export default function Dashboard() {
                 <p className="text-[10px] text-[#727272] mt-1">
                   {batteryPct != null ? `${batteryPct}% avg. capacity across sensor nodes` : 'No data'}
                 </p>
-              </div> */}
+              </div>
 
               {/* 4G Signal */}
-              {/* <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Signal size={15} />
@@ -430,10 +430,10 @@ export default function Dashboard() {
                 <p className="text-[10px] text-[#727272] mt-1">
                   {avgSignal != null ? getSignalLabel(avgSignal) : 'No data'}
                 </p>
-              </div> */}
+              </div>
 
               {/* Sensor Continuity */}
-              {/* <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <ScanSearch size={15} />
@@ -462,7 +462,7 @@ export default function Dashboard() {
               </div>
 
             </div>
-          </div> */}
+          </div>
         </>
 
         

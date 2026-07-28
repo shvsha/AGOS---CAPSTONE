@@ -293,16 +293,16 @@ const handleConfirmationDialog = () => {
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-[435px]">
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-122">
           <p className="text-[#122A48] font-bold mx-3 mb-2">Barangay List</p>
 
           <Table>
             <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
               <TableRow>
-                <TableHead className="text-[#727272] text-center font-semibold w-16">ID</TableHead>
-                <TableHead className="text-[#727272] text-center font-semibold w-1/3">BARANGAY</TableHead>
-                <TableHead className="text-[#727272] text-center font-semibold w-1/4">LOCATION</TableHead>
-                <TableHead className="text-[#727272] text-center font-semibold w-1/4">ACTIONS</TableHead>
+                <TableHead className="text-[#727272] text-left font-semibold w-16">ID</TableHead>
+                <TableHead className="text-[#727272] text-left font-semibold w-1/3">BARANGAY</TableHead>
+                <TableHead className="text-[#727272] text-left font-semibold w-1/4">LOCATION</TableHead>
+                <TableHead className="text-[#727272] text-left font-semibold w-1/4">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -345,11 +345,11 @@ const handleConfirmationDialog = () => {
               ) : (
                 paginated.map(barangay => (
                   <TableRow key={barangay.barangay_id} className="border-b border-[#C6C6C8]">
-                    <TableCell className="text-[#122A48] text-center h-18">{barangay.barangay_id}</TableCell>
+                    <TableCell className="text-[#122A48] text-left h-18">{barangay.barangay_id}</TableCell>
 
-                    <TableCell className="text-[#122A48] text-center h-18">{barangay.barangay_name}</TableCell>
+                    <TableCell className="text-[#122A48] text-left h-18">{barangay.barangay_name}</TableCell>
 
-                    <TableCell className="text-[#122A48] text-center h-18">
+                    <TableCell className="text-[#122A48] text-left h-18">
                       <Button
                         onClick={() => setViewMapDialog({ open: true, barangay: barangay })}
                         className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-4.5 px-3"
@@ -359,7 +359,7 @@ const handleConfirmationDialog = () => {
                       </Button>
                     </TableCell>
 
-                    <TableCell className="text-[#122A48] flex gap-3 justify-center items-center h-18">
+                    <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-18">
                       <Button
                         onClick={() => handleUnregisterClick(barangay)}
                         className="flex gap-2 text-[#122A48] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
