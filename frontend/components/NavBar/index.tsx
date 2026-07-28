@@ -72,7 +72,6 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Waste Analytics",  href: "/menro/analytics",        icon: <ChartNoAxesCombined size={18} /> },
     { label: "Resource Optimization",        href: "/menro/resources",        icon: <Package size={18} /> },
     { label: "Canal Hotspots",        href: "/menro/hotspots",        icon: <Target size={18} /> },
-    { label: "Barangay Reports", href: "/menro/barangay-reports", icon: <FileBarChart size={18} /> },
     { label: "Monthly Reports",  href: "/menro/reports",          icon: <CalendarDays size={18} /> },
   ],
   MENRO_Staff: [
@@ -81,12 +80,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Waste Analytics",   href: "/menro/analytics",  icon: <ChartNoAxesCombined size={18} /> },
     { label: "Resource Optimization", href: "/menro/resources", icon: <Package size={18} /> },
     { label: "Canal Hotspots",    href: "/menro/hotspots",   icon: <Target size={18} /> },
-  ],
-  Barangay: [
-    { label: "Localized Map",    href: "/barangay/map",           icon: <MapPin size={18} /> },
-    { label: "Alerts",           href: "/barangay/alerts",        icon: <Siren size={18} /> },
-    { label: "Waste Analytics",  href: "/barangay/analytics",     icon: <ChartNoAxesCombined size={18} /> },
-    { label: "Report Submission",href: "/barangay/submit-report", icon: <FileUp size={18} /> },
+    { label: "Barangay Reports", href: "/menro/barangay-reports", icon: <FileBarChart size={18} /> },
   ],
 }
 
