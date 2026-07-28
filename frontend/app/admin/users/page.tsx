@@ -662,7 +662,7 @@ export default function Users() {
             {/* Role */}
             <p className="text-[11px] font-medium text-[#6B7A90] uppercase tracking-wide mb-2">Role</p>
             <div className="flex gap-2 flex-wrap mb-5">
-              {["All", "MENRO", "Barangay"].map(role => (
+              {["All", "MENRO", "MENRO_Staff", "Barangay"].map(role => (
                 <button
                   key={role}
                   onClick={() => setTempRole(role)}

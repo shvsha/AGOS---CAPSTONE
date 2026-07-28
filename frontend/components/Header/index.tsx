@@ -54,10 +54,6 @@ const pageTitles: Record<string, string> = {
   "/menro/resources": "Resource Optimization",
   "/menro/barangay-reports": "Barangay Reports",
   "/menro/reports": "Monthly Reports",
-  "/barangay/map": "Localized Map",
-  "/barangay/alerts": "Alerts",
-  "/barangay/analytics": "Waste Analytics",
-  "/barangay/submit-report": "Report Submission",
 }
 
 // notification route per role
@@ -65,7 +61,6 @@ const alertRoutes: Record<string, string> = {
   Admin: "/admin/alerts",
   MENRO: "/menro/alerts",
   MENRO_Staff: "/menro/alerts",
-  Barangay: "/barangay/alerts",
 }
 
 type AlertSoundConfig = {

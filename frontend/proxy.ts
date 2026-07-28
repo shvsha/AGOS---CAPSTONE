@@ -5,10 +5,9 @@ const ROLE_ROUTES: Record<string, string> = {
   Admin:    '/admin/dashboard',
   MENRO:    '/menro/map',
   MENRO_Staff: '/menro/map',
-  Barangay: '/barangay/map',
 }
 
-const PROTECTED_PREFIXES = ['/admin', '/menro', '/barangay']
+const PROTECTED_PREFIXES = ['/admin', '/menro']
 const CHANGE_PASSWORD_PATH = '/change-password'
 
 function parseUserCookie(raw: string) {

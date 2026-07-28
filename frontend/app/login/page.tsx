@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation"
 
 // lib
 import { api } from "@/lib/api"
-import { setTokens, setUser } from "@/lib/auth"
+import { setTokens, setUser, clearAuth } from "@/lib/auth"
 import { formatCooldown, getErrorMessage } from "@/lib/utils"
 
 const RESEND_COOLDOWNS = [0, 60, 180, 3600]
@@ -94,7 +94,7 @@ export default function Login() {
       if (parsed.user_role === "Admin") router.replace("/admin/dashboard")
       else if (parsed.user_role === "MENRO") router.replace("/menro/map")
       else if (parsed.user_role === "MENRO_Staff") router.replace("/menro/map") 
-      else if (parsed.user_role === "Barangay") router.replace("/barangay/map")
+      else if (parsed.user_role === "Barangay") clearAuth()
     }
   }, [])
 
@@ -130,7 +130,10 @@ export default function Login() {
       if (userRole === "Admin") router.replace("/admin/dashboard")
       else if (userRole === "MENRO") router.replace("/menro/map")
       else if (userRole === "MENRO_Staff") router.replace("/menro/map")
-      else if (userRole === "Barangay") router.replace("/barangay/map")
+      else if (userRole === "Barangay") {
+        clearAuth()
+        setLoginError("Barangay accounts are only available on the AGOS mobile app.")
+      }
       else setLoginError("Unknown user role.")
     } catch (err) {
       setLoginError(getErrorMessage(err))
