@@ -5,6 +5,11 @@ import { SearchFilter } from "@/components/SearchFilter"
 import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
 import { usePolling } from "@/components/hooks/usePolling"
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
+
+// lib
+import { exportPdf } from "@/lib/exportPDF"
 
 // react
 import { useEffect, useState, useCallback } from "react"
@@ -18,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 import { fetchWithAuth } from "@/lib/auth"
 
 // icons
-import { Upload, LayoutGrid, Leaf, Recycle, Trash2, FileSearch } from "lucide-react"
+import { FileDown, LayoutGrid, Leaf, Recycle, Trash2, FileSearch } from "lucide-react"
 
 
 type WasteClassification = {
@@ -58,6 +63,8 @@ export default function Waste() {
   const [fetchError, setFetchError] = useState(false)
 
   const [selectedWaste, setSelectedWaste] = useState<WasteClassification | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const { toasts, addToast, removeToast } = useToast()
 
   function getFilteredWaste(waste: WasteClassification[], barangay: string, dominant_waste: string, node: string, search: string) {
     const q = search.toLowerCase()
@@ -73,7 +80,7 @@ export default function Waste() {
     }
   
     const filtered = getFilteredWaste(wasteClassification, barangayFilterOpt, dominantWaste, sensorNode, search)
-    const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 5)
+    const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 8)
   
     // summary cards
     const total = wasteClassification.length
@@ -135,6 +142,26 @@ export default function Waste() {
 
   usePolling(fetchWasteClassificationData, 3000)
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportPdf(
+        "/api/waste-classifications/export/",
+        {
+          search,
+          barangay: barangayFilterOpt !== "All Barangay" ? barangayFilterOpt : undefined,
+          waste_type: dominantWaste !== "All Waste" ? dominantWaste : undefined,
+          node: sensorNode !== "All Nodes" ? sensorNode : undefined,
+        },
+        "waste-classification.pdf"
+      )
+    } catch {
+      addToast("Failed to export waste classification data.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
+
 
   return (
     <>
@@ -195,10 +222,10 @@ export default function Waste() {
           </div>
 
           <div>
-            {/* <Button className="cursor-pointer rounded-lg bg-[#FAFCFD] hover:bg-[#d5e2e8] text-[#122A48] border border-[#C6C6C8] px-3 py-5">
-              <Upload size={25}/>
-              Export
-            </Button> */}
+            <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+              <FileDown size={16} className="mr-1" />
+              {exporting ? "Exporting..." : "Export PDF"}
+            </Button>
           </div>
 
         </div>
@@ -240,7 +267,7 @@ export default function Waste() {
               </TableHeader>
               <TableBody>
                 {/* fetch error state */}
-                  {fetchError ? (
+                {fetchError ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-15">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
@@ -278,8 +305,8 @@ export default function Waste() {
                         }`}
                         onClick={() => setSelectedWaste(waste)}
                       >
-                        <TableCell className="text-[#122A48] text-left h-18">WCL-20261026-00{waste.classification_id}</TableCell>
-                        <TableCell className="text-left h-18">
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">WCL-20261026-00{waste.classification_id}</TableCell>
+                        <TableCell className="text-left h-13 text-xs">
                           <span className="inline-flex items-center gap-2">
                             <span className={`rounded-full p-1.5 flex items-center justify-center ${
                               waste.dominant_waste_type === 'Biodegradable' ? 'bg-[#51C96A]' :
@@ -296,17 +323,17 @@ export default function Waste() {
                             <span className="text-[#122A48] ">{waste.dominant_waste_type}</span>
                           </span>
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
                           {waste.timestamp
                             ? new Date(waste.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
                             : '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
                           {waste.node_details?.node_name ?? '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">{waste.node_details?.barangay_details?.barangay_name ?? '—'}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">RDG-0{waste.reading ?? '—'}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">{waste.confidence ?? '—'}%</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{waste.node_details?.barangay_details?.barangay_name ?? '—'}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">RDG-0{waste.reading ?? '—'}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{waste.confidence ?? '—'}%</TableCell>
                       </TableRow>
                     ))
 
@@ -431,8 +458,7 @@ export default function Waste() {
 
         </div>
 
-
-
+        <Toast toasts={toasts} onRemove={removeToast} />
 
       </div>
     

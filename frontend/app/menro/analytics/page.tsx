@@ -10,15 +10,21 @@ import { fetchWithAuth } from "@/lib/auth";
 import { PieChart, Pie, Cell } from "recharts"
 
 // icons
-import { Trash, Trash2, Recycle, Leaf, Biohazard, } from "lucide-react";
+import { FileDown, Trash, Trash2, Recycle, Leaf, Biohazard, } from "lucide-react";
 
 // shadcn
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 
 // components
 import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
+
+// lib
+import { exportPdf } from "@/lib/exportPDF"
 
 
 type WasteClassification = {
@@ -50,8 +56,25 @@ export default function Analytics() {
   const [allSensorNodes, setAllSensorNodes] = useState<{ node_id: number; node_name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const { toasts, addToast, removeToast } = useToast()
 
-  console.log(allBarangays)
+  const getMonthOptions = () => {
+    const months = []
+    const year = new Date().getFullYear()
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(year, m, 1)
+      months.push({
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      })
+    }
+    return months
+  }
+
+  const monthOptions = getMonthOptions()
+  const currentMonthValue = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
 
   // summary cards
   const totalWaste = wasteClassification.reduce((sum, w) => sum + (w.estimated_volume || 0), 0)
@@ -94,19 +117,12 @@ export default function Analytics() {
     { name: "Special Waste", value: totalSpecialWaste, color: "#E87C7C" },
   ]
 
-
-  // fetch waste classifications — this month only, paging through ALL
-  // results. The backend defaults to 20 records per page; without paging
-  // through, totals only reflected whichever 20 records happened to be
-  // "most recent" at fetch time, which is why they looked like they were
-  // randomly increasing/decreasing as new readings came in and older ones
-  // fell out of that window.
   const fetchWaste = async () => {
     setLoading(true)
     setFetchError(false)
     try {
       let url: string | null =
-        `${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?range=month&page_size=100`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?month=${selectedMonth}&page_size=100`
       let all: WasteClassification[] = []
 
       while (url) {
@@ -115,7 +131,6 @@ export default function Analytics() {
         const data = await res.json()
 
         if (Array.isArray(data)) {
-          // Non-paginated response shape — nothing more to fetch
           all = data
           url = null
         } else {
@@ -134,7 +149,7 @@ export default function Analytics() {
 
   useEffect(() => {
     fetchWaste()
-  }, [])
+  }, [selectedMonth])
 
   useEffect(() => {
     const fetchBarangays = async () => {
@@ -160,12 +175,48 @@ export default function Analytics() {
     fetchSensorNodes()
   }, [])
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportPdf(
+        "/api/waste-classifications/export/",
+        { month: selectedMonth },
+        `waste-classification-${selectedMonth}.pdf`
+      )
+    } catch {
+      addToast("Failed to export waste analytics.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <>
         <div className="hidden md:flex flex-col text-[#122A48]">
 
-        <div className='w-full'>
-          <p className='font-bold text-base'>Overview</p>
+        <div className='w-full mb-2 flex justify-between'>
+          <div>
+            <p className='font-bold text-base'>Overview</p>
+          </div>
+          <div className="flex gap-2">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="cursor-pointer w-40 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className='w-40 min-w-0'>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} className="p-2 py-1 cursor-pointer text-[#122A48]" value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+              <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+                <FileDown size={16} className="mr-1" />
+                {exporting ? "Exporting..." : "Export PDF"}
+              </Button>
+          </div>
         </div>
 
         {/* total cards */}
@@ -313,13 +364,13 @@ export default function Analytics() {
                   // no node state
                   ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-33">
+                    <TableCell colSpan={10} className="text-center py-13.5">
                       <div className="flex flex-col items-center gap-2">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <Trash2  size={36} color="#727272" />
+                        <div className="rounded-full bg-[#E5E5E6] p-2.5">
+                          <Trash2  size={25} color="#727272" />
                         </div>
-                        <p className="text-[#122A48] font-bold">No waste classifications in the system</p>
-                        <p className="text-[#727272] text-sm">
+                        <p className="text-[#122A48] font-bold text-xs">No waste classifications in the system</p>
+                        <p className="text-[#727272] text-xs">
                           No waste classifications have been added yet.
                         </p>
                       </div>
@@ -359,6 +410,7 @@ export default function Analytics() {
 
       </div>
 
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

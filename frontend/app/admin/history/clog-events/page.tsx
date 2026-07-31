@@ -1,11 +1,13 @@
 "use client"
 
 // icons
-import { Upload, Radar, ArchiveRestore, Clock3, ClipboardCheck, FileSearch, Download, } from "lucide-react"
+import { FileDown, Radar, ArchiveRestore, Clock3, ClipboardCheck, FileSearch, Download, } from "lucide-react"
 
 // component 
 import { SearchFilter } from "@/components/SearchFilter"
 import { usePolling } from "@/components/hooks/usePolling"
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
 
 // react
 import { useState, useEffect, useCallback } from "react"
@@ -24,6 +26,7 @@ import { fetchWithAuth } from "@/lib/auth"
 
 // lib
 import { getDuration } from "@/lib/utils"
+import { exportPdf } from "@/lib/exportPDF"
 
 type Clogs = {
   event_id: number
@@ -84,6 +87,9 @@ export default function ClogEvents() {
   // selected clog state
   const [selectedClog, setSelectedClog] = useState<Clogs | null>(null)
   const [clogMedia, setClogMedia] = useState<ClogMedia[]>([])
+
+  const [exporting, setExporting] = useState(false)
+  const { toasts, addToast, removeToast } = useToast()
 
   function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, search: string) {
     const q = search.toLowerCase()
@@ -174,6 +180,25 @@ useEffect(() => { fetchMedia() }, [selectedClog])
 
   usePolling(fetchClogEventsData, 3000)
 
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportPdf(
+        "/api/clog-events/export/",
+        {
+          search,
+          barangay: barangay !== "All Barangay" ? barangay : undefined,
+          severity: severity !== "All Severity" ? severity : undefined,
+        },
+        "clog-events.pdf"
+      )
+    } catch {
+      addToast("Failed to export clog events.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
+
 
   return (
     <>
@@ -215,9 +240,9 @@ useEffect(() => { fetchMedia() }, [selectedClog])
           </div>
 
           <div>
-            <Button className="text-[#122A48] border border-[#C6C6C8] rounded-lg bg-[#FAFCFD] px-3 py-5 cursor-pointer hover:bg-[#d8e9f2]">
-              <Upload size={23}/>
-              Export
+            <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+              <FileDown size={16} className="mr-1" />
+              {exporting ? "Exporting..." : "Export PDF"}
             </Button>
           </div>
 
@@ -518,8 +543,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
         </div>
 
         </div>
-
-
+        <Toast toasts={toasts} onRemove={removeToast} />
 
       </div>
     </>

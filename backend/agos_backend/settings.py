@@ -34,7 +34,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4','10.151.227.172', 'competing-elite-warming-toolbox.trycloudflare.com'
+ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4','10.151.227.172', 'count-reef-delhi-fixes.trycloudflare.com'
                  ]
 
 
@@ -93,7 +93,7 @@ ROOT_URLCONF = 'agos_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

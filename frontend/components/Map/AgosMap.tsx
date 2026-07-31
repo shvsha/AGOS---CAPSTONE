@@ -131,7 +131,7 @@ function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
             font-size: 11px;
             color: #122A48;
           ">
-            <p style="font-weight:700; margin-bottom:6px;">Risk Level</p>
+            <p style="font-weight:700; margin-bottom:6px;">Live Risk Level</p>
             ${[
               { color: '#727272', label: 'Sleep Mode' },
               { color: colorMode === 'health' ? '#2C7B3C' : '#1565BC', label: 'Normal' },

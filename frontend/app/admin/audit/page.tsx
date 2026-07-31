@@ -1,14 +1,19 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef , useCallback, } from "react"
-import { RadioTower, Calendar as CalendarIcon, ChevronDown } from "lucide-react"
+import { RadioTower, Calendar as CalendarIcon, ChevronDown, FileDown  } from "lucide-react"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination } from "@/components/TablePagination"
+import { Button } from "@/components/ui/button"
 import { usePagination } from "@/components/hooks/usePagination"
 import { SearchFilter } from "@/components/SearchFilter"
 import { api } from "@/lib/api"
+import { exportPdf } from "@/lib/exportPDF"
 import { usePolling } from "@/components/hooks/usePolling"
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
+
 
 const affectedTableLabels: Record<string, string> = {
   tbl_user: 'User Management',
@@ -66,6 +71,25 @@ export default function Audit() {
   
   const [loading, setLoading] = useState<boolean>(true)
   const [fetchError, setFetchError] = useState<boolean>(false)
+
+  const [exporting, setExporting] = useState(false)
+  
+  const { toasts, addToast, removeToast } = useToast()
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportPdf(
+        "/api/audit-logs/export/",
+        { search, start_date: startDate, end_date: endDate },
+        "audit-logs.pdf"
+      )
+    } catch {
+      addToast("Failed to export audit logs.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
   
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -160,7 +184,12 @@ export default function Audit() {
         <SearchFilter value={search} onChange={setSearch} placeholder='Search audit logs...' width="w-180" height="h-11" />
         
         {/* Dropdown Container */}
-        <div className="relative" ref={dropdownRef} >
+        <div className="relative flex gap-2" ref={dropdownRef} >
+          <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+            <FileDown size={16} className="mr-1" />
+            {exporting ? "Exporting..." : "Export PDF"}
+          </Button>
+
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
@@ -276,6 +305,8 @@ export default function Audit() {
         </div>
 
       </div>
+
+    <Toast toasts={toasts} onRemove={removeToast} />
 
     </div>
   )

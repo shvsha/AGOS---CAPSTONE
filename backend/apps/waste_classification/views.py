@@ -1,17 +1,20 @@
+from django.db.models import Q
+from django.utils import timezone
+from agos_backend.pdf_utils import render_to_pdf
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import WasteClassification
 from .serializers import WasteClassificationSerializer
-from apps.users.permissions import IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
+from apps.users.permissions import IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication, IsAdminOrMENRO
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import sys
 import os
 
 
-
 class WasteClassificationListView(generics.ListCreateAPIView):
     serializer_class = WasteClassificationSerializer
+    pagination_class = None
 
     # def get_permissions(self):
     #     if self.request.method == 'GET':
@@ -25,12 +28,29 @@ class WasteClassificationListView(generics.ListCreateAPIView):
         return [IsIoTDevice() if self.request.auth is None else IsAdminOrMENROOrBarangay()]
 
     def get_queryset(self):
+        from datetime import datetime
+        from django.utils import timezone
+
+        month_param = self.request.query_params.get('month')
+        if month_param:
+            try:
+                target = datetime.strptime(month_param, '%Y-%m')
+            except ValueError:
+                target = timezone.now()
+        else:
+            target = timezone.now()
+
+        qs = WasteClassification.objects.select_related(
+            'node', 'node__barangay', 'node__hotspot'
+        ).filter(
+            timestamp__year=target.year, timestamp__month=target.month
+        )
+
         user = self.request.user
         if user.user_role == 'Barangay':
-            return WasteClassification.objects.filter(
-                node__barangay=user.barangay
-            ).order_by('-timestamp')
-        return WasteClassification.objects.all().order_by('-timestamp')
+            qs = qs.filter(node__barangay=user.barangay)
+
+        return qs.order_by('-timestamp')
 
 
 class WasteClassificationDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -114,3 +134,74 @@ class ClassifyWasteView(APIView):
             return Response({'error': 'Sensor reading not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class WasteClassificationExportView(APIView):
+    permission_classes = [IsAdminOrMENRO]
+
+    def get(self, request):
+        from datetime import datetime
+
+        month_param = request.query_params.get('month')
+        if month_param:
+            try:
+                target = datetime.strptime(month_param, '%Y-%m')
+            except ValueError:
+                target = timezone.now()
+        else:
+            target = timezone.now()
+
+        qs = WasteClassification.objects.select_related(
+            'node', 'node__barangay', 'node__hotspot', 'reading'
+        ).filter(
+            timestamp__year=target.year, timestamp__month=target.month
+        ).order_by('-timestamp')
+
+        search = request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(dominant_waste_type__icontains=search) |
+                Q(node__node_name__icontains=search) |
+                Q(node__barangay__barangay_name__icontains=search)
+            )
+
+        barangay = request.query_params.get('barangay')
+        if barangay and barangay != 'All Barangay':
+            qs = qs.filter(node__barangay__barangay_id=barangay)
+
+        waste_type = request.query_params.get('waste_type')
+        if waste_type and waste_type != 'All Waste':
+            qs = qs.filter(dominant_waste_type=waste_type)
+
+        node = request.query_params.get('node')
+        if node and node != 'All Nodes':
+            qs = qs.filter(node__node_id=node)
+
+        columns = ["ID", "Node", "Location", "Dominant Type", "Recyclable", "Biodegradable",
+                   "Residual", "Special Waste", "Confidence", "Est. Volume", "Timestamp"]
+        rows = [
+            [
+                c.classification_id,
+                c.node.node_name if c.node else "—",
+                c.node.barangay.barangay_name if c.node and c.node.barangay else "—",
+                c.dominant_waste_type,
+                f"{c.recyclable_pct:.2f}%",
+                f"{c.biodegradable_pct:.2f}%",
+                f"{c.residual_pct:.2f}%",
+                f"{c.special_waste_pct:.2f}%",
+                f"{c.confidence:.2f}%",
+                f"{c.estimated_volume:.2f} kg",
+                c.timestamp.strftime("%b %d, %Y %I:%M %p"),
+            ]
+            for c in qs
+        ]
+
+        return render_to_pdf(
+            report_title="Waste Classification",
+            columns=columns,
+            rows=rows,
+            accent_color="#347D43",
+            generated_by=f"{request.user.first_name} {request.user.last_name}",
+            orientation="landscape",
+            filename=f"waste-classification-{month_param or target.strftime('%Y-%m')}.pdf",
+        )

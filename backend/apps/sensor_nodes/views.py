@@ -168,9 +168,18 @@ class SensorNodeConfigView(APIView):
 
 
 class SystemHealthLogListView(generics.ListCreateAPIView):
-    queryset = SystemHealthLog.objects.all().order_by('-checked_at')
+    pagination_class = None
     serializer_class = SystemHealthLogSerializer
     authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+
+    def get_queryset(self):
+        from django.utils import timezone
+        now = timezone.now()
+        return SystemHealthLog.objects.select_related(
+            'node', 'node__barangay', 'node__hotspot'
+        ).filter(
+            timestamp__year=now.year, timestamp__month=now.month
+        ).order_by('-checked_at')
 
     def get_permissions(self):
         if self.request.method == 'GET':

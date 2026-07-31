@@ -215,7 +215,6 @@ export default function Map() {
                   onMarkerClick: () => handleSelectNode(n.node_id),
                 }))}
                 zoom={13}
-                colorMode="health"
               />
             </div>
 
@@ -341,71 +340,6 @@ export default function Map() {
               </div>
             </div>
           </div>
-
-          {/* <hr /> */}
-
-          {/* <div className="-mt-1">
-            <div className="w-full">
-              <p>Node Health:</p>
-            </div>
-
-            <div className="mt-1 flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <BatteryMedium size={16} className="shrink-0" />
-                <p className="text-[13px] w-28 shrink-0">Battery Voltage</p>
-                <div className="flex-1 bg-[#E5E5E6] rounded-full h-2">
-                  {pct != null && (
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${getBarColor(pct)}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  )}
-                </div>
-                <p className="text-[13px] w-8 text-right shrink-0">
-                  {pct != null ? `${pct}%` : '—%'}
-                </p>
-              </div> */}
-
-              {/* Signal */}
-              {/* <div className="flex items-center gap-2">
-                <Signal size={16} className="shrink-0" />
-                <p className="text-[13px] w-28 shrink-0">Signal</p>
-                <div className="flex-1 bg-[#E5E5E6] rounded-full h-2">
-                  {signalPct != null && (
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${getBarColor(signalPct)}`}
-                      style={{ width: `${signalPct}%` }}
-                    />
-                  )}
-                </div>
-                <p className="text-[13px] w-8 text-right shrink-0">
-                  {signalPct != null ? `${signalPct}%` : '—%'}
-                </p>
-              </div> */}
-
-              {/* Sensor Continuity */}
-              {/* <div className="flex items-center gap-2">
-                <Radar size={16} className="shrink-0" />
-                <p className="text-[13px] w-28 shrink-0">Continuity</p>
-                <div className="flex-1 bg-[#E5E5E6] rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all duration-500 ${
-                      sensorOk ? 'bg-[#4ADE80]' : 'bg-[#F87171]'
-                    }`}
-                    style={{ width: sensorOk != null ? '100%' : '0%' }}
-                  />
-                </div>
-                <p className="text-[13px] w-8 text-right shrink-0">
-                  {sensorOk != null 
-                    ? (sensorOk ? 'OK' : 'FAIL') 
-                    : '—'}
-                </p>
-              </div>
-
-            </div>
-          </div> */}
-
-          
 
         </DialogContent>
       </Dialog>
