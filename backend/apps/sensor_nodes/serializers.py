@@ -8,6 +8,30 @@ from apps.sensor_readings.models import SensorReading
 CODE_PATTERN = re.compile(r'^[A-Za-z0-9\-]+$')
 
 
+def get_node_identity(node):
+    """Lightweight, query-cheap node info for nesting inside other serializers.
+    No live sensor/health lookups — use SensorNodeSerializer directly if you
+    need water_level/clog_pct/condition/health_status."""
+    if not node:
+        return None
+    return {
+        'node_id': node.node_id,
+        'node_name': node.node_name,
+        'status': node.status,
+        'availability_status': node.availability_status,
+        'barangay_details': {
+            'barangay_id': node.barangay.barangay_id,
+            'barangay_name': node.barangay.barangay_name,
+        } if node.barangay else None,
+        'hotspot_details': {
+            'hotspot_id': node.hotspot.hotspot_id,
+            'name': node.hotspot.name,
+            'latitude': node.hotspot.latitude,
+            'longitude': node.hotspot.longitude,
+        } if node.hotspot else None,
+    }
+
+
 class SensorNodeSerializer(serializers.ModelSerializer):
     barangay = serializers.PrimaryKeyRelatedField(
         queryset=Barangay.objects.all(),
@@ -173,7 +197,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
 
 
 class SystemHealthLogSerializer(serializers.ModelSerializer):
-    node_details = SensorNodeSerializer(source='node', read_only=True)
+    node_details = serializers.SerializerMethodField()
     node = serializers.PrimaryKeyRelatedField(
         queryset=SensorNode.objects.all(),
         write_only=True
@@ -186,3 +210,6 @@ class SystemHealthLogSerializer(serializers.ModelSerializer):
             'battery_voltage', 'signal_strength', 'sensor_continuity',
             'status', 'checked_at',
         ]
+
+    def get_node_details(self, obj):
+        return get_node_identity(obj.node)

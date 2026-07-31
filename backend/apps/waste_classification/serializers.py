@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from .models import WasteClassification
-from apps.sensor_nodes.serializers import SensorNodeSerializer
+from apps.sensor_nodes.serializers import get_node_identity
+
 
 class WasteClassificationSerializer(serializers.ModelSerializer):
     waste_breakdown = serializers.SerializerMethodField()
-    node_details = SensorNodeSerializer(source='node', read_only=True)
+    node_details = serializers.SerializerMethodField()
 
     class Meta:
         model = WasteClassification
@@ -18,3 +19,6 @@ class WasteClassificationSerializer(serializers.ModelSerializer):
             'Special Waste': obj.special_waste_pct,
             'None': obj.none_pct,
         }
+
+    def get_node_details(self, obj):
+        return get_node_identity(obj.node)
