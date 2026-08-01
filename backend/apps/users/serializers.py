@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
             'user_id', 'first_name', 'last_name',
             'email', 'user_role',
             'position', 'barangay_id', 'barangay_details',
-            'status', 'must_change_password',
+            'status', 'must_change_password', 'privacy_agreed_at',
             'created_at', 'updated_at'
         ]
 

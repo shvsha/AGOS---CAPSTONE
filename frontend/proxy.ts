@@ -8,6 +8,7 @@ const ROLE_ROUTES: Record<string, string> = {
 }
 
 const PROTECTED_PREFIXES = ['/admin', '/menro']
+const PRIVACY_CONSENT_PATH = '/privacy-consent'
 const CHANGE_PASSWORD_PATH = '/change-password'
 
 function parseUserCookie(raw: string) {
@@ -16,6 +17,13 @@ function parseUserCookie(raw: string) {
     .replace(/\\"/g, '"')
     .replace(/^"|"$/g, '')
   return JSON.parse(decoded)
+}
+
+// where a user should land next, given the gates that still apply to them
+function nextStepFor(user: any): string | null {
+  if (!user.privacy_agreed_at) return PRIVACY_CONSENT_PATH
+  if (user.must_change_password) return CHANGE_PASSWORD_PATH
+  return ROLE_ROUTES[user.user_role] ?? null
 }
 
 export function proxy(request: NextRequest) {
@@ -35,8 +43,9 @@ export function proxy(request: NextRequest) {
   const isLoginPage = pathname === '/login' || pathname === '/'
   const isProtected = PROTECTED_PREFIXES.some(p => pathname.startsWith(p))
   const isChangePasswordPage = pathname === CHANGE_PASSWORD_PATH
+  const isPrivacyConsentPage = pathname === PRIVACY_CONSENT_PATH
 
-  if (!token && (isProtected || isChangePasswordPage)) {
+  if (!token && (isProtected || isChangePasswordPage || isPrivacyConsentPage)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -49,8 +58,19 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // force mandatory password change before anything else
-  if (token && user?.must_change_password && !isChangePasswordPage) {
+  // gate 1: privacy consent, before anything else
+  if (token && user && !user.privacy_agreed_at && !isPrivacyConsentPage) {
+    return NextResponse.redirect(new URL(PRIVACY_CONSENT_PATH, request.url))
+  }
+
+  // block access to consent page once it's already been given
+  if (token && user && user.privacy_agreed_at && isPrivacyConsentPage) {
+    const next = nextStepFor(user)
+    if (next) return NextResponse.redirect(new URL(next, request.url))
+  }
+
+  // gate 2: mandatory password change
+  if (token && user?.privacy_agreed_at && user?.must_change_password && !isChangePasswordPage) {
     return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
   }
 
@@ -63,13 +83,8 @@ export function proxy(request: NextRequest) {
   }
 
   if (token && isLoginPage && user) {
-    if (user.must_change_password) {
-      return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
-    }
-    const dashboard = ROLE_ROUTES[user.user_role]
-    if (dashboard) {
-      return NextResponse.redirect(new URL(dashboard, request.url))
-    }
+    const next = nextStepFor(user)
+    if (next) return NextResponse.redirect(new URL(next, request.url))
   }
 
   if (token && isProtected && user) {

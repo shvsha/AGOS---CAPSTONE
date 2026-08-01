@@ -10,6 +10,7 @@ from .serializers import UserSerializer, RegisterSerializer
 from apps.audit_logs.utils import log_action
 import json
 from django.conf import settings
+from django.utils import timezone
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -418,3 +419,20 @@ class MobileLogoutView(APIView):
                 {'error': 'Invalid token'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class AgreePrivacyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        request.user.privacy_agreed_at = timezone.now()
+        request.user.save(update_fields=['privacy_agreed_at'])
+
+        log_action(
+            user=request.user,
+            action='Agreed to Privacy Notice',
+            affected_table='tbl_user',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({'user': UserSerializer(request.user).data})

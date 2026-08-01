@@ -95,3 +95,20 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
 
   return res
 }
+
+export const syncUser = (user: object) => {
+  setUser(user)
+  document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=${7*24*60*60}; samesite=Lax`
+}
+
+const ROLE_ROUTES: Record<string, string> = {
+  Admin: '/admin/dashboard',
+  MENRO: '/menro/map',
+  MENRO_Staff: '/menro/map',
+}
+
+export const nextStepFor = (user: any): string | null => {
+  if (!user.privacy_agreed_at) return '/privacy-consent'
+  if (user.must_change_password) return '/change-password'
+  return ROLE_ROUTES[user.user_role] ?? null
+}
