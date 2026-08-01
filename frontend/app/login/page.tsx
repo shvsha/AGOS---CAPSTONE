@@ -20,7 +20,7 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 // lib
-import { api } from "@/lib/api"
+import { api, publicApi } from "@/lib/api"
 import { setTokens, setUser, clearAuth } from "@/lib/auth"
 import { formatCooldown, getErrorMessage } from "@/lib/utils"
 
@@ -105,8 +105,9 @@ export default function Login() {
     if (name === "password") setPassword(value)
   }
 
-  const handleLogin = async (e: React.MouseEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+
     setLoginError("")
     setFieldError("")
 
@@ -117,7 +118,7 @@ export default function Login() {
 
     setIsLoadingLogin(true)
     try {
-      const data = await api.post("/api/auth/login/", { email, password })
+      const data = await publicApi.post("/api/auth/login/", { email, password })
       setTokens(data.access)
       setUser(data.user)
 
@@ -147,7 +148,7 @@ export default function Login() {
     setEmailError("")
     setIsLoadingEmail(true)
     try {
-      await api.post("/api/auth/forgot-password/", { email: resetEmail })
+      await publicApi.post("/api/auth/forgot-password/", { email: resetEmail })
       setChangePasswordOpen(false)
       setCheckEmailOpen(true)
       setOtp(Array(6).fill(""))
@@ -210,7 +211,7 @@ export default function Login() {
     setIsLoadingCode(true)
     const code = otp.join("")
     try {
-      await api.post("/api/auth/verify-code/", { email: resetEmail, code })
+      await publicApi.post("/api/auth/verify-code/", { email: resetEmail, code })
       setCheckEmailOpen(false)
       setNewPasswordOpen(true)
       setValidationError(false)
@@ -234,7 +235,7 @@ export default function Login() {
 
     setIsLoadingReset(true)
     try {
-      await api.post("/api/auth/reset-password/", { email: resetEmail, password: newPassword })
+      await publicApi.post("/api/auth/reset-password/", { email: resetEmail, password: newPassword })
 
       setValidationError(false)
       setNewPasswordOpen(false)
@@ -257,7 +258,7 @@ export default function Login() {
     if (cooldownSeconds > 0 || resendCount >= RESEND_LIMIT) return
     setIsLoadingResend(true)
     try {
-      await api.post("/api/auth/forgot-password/", { email: resetEmail })
+      await publicApi.post("/api/auth/forgot-password/", { email: resetEmail })
       setOtp(Array(6).fill(""))
       setCodeError("")
       setResendSuccess(true)
@@ -294,69 +295,71 @@ export default function Login() {
             <CardTitle className='text-black text-xs sm:text-sm text-center'>AGOS</CardTitle>
             <CardTitle className='text-[#1565BC] font-bold text-sm sm:text-lg text-center'>Automated Geospatial Canal Obstruction Sensing System</CardTitle>
           </CardHeader>
-          <CardContent className='text-center'>
-            <FieldGroup>
-              <Field className='gap-0.5'>
-                <FieldLabel className='text-[#122A48] text-xs sm:text-sm' htmlFor='username'>Email</FieldLabel>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#122A48BA]" />
-                  <Input
-                    name="email"
-                    id="email"
-                    type="text"
-                    value={email}
-                    onChange={e => { handleCredentials(e); setFieldError(""); setLoginError("") }}
-                    className={`border focus:ring-0 bg-[#CDE3DEB0] h-7.5 sm:h-8.5 pl-10 text-xs sm:text-base ${fieldError || loginError ? "border-red-500" : "border-none"}`}
-                  />
-                </div>
-              </Field>
+          <form onSubmit={handleLogin}>
+            <CardContent className='text-center'>
+              <FieldGroup>
+                <Field className='gap-0.5'>
+                  <FieldLabel className='text-[#122A48] text-xs sm:text-sm' htmlFor='username'>Email</FieldLabel>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#122A48BA]" />
+                    <Input
+                      name="email"
+                      id="email"
+                      type="text"
+                      value={email}
+                      onChange={e => { handleCredentials(e); setFieldError(""); setLoginError("") }}
+                      className={`border focus:ring-0 bg-[#CDE3DEB0] h-7.5 sm:h-8.5 pl-10 text-xs sm:text-base ${fieldError || loginError ? "border-red-500" : "border-none"}`}
+                    />
+                  </div>
+                </Field>
 
-              <Field className='gap-0.5 -mt-2'>
-                <FieldLabel className='text-[#122A48] text-xs sm:text-sm' htmlFor='password'>Password</FieldLabel>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#122A48BA]" />
-                  <Input
-                    name="password"
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    autoComplete="off"
-                    onChange={e => { handleCredentials(e); setFieldError(""); setLoginError("") }}
-                    className={`border focus:ring-0 bg-[#CDE3DEB0] h-7.5 sm:h-8.5 pl-10 text-xs sm:text-base pr-10 ${fieldError || loginError ? "border-red-500" : "border-none"}`}
-                  />
+                <Field className='gap-0.5 -mt-2'>
+                  <FieldLabel className='text-[#122A48] text-xs sm:text-sm' htmlFor='password'>Password</FieldLabel>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#122A48BA]" />
+                    <Input
+                      name="password"
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      autoComplete="off"
+                      onChange={e => { handleCredentials(e); setFieldError(""); setLoginError("") }}
+                      className={`border focus:ring-0 bg-[#CDE3DEB0] h-7.5 sm:h-8.5 pl-10 text-xs sm:text-base pr-10 ${fieldError || loginError ? "border-red-500" : "border-none"}`}
+                    />
 
-                  <button suppressHydrationWarning type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#122A48BA] cursor-pointer">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                    <button suppressHydrationWarning type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#122A48BA] cursor-pointer">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
 
-                </div>
-              </Field>
+                  </div>
+                </Field>
 
-              {fieldError && <p className="text-red-500 text-xs -mt-3 flex items-center gap-1"><span>⊙</span>{fieldError}</p>}
-              {loginError && <p className="text-red-500 text-xs -mt-3 flex items-center gap-1"><span>⊙</span>{loginError}</p>}
-            </FieldGroup>
-          </CardContent>
-          <CardFooter className='justify-center py-0 pb-2 flex-col bg-transparent border-none'>
-            <Button
-              className='w-full bg-[#122A48] shadow-[0_8px_6px_-4px_rgba(0,0,0,0.3)] py-4 sm:py-4.5 mb-2.5 cursor-pointer font-semibold text-[13px] sm:text-[16px]'
-              onClick={handleLogin}
-              disabled={isLoadingLogin}
-            >
-              {isLoadingLogin ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Logging in...
-                </div>
-              ) : "Login"}
-            </Button>
-            <a
-              onClick={() => { setChangePasswordOpen(true); setEmailError(""); setResetEmail("") }}
-              className='text-[#1565BC] text-[11px] sm:text-[14px] underline mb-3 mt-2 cursor-pointer'
-            >
-              Forgot Password?
-            </a>
-            <hr className="border-t border-[#1565BC] w-full py-2 sm:py-4 mt-2" />
-          </CardFooter>
+                {fieldError && <p className="text-red-500 text-xs -mt-3 flex items-center gap-1"><span>⊙</span>{fieldError}</p>}
+                {loginError && <p className="text-red-500 text-xs -mt-3 flex items-center gap-1"><span>⊙</span>{loginError}</p>}
+              </FieldGroup>
+            </CardContent>
+            <CardFooter className='justify-center py-0 pb-2 flex-col bg-transparent border-none'>
+              <Button
+                className='w-full bg-[#122A48] shadow-[0_8px_6px_-4px_rgba(0,0,0,0.3)] py-4 sm:py-4.5 mb-2.5 mt-4 cursor-pointer font-semibold text-[13px] sm:text-[16px]'
+                type="submit"
+                disabled={isLoadingLogin}
+              >
+                {isLoadingLogin ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Logging in...
+                  </div>
+                ) : "Login"}
+              </Button>
+              <a
+                onClick={() => { setChangePasswordOpen(true); setEmailError(""); setResetEmail("") }}
+                className='text-[#1565BC] text-[11px] sm:text-[14px] underline mb-3 mt-2 cursor-pointer'
+              >
+                Forgot Password?
+              </a>
+              <hr className="border-t border-[#1565BC] w-full py-2 sm:py-4 mt-2" />
+            </CardFooter>
+          </form>
         </Card>
       </div>
 
