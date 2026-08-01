@@ -4,6 +4,8 @@ from rest_framework import status
 from .models import Hotspot
 from .serializers import HotspotSerializer
 from apps.users.permissions import IsAdmin, IsMENRO, IsAdminOrMENRO, IsAdminOrMENROOrBarangay
+import re
+from rest_framework.views import APIView
 
 
 class HotspotListView(generics.ListCreateAPIView):
@@ -18,6 +20,29 @@ class HotspotListView(generics.ListCreateAPIView):
         return Hotspot.objects.select_related('barangay').filter(
             is_active=True
         ).order_by('barangay__barangay_name', 'name')
+
+
+class HotspotNextCodeView(APIView):
+    """
+    Suggests the next available code for a barangay, based on the highest
+    existing numeric code for that barangay, e.g. if CH-Rosario-3 is the
+    highest, suggests "4". Non-numeric codes are ignored.
+    """
+    permission_classes = [IsAdminOrMENRO]
+
+    def get(self, request):
+        barangay_id = request.query_params.get('barangay')
+        if not barangay_id:
+            return Response({'error': 'barangay query param is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        highest = 0
+        codes = Hotspot.objects.filter(barangay_id=barangay_id).values_list('code', flat=True)
+        for code in codes:
+            match = re.match(r'^(\d+)$', code or '')
+            if match:
+                highest = max(highest, int(match.group(1)))
+
+        return Response({'next_code': str(highest + 1)}, status=status.HTTP_200_OK)
 
 
 class HotspotDetailView(generics.RetrieveUpdateDestroyAPIView):

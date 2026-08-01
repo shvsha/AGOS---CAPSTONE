@@ -21,7 +21,7 @@ import {
   Map, Package, FileBarChart, CalendarDays,
   MapPin, FileUp, LogOut, RadioTower, ChevronDown,
   SlidersHorizontal, Target, GitBranchPlus,
-  TriangleAlert, Settings 
+  TriangleAlert, Settings, Book 
 } from "lucide-react"
 
 // logo
@@ -63,6 +63,7 @@ const navItems: Record<string, NavItem[]> = {
         { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
         { label: "System Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
         { label: "Settings",    href: "/admin/settings",  icon: <Settings size={14} /> },
+        { label: "User Manual",    href: "/admin/manual",  icon: <Book size={14} /> },
       ]
     },
   ],

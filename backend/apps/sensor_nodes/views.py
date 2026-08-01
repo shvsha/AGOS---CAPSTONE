@@ -1,3 +1,4 @@
+import re
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -63,6 +64,25 @@ class SensorNodeByBarangayView(generics.ListAPIView):
     def get_queryset(self):
         barangay_id = self.kwargs['barangay_id']
         return SensorNode.objects.filter(barangay__barangay_id=barangay_id)
+
+
+class SensorNodeNextCodeView(APIView):
+    """
+    Suggests the next available SN- code based on the highest existing
+    numeric code, e.g. if SN-5 is the highest, suggests "6".
+    Non-numeric codes (e.g. SN-A1) are ignored. Retired nodes still count,
+    since their node_name stays reserved (no exclusion in the uniqueness check).
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        highest = 0
+        for name in SensorNode.objects.values_list('node_name', flat=True):
+            match = re.match(r'^SN-(\d+)$', name or '')
+            if match:
+                highest = max(highest, int(match.group(1)))
+
+        return Response({'next_code': str(highest + 1)}, status=status.HTTP_200_OK)
 
 
 class SensorNodeUnassignView(APIView):

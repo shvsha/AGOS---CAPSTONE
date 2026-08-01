@@ -296,6 +296,20 @@ export default function HotspotManagement() {
 
     const selected = allBarangays.find(b => String(b.barangay_id) === value)
     if (selected) loadBoundary(selected.barangay_name)
+
+    if (!isEdit && value) {
+      const fetchNextCode = async () => {
+        try {
+          const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/next-code/?barangay=${value}`)
+          if (!res.ok) return
+          const data = await res.json()
+          setHotspotCode(data.next_code ?? '')
+        } catch {
+          // silently ignore
+        }
+      }
+      fetchNextCode()
+    }
   }
 
   // Map click handler
@@ -668,7 +682,7 @@ export default function HotspotManagement() {
                       </FieldLabel>
                       <div className={`flex items-center rounded-lg bg-[#1565BC05] border ${fieldErrors.hotspotCode ? "border-[#FF0000]" : "border-[#727272]"}`}>
                         <span className="pl-3 pr-1 text-xs md:text-sm text-[#727272] font-medium select-none whitespace-nowrap">
-                          CN-{selectedBarangayName ?? "…"}-
+                          CH-{selectedBarangayName ?? "…"}-
                         </span>
                         <Input
                           type="text"
@@ -865,7 +879,7 @@ export default function HotspotManagement() {
                           ...(latitude && longitude ? [{
                             latitude: parseFloat(latitude),
                             longitude: parseFloat(longitude),
-                            label: selectedBarangayName ? `CN-${selectedBarangayName}-${hotspotCode || '…'}` : "New Hotspot",
+                            label: selectedBarangayName ? `CH-${selectedBarangayName}-${hotspotCode || '…'}` : "New Hotspot",
                             condition: "Normal",
                             sublabel: "Selected location",
                           }] : []),
@@ -999,7 +1013,7 @@ export default function HotspotManagement() {
         iconColor={DIALOG_COLOR.green}
         title={isEdit ? "Confirm Changes" : "Confirm Adding Hotspot"}
         description={isEdit
-          ? <> Are you sure you want to update <strong>CN-{selectedBarangayName}-{hotspotCode.trim()}</strong>?</>
+          ? <> Are you sure you want to update <strong>CH-{selectedBarangayName}-{hotspotCode.trim()}</strong>?</>
           : <> Are you sure you want to add this new hotspot?</>
         }
         cancelLabel="Keep Editing"
