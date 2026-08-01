@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
-import { ALERT_STYLE } from "@/lib/constant"
+import { ALERT_STYLE, WASTE_STYLE } from "@/lib/constant"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // icons
-import { Siren, Activity, RadioTower, TriangleAlert, MapPin, Droplet, Waves, BatteryMedium, Signal, Radar, X   } from "lucide-react"
+import { Leaf, Recycle, Trash2, Biohazard, Siren, Activity, RadioTower, TriangleAlert, MapPin, Droplet, Waves, BatteryMedium, Signal, Radar, X   } from "lucide-react"
 
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
@@ -27,6 +27,15 @@ const ALERT_ICONS: Record<string, JSX.Element> = {
   Weak_Signal:        <Activity size={18} />,
   Sensor_Failure:     <RadioTower size={18} />,
 }
+
+const WASTE_ICONS: Record<string, JSX.Element> = {
+  Recyclable:      <Recycle size={18} />,
+  Biodegradable:   <Leaf size={18} />,
+  Residual:        <Trash2 size={18} />,
+  'Special Waste': <Biohazard size={18} />,
+  None:            <Trash2 size={18} />,
+}
+
 
 function getStatusBadge(status: string) {
   const styles: Record<string, string> = {
@@ -104,6 +113,18 @@ type Alert = {
   alert_context?: Record<string, any>
 }
 
+type WasteClassification = {
+  classification_id: number
+  node_details: {
+    node_id: number
+    node_name: string
+    barangay_details: { barangay_id: number; barangay_name: string }
+  }
+  dominant_waste_type: string
+  timestamp: string
+  confidence: number
+}
+
 type Dialog = {
   open: boolean
 }
@@ -114,6 +135,7 @@ export default function Map() {
   // data state
   const [allSensorNodes, setAllSensorNodes] = useState<SensorNodes[]>([])
   const [allSensorHealth, setAllSensorHealth] = useState<NodeHealth[]>([])
+  const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
   const [allAlerts, setAllAlerts] = useState<Alert[]>([])
   
   // dialog state
@@ -163,10 +185,20 @@ export default function Map() {
     } catch {}
   }
 
+  const fetchWasteClassification = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setAllWasteClassification(data.results ?? data)
+    } catch {}
+  }
+
   useEffect(() => {
     fetchSensorNodes()
     fetchNodeHealth()
     fetchAlerts()
+    fetchWasteClassification()
   }, [])
 
   // handlers
@@ -187,6 +219,16 @@ export default function Map() {
       alertDate.getFullYear() === today.getFullYear() &&
       alertDate.getMonth() === today.getMonth() &&
       alertDate.getDate() === today.getDate()
+    )
+  })
+
+  const todayWaste = allWasteClassification.filter(waste => {
+    const wasteDate = new Date(waste.timestamp)
+    const today = new Date()
+    return (
+      wasteDate.getFullYear() === today.getFullYear() &&
+      wasteDate.getMonth() === today.getMonth() &&
+      wasteDate.getDate() === today.getDate()
     )
   })
 
@@ -219,28 +261,59 @@ export default function Map() {
             </div>
 
           </div>
+
+          {/* waste */}
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+            <div className='flex justify-between items-center p-2'>
+              <p className='font-semibold text-[#122A48] text-xs'>Live Waste Classification</p>
+            </div>
+            <hr className='border-[#C6C6C8]' />
+            <div className='flex flex-col gap-3 p-2 overflow-y-auto'>
+              {todayWaste.length === 0 ? (
+                <div className='flex flex-col items-center justify-center h-full py-60 gap-2'>
+                  <Trash2 size={28} color="#C6C6C8" />
+                  <p className='text-xs text-[#727272] text-center'>No waste classification today</p>
+                </div>
+              ) : (
+                todayWaste.slice(0, 11).map(waste => {
+                  const style = WASTE_STYLE[waste.dominant_waste_type] ?? WASTE_STYLE.None
+                  return (
+                    <div
+                      key={waste.classification_id}
+                      className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} bg-white`}
+                    >
+                      <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
+                        {WASTE_ICONS[waste.dominant_waste_type] ?? <Trash2 size={18} />}
+                      </div>
+                      <div className='flex flex-col'>
+                        <p className='text-xs font-semibold text-[#122A48] leading-tight'>
+                          {waste.dominant_waste_type} — {waste.confidence.toFixed(1)}%
+                        </p>
+                        <p className='text-xs text-[#727272]'>
+                          {waste.node_details?.node_name ?? 'Unknown Node'} | {new Date(waste.timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
           
           {/* alert */}
           <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
-            <div className='flex justify-between items-center p-3'>
+            <div className='flex justify-between items-center p-2 text-xs'>
               <p className='font-semibold text-[#122A48]'>Live Alerts</p>
-              <Button
-                onClick={() => router.push('/menro/alerts')}
-                className='rounded-lg shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] flex gap-2 bg-white hover:bg-white/50 cursor-pointer border border-[#C9C9C9]'
-              >
-                <Siren size={20} className='text-[#D81010]' />
-                View Alerts
-              </Button>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-3 p-3 overflow-y-auto'>
+            <div className='flex flex-col gap-3 p-2 overflow-y-auto'>
               {todayAlerts.length === 0 ? (
                 <div className='flex flex-col items-center justify-center h-full py-60 gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 6).map(alert => {
+                todayAlerts.slice(0, 11).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div
