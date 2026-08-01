@@ -57,6 +57,7 @@ class User(AbstractBaseUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     must_change_password = models.BooleanField(default=False)
+    privacy_agreed_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = [ 'first_name', 'last_name']
