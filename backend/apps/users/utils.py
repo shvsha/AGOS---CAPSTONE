@@ -3,6 +3,10 @@ import string
 from django.core.mail import send_mail
 from django.conf import settings
 from django.core.cache import cache
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils import timezone
+
 
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
@@ -43,27 +47,32 @@ def clear_verified(email):
 def send_credentials_email(user, password):
     login_url = f'{settings.FRONTEND_URL}/login'
 
-    details = [
-        f'Name: {user.first_name} {user.last_name}',
-        f'Role: {user.user_role}',
-        f'Email: {user.email}',
-        
-    ]
-
-    details_text = '\n'.join(details)
+    context = {
+        'user': user,
+        'password': password,
+        'login_url': login_url,
+        'current_year': timezone.now().year,
+    }
 
     subject = 'Your AGOS Account Credentials'
-    message = (
+    html_message = render_to_string('emails/base_email.html', context)
+
+    # Plain-text fallback for clients that block/strip HTML
+    text_message = (
         f'An account has been created for you on AGOS.\n\n'
-        f'{details_text}\n'
+        f'Name: {user.first_name} {user.last_name}\n'
+        f'Role: {user.user_role}\n'
+        f'Email: {user.email}\n'
         f'Temporary Password: {password}\n\n'
         f'Login here: {login_url}\n\n'
         f'You will be required to change your password on first login.'
     )
-    send_mail(
+
+    email = EmailMultiAlternatives(
         subject,
-        message,
+        text_message,
         settings.EMAIL_HOST_USER,
         [user.email],
-        fail_silently=False,
     )
+    email.attach_alternative(html_message, 'text/html')
+    email.send(fail_silently=False)

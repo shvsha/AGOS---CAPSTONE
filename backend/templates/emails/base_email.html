@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AGOS Account Credentials</title>
+</head>
+<body style="margin:0; padding:0; background-color:#F0F4F8; font-family: Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0F4F8; padding: 30px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#FFFFFF; border-radius:10px; overflow:hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#1565BC; padding: 28px 32px;">
+              <span style="color:#FFFFFF; font-size:20px; font-weight:bold;">AGOS Account Credentials</span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px;">
+              <h2 style="color:#122A48; font-size:18px; margin: 0 0 12px 0;">Welcome, {{ user.first_name }}!</h2>
+              <p style="color:#122A48; font-size:14px; line-height:1.6; margin: 0 0 20px 0;">
+                Your <strong>{{ user.user_role }}</strong> account has been successfully created on AGOS.
+                You can now sign in using the credentials below.
+              </p>
+
+              <!-- Credentials box -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8F9FA; border:1px solid #C6C6C8; border-radius:8px; margin-bottom:24px;">
+                <tr>
+                  <td style="padding: 20px 24px;">
+                    <p style="color:#727272; font-size:12px; text-transform:uppercase; margin:0 0 4px 0; font-weight:bold;">Email</p>
+                    <p style="color:#1565BC; font-size:15px; margin:0 0 18px 0;">{{ user.email }}</p>
+
+                    <p style="color:#727272; font-size:12px; text-transform:uppercase; margin:0 0 6px 0; font-weight:bold;">Temporary Password</p>
+                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td style="background-color:#EAF2FB; border: 1px dashed #1565BC; border-radius:6px; padding: 12px; text-align:center;">
+                          <span style="color:#1565BC; font-size:17px; font-weight:bold; letter-spacing:1px; font-family: 'Courier New', monospace;">{{ password }}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:24px;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ login_url }}" style="background-color:#1565BC; color:#FFFFFF; text-decoration:none; font-size:14px; font-weight:bold; padding: 13px 32px; border-radius:8px; display:inline-block;">
+                      Login to AGOS
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Important notice -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FFF7EA; border-left: 4px solid #FF9705; border-radius:4px; margin-bottom:20px;">
+                <tr>
+                  <td style="padding: 14px 18px;">
+                    <p style="color:#122A48; font-size:13px; line-height:1.6; margin:0;">
+                      <strong style="color:#FF9705;">Important:</strong> This is a temporary password.
+                      Please change your password immediately after your first login to keep your account secure.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color:#727272; font-size:13px; line-height:1.6; margin:0;">
+                If you have any questions, please contact the AGOS system administrators.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#F8F9FA; padding: 18px 32px; text-align:center; border-top:1px solid #E5E5E6;">
+              <p style="color:#727272; font-size:11px; margin:0;">© {{ current_year }} AGOS — Automated Geo-Based Obstruction Sensing System. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
