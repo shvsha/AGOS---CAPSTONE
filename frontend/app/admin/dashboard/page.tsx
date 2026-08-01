@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 
 // icons
-import { RadioTower, Droplets, TriangleAlert, MapPinned, Siren, Activity, Battery, Signal, ScanSearch, X} from "lucide-react"
+import { Leaf, Recycle, Trash2, Biohazard, RadioTower, Droplets, TriangleAlert, MapPinned, Siren, Activity, Battery, Signal, ScanSearch, X} from "lucide-react"
 
 // shadcn
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
-import { ALERT_STYLE } from '@/lib/constant'
+import { ALERT_STYLE, WASTE_STYLE } from '@/lib/constant'
 import { usePolling } from "@/components/hooks/usePolling"
 
 // auth
@@ -27,6 +27,14 @@ const ALERT_ICONS: Record<string, JSX.Element> = {
   Low_Battery:        <TriangleAlert size={18} />,
   Weak_Signal:        <Activity size={18} />,
   Sensor_Failure:     <RadioTower size={18} />,
+}
+
+const WASTE_ICONS: Record<string, JSX.Element> = {
+  Recyclable:      <Recycle size={18} />,
+  Biodegradable:   <Leaf size={18} />,
+  Residual:        <Trash2 size={18} />,
+  'Special Waste': <Biohazard size={18} />,
+  None:            <Trash2 size={18} />,
 }
 
 
@@ -98,6 +106,27 @@ type NodeHealth = {
   checked_at?: string
 }
 
+type WasteClassification = {
+  classification_id: number
+  node_details: {
+    node_id: number
+    node_name: string
+    barangay_details: {
+      barangay_id: number
+      barangay_name: string
+    }
+  }
+  dominant_waste_type: string
+  timestamp: string
+  reading: number
+  confidence: number
+  estimated_volume: number
+  recyclable_pct: number
+  biodegradable_pct: number
+  residual_pct: number
+  special_waste_pct: number
+}
+
 // helpers
 function getBatteryPct(voltage: number) {
   const min = 3.0, max = 4.2
@@ -144,7 +173,6 @@ export default function Dashboard() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
-
   // summary cards
   const totalSensorNodes = allSensorNodes.filter(b => b.hotspot_details?.hotspot_id).length
   const criticalAlerts = allClogEvents.filter(b => b.severity === 'High').length
@@ -167,6 +195,21 @@ export default function Dashboard() {
 
   const batteryPct = avgVoltage != null ? getBatteryPct(avgVoltage) : null
   const signalPct  = avgSignal  != null ? getSignalPct(avgSignal)   : null
+
+  // waste classification state
+   const [wasteClassification, setWasteClassification] = useState<WasteClassification[]>([])
+
+   const todayWaste = wasteClassification.filter(waste => {
+    const wasteDate = new Date(waste.timestamp)
+    const today = new Date()
+    return (
+      wasteDate.getFullYear() === today.getFullYear() &&
+      wasteDate.getMonth() === today.getMonth() &&
+      wasteDate.getDate() === today.getDate()
+    )
+  })
+
+  const recentWaste = todayWaste.slice(0, 7)
 
   // fetch of data
   const fetchSensorNodes = async () => {
@@ -257,6 +300,19 @@ export default function Dashboard() {
     fetchBarangays()
   }, [])
 
+  const fetchWasteClassification = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setWasteClassification(data.results ?? data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchWasteClassification()
+  }, [])
+
   const fetchAllDashboardData = useCallback(() => {
     fetchSensorNodes()
     fetchMonthlyReports()
@@ -264,6 +320,7 @@ export default function Dashboard() {
     fetchNodeHealth()
     fetchClogEvents()
     fetchBarangays()
+    fetchWasteClassification()
   }, [])
 
   useEffect(() => {
@@ -300,7 +357,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* map, monthly report, alerts */}
+        {/* map, monthly report, waste, alerts */}
         <div className="text-[#122A48] mt-3 flex gap-2 w-full">
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             {/* map */}
@@ -333,14 +390,52 @@ export default function Dashboard() {
               />
             </div>
           </div>
+          
+          {/* wastes */}
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+            <div className='flex justify-between items-center justify-between p-1.5 px-3'>
+              <p className='font-semibold text-[#122A48] text-sm'>Live Waste Classification</p>
+            </div>
+            <hr className='border-[#C6C6C8]' />
+            <div className='flex flex-col gap-2 p-2 overflow-y-auto'>
+              {recentWaste.length === 0 ? (
+                <div className='flex flex-col items-center justify-center h-full py-45 gap-2'>
+                  <Siren size={28} color="#C6C6C8" />
+                  <p className='text-xs text-[#727272] text-center'>No waste classification today</p>
+                </div>
+              ) : (
+                recentWaste.map(waste => {
+                  const style = WASTE_STYLE[waste.dominant_waste_type] ?? WASTE_STYLE.None
+                  return (
+                    <div
+                      key={waste.classification_id}
+                      className={`flex items-center gap-3 p-1 h-14 rounded-lg border ${style.border} ${style.shadow} bg-white`}
+                    >
+                      <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
+                        {WASTE_ICONS[waste.dominant_waste_type] ?? <Trash2 size={18} />}
+                      </div>
+                      <div className='flex flex-col'>
+                        <p className='text-xs font-semibold text-[#122A48] leading-tight'>
+                          {waste.dominant_waste_type} — {waste.confidence.toFixed(1)}%
+                        </p>
+                        <p className='text-xs text-[#727272]'>
+                          {waste.node_details?.node_name ?? 'Unknown Node'} | {new Date(waste.timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
 
           {/* alerts */}
           <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
             <div className='flex justify-between items-center justify-between p-1.5 px-3'>
-              <p className='font-semibold text-[#122A48] text-base'>Live Alerts</p>
+              <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-2 p-3 overflow-y-auto'>
+            <div className='flex flex-col gap-2 p-2 overflow-y-auto'>
               {todayAlerts.length === 0 ? (
                 <div className='flex flex-col items-center justify-center h-full py-45 gap-2'>
                   <Siren size={28} color="#C6C6C8" />

@@ -15,6 +15,37 @@ export const DIALOG_COLOR = {
   orange: '#E65100',
 }
 
+// waste style
+export const WASTE_STYLE: Record<string, { border: string; icon: string; shadow: string }> = {
+  Recyclable: {
+    border: "border-[#B9D9F5]",
+    icon: "bg-[#E1EEFB] text-[#1565BC]",
+    
+    shadow: "shadow-[0_0_3px_rgba(21,101,188,0.35)]",
+    
+  },
+  Biodegradable: {
+    border: "border-[#B7E8C6]",
+    icon: "bg-[#DFF7E6] text-[#2C7B3C]",
+    shadow: "shadow-[0_0_3px_rgba(44,123,60,0.35)]",
+  },
+  Residual: {
+    border: "border-[#F0D6B0]",
+    icon: "bg-[#FBEBD6] text-[#B9770E]",
+    shadow: "shadow-[0_0_3px_rgba(185,119,14,0.35)]",
+  },
+  'Special Waste': {
+    border: "border-[#F3B9B9]",
+    icon: "bg-[#FBDEDE] text-[#D81010]",
+    shadow: "shadow-[0_0_3px_rgba(216,16,16,0.35)]",
+  },
+  None: {
+    border: "border-[#C6C6C8]",
+    icon: "bg-[#E5E5E6] text-[#727272]",
+    shadow: "shadow-[0_0_3px_rgba(114,114,114,0.25)]",
+  },
+}
+
 // alert styles
 export const ALERT_STYLE: Record<string, { border: string; icon: string; shadow: string }> = {
   // Water — blue
