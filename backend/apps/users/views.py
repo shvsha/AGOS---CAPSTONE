@@ -75,30 +75,23 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token:
+            try:
+                RefreshToken(refresh_token).blacklist()
+            except Exception:
+                pass
+
         try:
-            refresh_token = request.COOKIES.get('refresh_token')
-            if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-
-            log_action(
-                user=request.user,
-                action='Logout',
-                ip_address=request.META.get('REMOTE_ADDR')
-            )
-
-            response = Response({'message': 'Logged out successfully'})
-            response.delete_cookie('access_token', path='/')
-            response.delete_cookie('refresh_token', path='/')
-            response.delete_cookie('user', path='/')
-
-            return response
-
+            log_action(user=request.user, action='Logout', ip_address=request.META.get('REMOTE_ADDR'))
         except Exception:
-            return Response(
-                {'error': 'Invalid token'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            pass
+
+        response = Response({'message': 'Logged out successfully'})
+        response.delete_cookie('access_token', path='/')
+        response.delete_cookie('refresh_token', path='/')
+        response.delete_cookie('user', path='/')
+        return response
 
 
 class MeView(APIView):

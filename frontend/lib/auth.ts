@@ -27,6 +27,18 @@ export const clearAuth = () => {
   localStorage.removeItem("user")
 }
 
+export const logout = async () => {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout/`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+  } catch {
+    // network error
+  }
+  clearAuth()
+}
+
 export const isAuthenticated = (): boolean => {
   return !!localStorage.getItem("access_token")
 }
@@ -61,11 +73,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
         credentials: 'include',
       })
 
-      if (!refreshRes.ok) {
-        clearAuth()
-        window.location.href = '/login'
-        throw new Error('Session expired.')
-      }
+      if (!refreshRes.ok) throw new Error('Session expired.')
 
       const data = await refreshRes.json()
       localStorage.setItem('access_token', data.access)
@@ -78,10 +86,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
           Authorization: `Bearer ${data.access}`,
         },
       })
-    } catch {
-      clearAuth()
+    } catch (err) {
+      await logout()
       window.location.href = '/login'
-      throw new Error('Session expired.')
+      throw err
     }
   }
 

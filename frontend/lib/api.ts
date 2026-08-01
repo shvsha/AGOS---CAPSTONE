@@ -1,4 +1,4 @@
-import { getAccessToken, getRefreshToken, setTokens, clearAuth } from '@/lib/auth'
+import { getAccessToken, getRefreshToken, setTokens, clearAuth, logout } from '@/lib/auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
@@ -12,7 +12,7 @@ async function refreshAccessToken(): Promise<string | null> {
     })
 
     if (!res.ok) {
-      clearAuth()
+      await logout()
       window.location.href = '/login'
       return null
     }
@@ -21,7 +21,7 @@ async function refreshAccessToken(): Promise<string | null> {
     localStorage.setItem('access_token', data.access)
     return data.access
   } catch {
-    clearAuth()
+    await logout()
     window.location.href = '/login'
     return null
   }
@@ -116,5 +116,19 @@ export const api = {
       throw result
     }
     return true
+  },
+}
+
+export const publicApi = {
+  post: async (endpoint: string, data?: unknown) => {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    const result = await res.json()
+    if (!res.ok) throw result
+    return result
   },
 }
