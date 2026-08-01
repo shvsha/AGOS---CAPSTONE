@@ -124,9 +124,22 @@ export default function NodeManagement() {
   useEffect(() => {
     if (nodeFormDialog.node) {
       setNodeCode(nodeFormDialog.node.node_name?.replace(/^SN-/, '') ?? '')
+      setFieldErrors({})
     } else {
       setNodeCode('')
       setFieldErrors({})
+
+      const fetchNextCode = async () => {
+        try {
+          const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/next-code/`)
+          if (!res.ok) return
+          const data = await res.json()
+          setNodeCode(data.next_code ?? '')
+        } catch {
+          // silently ignore — field just stays empty, admin types manually
+        }
+      }
+      if (nodeFormDialog.open) fetchNextCode()
     }
   }, [nodeFormDialog.open])
 
