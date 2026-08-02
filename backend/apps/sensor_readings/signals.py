@@ -11,6 +11,10 @@ from apps.alerts.models import Alert
 from apps.rainfall.services import get_effective_condition
 from apps.rainfall.models import AlertThreshold
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from .serializers import SensorReadingSerializer
+
 
 def get_clear_streak_count(barangay):
     condition = get_effective_condition(barangay) if barangay else 'None'
@@ -165,4 +169,15 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
             node=instance.node,
             alert_type=re_alert_type,
             alert_context={'severity': clog_event.severity}
+        )
+
+    @receiver(post_save, sender=SensorReading)
+    def broadcast_new_reading(sender, instance, created, **kwargs):
+        if not created:
+            return
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "sensor_readings",
+            {"type": "reading_message", "reading": SensorReadingSerializer(instance).data}
         )

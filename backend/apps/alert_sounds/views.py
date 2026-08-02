@@ -10,6 +10,7 @@ from rest_framework.parsers import MultiPartParser
 from apps.users.permissions import IsAdmin
 from .models import AlertSoundConfig, UploadedAlertSound
 from .serializers import AlertSoundConfigSerializer, UploadedAlertSoundSerializer
+from rest_framework.permissions import IsAuthenticated
 
 MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024  # 2MB
 MAX_DURATION_SECONDS = 10
@@ -17,7 +18,10 @@ ALLOWED_CONTENT_TYPES = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp3']
 
 
 class AlertSoundConfigView(APIView):
-    permission_classes = [IsAdmin]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAdmin()]
 
     def get(self, request):
         config, _ = AlertSoundConfig.objects.get_or_create(config_id=1)
@@ -90,7 +94,7 @@ class UploadAlertSoundView(APIView):
 
 
 class ListAlertSoundsView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         sounds = UploadedAlertSound.objects.all().order_by('-uploaded_at')

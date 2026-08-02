@@ -18,6 +18,7 @@ import { usePolling } from "@/components/hooks/usePolling"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
 
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
@@ -327,7 +328,38 @@ export default function Dashboard() {
     fetchAllDashboardData()
   }, [])
 
-  usePolling(fetchAllDashboardData, 3000) // 1000 = 1 sec
+  usePolling(fetchAllDashboardData, 30000)
+
+  useWebSocket({
+    path: "/ws/alerts/",
+    onMessage: (newAlert) => {
+      setAllAlerts(prev => [newAlert, ...prev])
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/sensor-readings/",
+    onMessage: (reading) => {
+      setAllSensorNodes(prev => prev.map(node =>
+        node.node_id === reading.node_details.node_id
+          ? {
+              ...node,
+              water_level: reading.water_level,
+              water_flow_rate: reading.water_flow_rate,
+              clog_pct: reading.clog_pct,
+              condition: reading.reading_status,
+            }
+          : node
+      ))
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/waste-classification/",
+    onMessage: (newWaste) => {
+      setWasteClassification(prev => [newWaste, ...prev])
+    },
+  })
 
 
   return (
@@ -442,7 +474,7 @@ export default function Dashboard() {
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 6).map(alert => {
+                todayAlerts.slice(0, 7).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div

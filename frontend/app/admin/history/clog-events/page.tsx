@@ -27,6 +27,8 @@ import { fetchWithAuth } from "@/lib/auth"
 // lib
 import { getDuration } from "@/lib/utils"
 import { exportPdf } from "@/lib/exportPDF"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
+
 
 type Clogs = {
   event_id: number
@@ -104,7 +106,7 @@ export default function ClogEvents() {
   }
 
   const filtered = getFilteredClogs(clogs, severity, barangay, search)
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 8)
 
   // summary cards
   const total = clogs.length
@@ -178,7 +180,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
     fetchClogEventsData()
   }, [])
 
-  usePolling(fetchClogEventsData, 3000)
+  usePolling(fetchClogEventsData, 30000)
 
   const handleExport = async () => {
     setExporting(true)
@@ -198,6 +200,13 @@ useEffect(() => { fetchMedia() }, [selectedClog])
       setExporting(false)
     }
   }
+
+  useWebSocket({
+    path: "/ws/clog-events/",
+    onMessage: (newClog) => {
+      setClogs(prev => [newClog, ...prev])
+    },
+  })
 
 
   return (
@@ -288,7 +297,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                 {/* fetch error state */}
                   {fetchError ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-15">
+                      <TableCell colSpan={8} className="text-center py-38">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
                           <p className="text-[#D81010] font-semibold text-base">Failed to clog events. Please try again later.</p>
                           <Button onClick={fetchClogs} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
@@ -299,7 +308,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                   // no node state
                   ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-15">
+                    <TableCell colSpan={8} className="text-center py-38">
                       <div className="flex flex-col items-center gap-3">
                         <div className="rounded-full bg-[#E5E5E6] p-4">
                           <Radar size={36} color="#727272" />
@@ -324,9 +333,9 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                         }`}
                         onClick={() => setSelectedClog(clog)}
                        >
-                        <TableCell className="text-[#122A48] text-left h-18">{clog.event_id}</TableCell>
-                        <TableCell className="text-left h-18">
-                          <span className={`inline-flex items-center px-5 py-1 rounded-full text-[13px] font-semibold ${
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog.event_id}</TableCell>
+                        <TableCell className="text-left h-13 text-xs">
+                          <span className={`inline-flex items-center !text-[11px] px-5 py-1 rounded-full text-[13px] font-semibold ${
                             clog.severity === 'High'   ? 'bg-[#FFE5E5] text-[#D81010]' :
                             clog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#E4B600]' :
                             'bg-[#B2FBC173] text-[#2C7B3C]'
@@ -334,20 +343,20 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                             {clog.severity}
                           </span>
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
                           {clog.detected_at
                             ? new Date(clog.detected_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
                             : '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
                           {clog.resolved_at
                             ? new Date(clog.resolved_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
                             : '—'}
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-18">{clog.status}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog.status}</TableCell>
                       </TableRow>
                     ))
                   )}
