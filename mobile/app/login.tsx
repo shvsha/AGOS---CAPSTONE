@@ -1,23 +1,20 @@
+// react
 import { useState } from 'react'
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { useAuth } from '../lib/AuthContext'
+import { Image, View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, } from 'react-native'
 import { useRouter } from 'expo-router'
+
+// auth
+import { useAuth } from '../lib/AuthContext'
+
+// icons
+import { Ionicons } from '@expo/vector-icons'
+
 
 export default function Login() {
   const { login } = useAuth()
   const router = useRouter()
 
+  // us
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -67,7 +64,11 @@ export default function Login() {
         <View style={styles.card}>
           {/* logo */}
           <View style={styles.logoWrap}>
-            <Text style={styles.logoText}>AGOS</Text>
+            <Image
+              source={require('../assets/images/agos-logo.png')}
+              style={{ width: 70, height: 70 }}
+            >
+            </Image>
           </View>
 
           <Text style={styles.brand}>AGOS</Text>
@@ -169,8 +170,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   logoWrap: {
-    width: 90,
-    height: 90,
+    width: 70,
+    height: 70,
     borderRadius: 45,
     backgroundColor: '#CDE3DE',
     alignItems: 'center',
