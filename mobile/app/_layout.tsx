@@ -15,16 +15,19 @@ function AuthGate() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'change-password';
+    const inAuthGroup =
+      segments[0] === 'login' ||
+      segments[0] === 'change-password' ||
+      segments[0] === 'privacy-consent' ||
+      segments[0] === 'forgot-password'; 
 
     if (!user && !inAuthGroup) {
-      // Not logged in, and not already on an auth screen → send to login
       router.replace('/login');
-    } else if (user && user.must_change_password && segments[0] !== 'change-password') {
-      // Logged in but must change password → lock them to that screen
+    } else if (user && !user.privacy_agreed_at && segments[0] !== 'privacy-consent') {
+      router.replace('/privacy-consent');
+    } else if ( user && user.privacy_agreed_at && user.must_change_password && segments[0] !== 'change-password') {
       router.replace('/change-password');
-    } else if (user && !user.must_change_password && inAuthGroup) {
-      // Logged in and cleared password change, but still on login/change-password → send to tabs
+    } else if (user && user.privacy_agreed_at && !user.must_change_password && inAuthGroup) {
       router.replace('/(tabs)');
     }
   }, [user, isLoading, segments]);
@@ -33,7 +36,9 @@ function AuthGate() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="privacy-consent" options={{ headerShown: false }} />
       <Stack.Screen name="change-password" options={{ headerShown: false }} />
+      <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
     </Stack>
   );
 }

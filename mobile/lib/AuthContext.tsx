@@ -8,6 +8,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<User>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
+  updateUser: (user: User) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,8 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data)
   }
 
-  // On app launch: if a stored token exists, validate it and load the user.
-  // If it's missing/invalid, user stays null and the root layout sends them to /login.
   useEffect(() => {
     const bootstrap = async () => {
       const token = await getAccessToken()
@@ -61,8 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateUser = (updated: User) => {
+    setUser(updated)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

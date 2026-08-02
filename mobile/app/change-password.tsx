@@ -1,15 +1,5 @@
 import { useState } from 'react'
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-} from 'react-native'
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/AuthContext'
@@ -33,8 +23,6 @@ export default function ChangePassword() {
   const [successModal, setSuccessModal] = useState(false)
   const [errorModal, setErrorModal] = useState({ open: false, message: '' })
 
-  // same four rules as the web change-password page — enforced client-side
-  // only, since the backend doesn't validate password strength itself
   const passwordRequirements = [
     { label: 'Must be at least 8 characters', valid: newPassword.length >= 8 },
     { label: 'Must contain one special character', valid: /[^a-zA-Z0-9]/.test(newPassword) },
@@ -59,18 +47,14 @@ export default function ChangePassword() {
 
     setIsLoading(true)
     try {
-      // backend only returns {message: ...} here, no new tokens —
-      // so we can't stay "logged in" past this call, same as web
       await api.post('/api/auth/change-password/', {
         old_password: oldPassword,
         new_password: newPassword,
       })
 
-      await logout() // clears SecureStore + calls /api/auth/mobile-logout/
+      await logout() // clears SecureStore
       setSuccessModal(true)
     } catch (err: any) {
-      // backend returns {old_password: '...'} specifically for a wrong
-      // current password, not a generic {error: ...}
       if (err?.old_password) {
         setFieldError(err.old_password)
       } else {
