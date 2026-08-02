@@ -1,20 +1,147 @@
-// react native
-import { View, Text, StyleSheet } from 'react-native'
+import { useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function analytics() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>ANALYTICS</Text>
-    </View>
-  )
+import DetectionRow from "../../components/analytics/DetectionRow";
+import WasteProgress from "../../components/analytics/WasteProgress";
+import WasteVolumeCard from "../../components/analytics/WasteVolumeCard";
+import MonthSelector from "../../components/analytics/MonthSelector";
+
+import { useAnalytics } from "../../hooks/useAnalytics";
+import { buildWasteVolumes, buildComposition, buildDetections } from "../../lib/analytics";
+
+function currentMonthValue() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white'
-  },
-  text: { fontSize: 16}
-})
+function monthLabel(value: string) {
+  const [year, month] = value.split("-");
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export default function AnalyticsScreen() {
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthValue());
+  const [monthPickerVisible, setMonthPickerVisible] = useState(false);
+
+  const { classifications, liveClassifications, nodes, loading, error, refetch } =
+    useAnalytics(selectedMonth);
+
+  const wasteVolumes = useMemo(() => buildWasteVolumes(classifications), [classifications]);
+  const composition = useMemo(() => buildComposition(classifications), [classifications]);
+  const detections = useMemo(
+    () => buildDetections(liveClassifications, nodes),
+    [liveClassifications, nodes]
+  );
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#EEF3F8]">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 18 }}
+      >
+        {/* Header */}
+        <View className="flex-row justify-between items-center mb-6">
+          <View style={{ width: 22 }} />
+
+          <Text className="text-2xl font-bold text-slate-800">Waste Analytics</Text>
+
+          <Pressable onPress={() => setMonthPickerVisible(true)}>
+            <Ionicons name="calendar-outline" size={22} color="#334155" />
+          </Pressable>
+        </View>
+
+        {/* Month label */}
+        <Pressable
+          onPress={() => setMonthPickerVisible(true)}
+          className="self-center mb-4 px-4 py-2 rounded-full bg-white border border-slate-300"
+        >
+          <Text className="text-[12px] font-medium text-slate-600">
+            {monthLabel(selectedMonth)}
+          </Text>
+        </Pressable>
+
+        {error && (
+          <View className="items-center py-10">
+            <Text className="text-[#D81010] font-semibold text-sm mb-3">
+              Failed to load analytics. Please try again.
+            </Text>
+            <Pressable onPress={refetch} className="border border-slate-300 rounded-lg px-4 py-2">
+              <Text className="text-slate-600 text-sm">Retry</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {loading && !error && (
+          <View className="items-center py-10">
+            <ActivityIndicator color="#7FA9B8" />
+          </View>
+        )}
+
+        {!loading && !error && (
+          <>
+            {/* Waste Volume */}
+            <View className="bg-white rounded-2xl p-4 mb-5">
+              <Text className="font-semibold text-slate-700 mb-4">Estimated waste volume</Text>
+
+              <View className="flex-row">
+                <WasteVolumeCard {...wasteVolumes[0]} />
+                <View className="w-3" />
+                <WasteVolumeCard {...wasteVolumes[1]} />
+              </View>
+
+              <View className="h-3" />
+
+              <View className="flex-row">
+                <WasteVolumeCard {...wasteVolumes[2]} />
+                <View className="w-3" />
+                <WasteVolumeCard {...wasteVolumes[3]} />
+              </View>
+            </View>
+
+            {/* Detection */}
+            <View className="bg-white rounded-2xl p-4 mb-5">
+              <Text className="font-semibold text-slate-700 mb-2">Solid debris detection</Text>
+
+              {detections.length === 0 ? (
+                <Text className="text-slate-400 text-[12px] py-4 text-center">
+                  No sensor nodes found.
+                </Text>
+              ) : (
+                <ScrollView
+                  style={{ maxHeight: 220 }}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
+                >
+                  {detections.map((item) => (
+                    <DetectionRow key={item.node_id} {...item} />
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            {/* Classification */}
+            <View className="bg-white rounded-2xl p-4 mb-5">
+              <Text className="font-semibold text-slate-700 mb-4">Classified waste type</Text>
+
+              {composition.map((item) => (
+                <WasteProgress key={item.type} {...item} />
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <MonthSelector
+        visible={monthPickerVisible}
+        onClose={() => setMonthPickerVisible(false)}
+        selectedMonth={selectedMonth}
+        onSelect={setSelectedMonth}
+      />
+    </SafeAreaView>
+  );
+}
