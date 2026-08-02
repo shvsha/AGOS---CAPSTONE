@@ -4,7 +4,7 @@
 import { RadioTower, Trash2, TriangleAlert, BadgeCheck } from "lucide-react";
 
 // react
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -16,6 +16,10 @@ import { Button } from "@/components/ui/button"
 // component
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/components/hooks/usePagination";
+
+// lib
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { usePolling } from "@/components/hooks/usePolling"
 
 
 type Hotspots = {
@@ -157,8 +161,6 @@ export default function Resources() {
   const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
   const [allClogs, setAllClogs] = useState<Clogs[]>([])
 
-  console.log(allWasteClassification)
-
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
   
@@ -233,9 +235,6 @@ export default function Resources() {
       setAllSensorNodes(data.results ?? data)
     } catch {}
   }
-  useEffect(() => {
-    fetchSensorNode()
-  }, [])
 
   const fetchReadings = async () => {
     try {
@@ -245,9 +244,6 @@ export default function Resources() {
       setAllReadings(data.results ?? data)
     } catch {}
   }
-  useEffect(() => {
-    fetchReadings()
-  }, [])
 
   const fetchHotspots = async () => {
     try {
@@ -257,9 +253,6 @@ export default function Resources() {
       setAllHotspots(data.results ?? data)
     } catch {}
   }
-  useEffect(() => {
-    fetchHotspots()
-  }, [])
 
   const fetchWaste = async () => {
     try {
@@ -269,9 +262,6 @@ export default function Resources() {
       setAllWasteClassification(data.results ?? data)
     } catch {}
   }
-  useEffect(() => {
-    fetchWaste()
-  }, [])
 
   const fetchClogs = async () => {
     try {
@@ -281,10 +271,6 @@ export default function Resources() {
       setAllClogs(data.results ?? data)
     } catch {}
   }
-  useEffect(() => {
-    fetchClogs()
-  }, [])
-
 
   // summary cards
   const totalSensorNodes = allSensorNodes.length
@@ -305,8 +291,41 @@ export default function Resources() {
     return acc
   }, {} as Record<number, SensorReadings>)
 
-  console.log(allReadings)
-  console.log(latestReadingMap)
+  const fetchAllResourceData = useCallback(() => {
+    fetchSensorNode()
+    fetchReadings()
+    fetchHotspots()
+    fetchWaste()
+    fetchClogs()
+  }, [])
+
+  useEffect(() => {
+    fetchAllResourceData()
+  }, [])
+
+  usePolling(fetchAllResourceData, 30000)
+
+  useWebSocket({
+    path: "/ws/waste-classification/",
+    onMessage: (newWaste) => {
+      setAllWasteClassification(prev => [newWaste, ...prev])
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/sensor-readings/",
+    onMessage: (reading) => {
+      setAllReadings(prev => [reading, ...prev])
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/clog-events/",
+    onMessage: (newClog) => {
+      setAllClogs(prev => [newClog, ...prev])
+    },
+  })
+
 
   return (
     <>

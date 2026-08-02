@@ -10,6 +10,7 @@ import { Toast } from "@/components/Toast"
 
 // lib
 import { exportPdf } from "@/lib/exportPDF"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
 
 // react
 import { useEffect, useState, useCallback } from "react"
@@ -140,7 +141,7 @@ export default function Waste() {
     fetchWasteClassificationData()
   }, [])
 
-  usePolling(fetchWasteClassificationData, 3000)
+  usePolling(fetchWasteClassificationData, 30000)
 
   const handleExport = async () => {
     setExporting(true)
@@ -161,6 +162,13 @@ export default function Waste() {
       setExporting(false)
     }
   }
+
+  useWebSocket({
+    path: "/ws/waste-classification/",
+    onMessage: (newWaste) => {
+      setWasteClassification(prev => [newWaste, ...prev])
+    },
+  })
 
 
   return (

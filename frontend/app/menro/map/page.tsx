@@ -1,7 +1,7 @@
 "use client"
 
 // react
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 
 // components
@@ -10,6 +10,8 @@ import { ALERT_STYLE, WASTE_STYLE } from "@/lib/constant"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { usePolling } from "@/components/hooks/usePolling"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -194,12 +196,18 @@ export default function Map() {
     } catch {}
   }
 
-  useEffect(() => {
+  const fetchAllMapData = useCallback(() => {
     fetchSensorNodes()
     fetchNodeHealth()
     fetchAlerts()
     fetchWasteClassification()
   }, [])
+
+  useEffect(() => {
+    fetchAllMapData()
+  }, [])
+
+  usePolling(fetchAllMapData, 30000)
 
   // handlers
   const handleSelectNode = (nodeId: number) => {
@@ -230,6 +238,37 @@ export default function Map() {
       wasteDate.getMonth() === today.getMonth() &&
       wasteDate.getDate() === today.getDate()
     )
+  })
+
+  useWebSocket({
+    path: "/ws/alerts/",
+    onMessage: (newAlert) => {
+      setAllAlerts(prev => [newAlert, ...prev])
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/sensor-readings/",
+    onMessage: (reading) => {
+      setAllSensorNodes(prev => prev.map(node =>
+        node.node_id === reading.node_details.node_id
+          ? {
+              ...node,
+              water_level: reading.water_level,
+              water_flow_rate: reading.water_flow_rate,
+              clog_pct: reading.clog_pct,
+              condition: reading.reading_status,
+            }
+          : node
+      ))
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/waste-classification/",
+    onMessage: (newWaste) => {
+      setAllWasteClassification(prev => [newWaste, ...prev])
+    },
   })
 
 

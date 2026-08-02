@@ -19,6 +19,7 @@ import { usePolling } from "@/components/hooks/usePolling"
 // lib
 import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -182,7 +183,31 @@ export default function Monitoring() {
     fetchAllMonitoringData()
   }, [])
 
-  usePolling(fetchAllMonitoringData, 3000)
+  usePolling(fetchAllMonitoringData, 30000)
+
+  useWebSocket({
+    path: "/ws/alerts/",
+    onMessage: (newAlert) => {
+      setAlerts(prev => [newAlert, ...prev])
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/sensor-readings/",
+    onMessage: (reading) => {
+      setNodes(prev => prev.map(node =>
+        node.node_id === reading.node_details.node_id
+          ? {
+              ...node,
+              water_level: reading.water_level,
+              water_flow_rate: reading.water_flow_rate,
+              clog_pct: reading.clog_pct,
+              condition: reading.reading_status,
+            }
+          : node
+      ))
+    },
+  })
 
   return (
     <>
@@ -338,7 +363,7 @@ export default function Monitoring() {
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 6).map(alert => {
+                todayAlerts.slice(0, 7).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div

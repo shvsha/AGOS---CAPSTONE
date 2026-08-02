@@ -16,6 +16,7 @@ import { useEffect, useState, useMemo, useCallback } from "react"
 import { getAccessToken } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
 
 // component
 import { usePagination } from "@/components/hooks/usePagination"
@@ -151,6 +152,13 @@ export default function Alerts() {
       ))
     } catch {}
   }
+
+  useWebSocket({
+    path: "/ws/alerts/",
+    onMessage: (newAlert) => {
+      setAlerts(prev => [newAlert, ...prev])
+    },
+  })
 
    return (
      <>

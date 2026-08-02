@@ -1,7 +1,7 @@
 "use client"
 
 // react
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -25,6 +25,8 @@ import { Toast } from "@/components/Toast"
 
 // lib
 import { exportPdf } from "@/lib/exportPDF"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { usePolling } from "@/components/hooks/usePolling"
 
 
 type WasteClassification = {
@@ -148,10 +150,6 @@ export default function Analytics() {
   }
 
   useEffect(() => {
-    fetchWaste()
-  }, [selectedMonth])
-
-  useEffect(() => {
     const fetchBarangays = async () => {
       try {
         const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
@@ -189,6 +187,26 @@ export default function Analytics() {
       setExporting(false)
     }
   }
+
+  const fetchAnalyticsData = useCallback(() => {
+    fetchWaste()
+  }, [selectedMonth])
+
+  useEffect(() => {
+    fetchAnalyticsData()
+  }, [fetchAnalyticsData])
+
+  usePolling(fetchAnalyticsData, 30000)
+
+  useWebSocket({
+    path: "/ws/waste-classification/",
+    onMessage: (newWaste) => {
+      const wasteMonth = newWaste.timestamp.slice(0, 7) // "YYYY-MM"
+      if (wasteMonth === selectedMonth) {
+        setWasteClassification(prev => [newWaste, ...prev])
+      }
+    },
+  })
 
   return (
     <>
