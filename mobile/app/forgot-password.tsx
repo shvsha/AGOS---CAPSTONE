@@ -57,6 +57,8 @@ export default function ForgotPassword() {
     setIsLoadingEmail(true)
     try {
       await api.post('/api/auth/forgot-password/', { email: email.trim() })
+      setOtp(Array(6).fill(''))
+      setCodeError('')
       setStep('otp')
     } catch (err: any) {
       setEmailError(err?.email ?? 'Something went wrong. Please try again.')
@@ -260,7 +262,7 @@ export default function ForgotPassword() {
                   <TextInput
                     key={index}
                     ref={el => { otpRefs.current[index] = el }}
-                    className={`w-10 h-11 text-center text-lg font-bold rounded-lg border-2 text-[#122A48] ${
+                    className={`w-12 h-13 text-center text-lg font-bold rounded-lg border-2 text-[#122A48] ${
                       codeError ? 'bg-white border-[#D81010]' : 'bg-[#CDE3DEB0] border-transparent'
                     }`}
                     value={digit}
