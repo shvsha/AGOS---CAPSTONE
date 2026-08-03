@@ -15,14 +15,8 @@ interface WasteCompositionCardProps {
   strokeWidth?: number 
 }
 
-// ---- Component ------------------------------------------------------------
-
-export default function WasteCompositionCard({
-  totalKg,
-  segments,
-  size = 130,
-  strokeWidth = 30,
-}: WasteCompositionCardProps) {
+// Component 
+export default function WasteCompositionCard({ totalKg, segments, size = 130, strokeWidth = 25, }: WasteCompositionCardProps) {
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const center = size / 2
@@ -131,7 +125,7 @@ const styles = StyleSheet.create({
   row: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    gap: 16 
+    gap: 12 
   },
 
   centerLabel: { 
@@ -169,12 +163,12 @@ const styles = StyleSheet.create({
 
   legendLabel: { 
     flex: 1, 
-    fontSize: 13, 
+    fontSize: 10.5, 
     color: '#333' 
   },
 
   legendPercent: { 
-    fontSize: 13, 
+    fontSize: 10.5, 
     fontWeight: '700', 
     color: '#1A1A1A' 
   },

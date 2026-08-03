@@ -105,6 +105,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'latitude': obj.hotspot.latitude,
             'longitude': obj.hotspot.longitude,
             'canal_width': obj.hotspot.canal_width,
+            'canal_depth': obj.hotspot.canal_depth,
             'sensor_height': obj.hotspot.sensor_height,
             'max_capacity_kg': max_capacity_kg(
                 obj.hotspot.canal_width, obj.hotspot.sensor_height
