@@ -28,14 +28,11 @@ export default function AlertCard({ alert, onPress }: Props) {
       onPress={onPress}
       className="bg-white rounded-2xl p-4 mb-4 border border-slate-100"
       style={{
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        elevation: 4,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
       }}
     >
       <View className="flex-row">

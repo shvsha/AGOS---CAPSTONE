@@ -64,7 +64,7 @@ export default function AlertsScreen() {
               {/* Header */}
               <View className="flex-row justify-between items-center mt-3 mb-2">
                 <View style={{ width: 24 }} />
-                <Text className="text-[24px] font-bold text-slate-700">
+                <Text className="text-[23px] font-bold text-[#122A48]">
                   Alerts
                 </Text>
                 <Pressable onPress={() => setFilterVisible(true)}>

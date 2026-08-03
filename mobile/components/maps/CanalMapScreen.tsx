@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native'
+import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { Feather } from '@expo/vector-icons'
 import { FloodRiskLevel, RISK_STYLE } from '@/constants/rainfall'
@@ -151,121 +151,92 @@ export default function CanalMapScreen({
   const risk = riskLevel ? RISK_STYLE[riskLevel] : null
 
   return (
-    <View style={styles.container}>
-      <View style={styles.mapWrapper}>
+    <View className="flex-1 bg-[#F4F6F8]">
+      <View className="relative h-[400px] bg-[#FAFCFD] p-[15px]">
         <WebView
           ref={webviewRef}
           originWhitelist={['*']}
           source={{ html }}
-          style={styles.webview}
+          className="flex-1"
           onMessage={handleMessage}
           startInLoadingState
           nestedScrollEnabled
           renderLoading={() => (
-            <View style={styles.loadingOverlay}>
+            <View className="absolute inset-0 items-center justify-center bg-[#F4F6F8]">
               <ActivityIndicator size="large" color="#2F6FED" />
             </View>
           )}
         />
 
         {/* zoom in/out controls */}
-        <View style={styles.zoomControls}>
-          <TouchableOpacity style={styles.zoomButton} onPress={() => injectZoom('zoomIn')}>
+        <View
+          className="absolute right-3 top-3 m-[15px] overflow-hidden rounded-lg bg-white"
+          style={{
+            elevation: 3,
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 2 },
+          }}
+        >
+          <TouchableOpacity
+            className="h-[34px] w-[34px] items-center justify-center"
+            onPress={() => injectZoom('zoomIn')}
+          >
             <Feather name="plus" size={18} color="#1A1A1A" />
           </TouchableOpacity>
-          <View style={styles.zoomDivider} />
-          <TouchableOpacity style={styles.zoomButton} onPress={() => injectZoom('zoomOut')}>
+          <View className="h-[5px] bg-[#e6e7e9]" />
+          <TouchableOpacity
+            className="h-[34px] w-[34px] items-center justify-center"
+            onPress={() => injectZoom('zoomOut')}
+          >
             <Feather name="minus" size={18} color="#1A1A1A" />
           </TouchableOpacity>
         </View>
 
         {/* legend */}
-        <View style={styles.legend}>
-          <Text style={styles.legendTitle}>Live Risk Level</Text>
+        <View
+          className="absolute bottom-2.5 left-3 m-[15px] rounded-[10px] bg-[#fffffff2] px-2.5 py-1.5"
+          style={{
+            elevation: 3,
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 2 },
+          }}
+        >
+          <Text className="mb-1.5 text-[11px] font-bold text-[#1A1A1A]">Live Risk Level</Text>
           {LEGEND_ITEMS.map((item) => (
-            <View key={item.label} style={styles.legendRow}>
-              <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-              <Text style={styles.legendLabel}>{item.label}</Text>
+            <View key={item.label} className="mb-0.5 flex-row items-center">
+              <View
+                className="mr-1.5 h-2 w-2 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <Text className="text-[11px] text-[#333333]">{item.label}</Text>
             </View>
           ))}
         </View>
       </View>
 
       {risk && (
-        <View style={[styles.riskBanner, { backgroundColor: risk.bg, borderBottomColor: risk.border }]}>
-          <View style={styles.riskBannerLeft}>
+        <View
+          className="flex-row items-center justify-between border-b-[1.5px] px-4 py-2.5 rounded-b-xl"
+          style={{ backgroundColor: risk.bg, borderBottomColor: risk.border }}
+        >
+          <View className="flex-row items-center gap-1.5">
             <Feather name="alert-triangle" size={14} color={risk.text} />
-            <Text style={[styles.riskBannerText, { color: risk.text }]}>Overall flood risk level</Text>
+            <Text className="text-[13px] font-bold" style={{ color: risk.text }}>
+              Overall flood risk level
+            </Text>
           </View>
-          <View style={[styles.riskPill, { backgroundColor: risk.border }]}>
-            <Text style={styles.riskPillText}>{risk.label}</Text>
+          <View
+            className="rounded-xl px-3 py-1"
+            style={{ backgroundColor: risk.border }}
+          >
+            <Text className="text-xs font-bold text-white">{risk.label}</Text>
           </View>
         </View>
       )}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F6F8' },
-  mapWrapper: {
-    height: 400,
-    position: 'relative',
-    padding: 15,
-    backgroundColor: '#FAFCFD',
-  },
-  webview: { flex: 1 },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4F6F8',
-  },
-  zoomControls: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    overflow: 'hidden',
-    margin: 15,
-  },
-  zoomButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  zoomDivider: { height: 5, backgroundColor: '#e6e7e9' },
-  legend: {
-    margin: 15,
-    position: 'absolute',
-    left: 12,
-    bottom: 10,
-    backgroundColor: '#fffffff2',
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  legendTitle: { fontSize: 11, fontWeight: '700', marginBottom: 6, color: '#1A1A1A' },
-  legendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
-  legendLabel: { fontSize: 11, color: '#333' },
-  riskBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1.5,
-  },
-  riskBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  riskBannerText: { fontSize: 13, fontWeight: '700' },
-  riskPill: { borderRadius: 12, paddingVertical: 4, paddingHorizontal: 12 },
-  riskPillText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-})

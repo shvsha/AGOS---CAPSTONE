@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
+import { ClogEventProvider } from '../lib/ClogEventContext';
 
 import "../global.css";
 
@@ -19,7 +20,7 @@ function AuthGate() {
       segments[0] === 'login' ||
       segments[0] === 'change-password' ||
       segments[0] === 'privacy-consent' ||
-      segments[0] === 'forgot-password'; 
+      segments[0] === 'forgot-password';
 
     if (!user && !inAuthGroup) {
       router.replace('/login');
@@ -39,6 +40,7 @@ function AuthGate() {
       <Stack.Screen name="privacy-consent" options={{ headerShown: false }} />
       <Stack.Screen name="change-password" options={{ headerShown: false }} />
       <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+      <Stack.Screen name="clog-details" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -48,10 +50,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthGate />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <ClogEventProvider>
+        <ThemeProvider value={DefaultTheme}>
+          <AuthGate />
+          <StatusBar style="dark" />
+        </ThemeProvider>
+      </ClogEventProvider>
     </AuthProvider>
   );
 }

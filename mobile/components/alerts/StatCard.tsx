@@ -19,14 +19,11 @@ export default function StatCard({ title, value }: Props) {
         border-slate-100
       "
       style={{
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        elevation: 4,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
       }}
     >
       <Text className="text-[12px] text-slate-500">{title}</Text>

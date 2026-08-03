@@ -45,7 +45,7 @@ export default function WasteVolumeCard({ title, value, subtitle, icon, }: Props
         <Text className="ml-2 text-[12px] text-slate-700">{title}</Text>
       </View>
 
-      <Text className="text-3xl font-bold text-slate-800 mt-2">
+      <Text className="text-2xl font-bold text-slate-800 mt-2">
         ~ {value} Kg
       </Text>
 
