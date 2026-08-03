@@ -52,6 +52,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="clogs"
+        options={{
+          title: 'Clog Events',
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="water-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="reports"
         options={{
           title: 'Reports',
