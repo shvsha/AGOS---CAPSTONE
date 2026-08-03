@@ -50,7 +50,7 @@ export default function Login() {
       setLoginError(err?.error ?? 'Invalid credentials.')
     } finally {
       setLoading(false)
-    }
+    } 
   }
 
   const hasError = !!(fieldError || loginError)
@@ -67,6 +67,7 @@ export default function Login() {
             <Image
               source={require('../assets/images/agos-logo.png')}
               style={{ width: 70, height: 70 }}
+              resizeMode="contain"
             >
             </Image>
           </View>
@@ -141,12 +142,16 @@ export default function Login() {
             )}
           </Pressable>
 
+          
+
           {/* forgot password — stub for now, wire up once the OTP flow exists on mobile */}
           <Pressable onPress={() => router.push('/forgot-password')}>
             <Text style={styles.forgotLink}>Forgot Password?</Text>
           </Pressable>
 
           <View style={styles.divider} />
+
+          
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -158,10 +163,10 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 350,
     backgroundColor: '#FFFAFA',
     borderRadius: 16,
-    padding: 24,
+    padding: 30,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -177,6 +182,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+  },
+  logoImage:{
+    width: 90,
+    height: 90,
+    borderRadius: 45
   },
   logoText: { color: '#122A48', fontWeight: '700', fontSize: 14 },
   brand: { fontSize: 12, color: '#000', textAlign: 'center' },
@@ -212,11 +222,11 @@ const styles = StyleSheet.create({
   error: { color: '#D81010', fontSize: 12 },
   button: {
     width: '100%',
-    backgroundColor: '#122A48',
+    backgroundColor: '#122a48',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 15,
     marginBottom: 10,
   },
   buttonDisabled: { opacity: 0.7 },
@@ -226,8 +236,8 @@ const styles = StyleSheet.create({
     color: '#1565BC',
     fontSize: 13,
     textDecorationLine: 'underline',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: 15,
+    marginTop: 10,
   },
-  divider: { width: '100%', height: 1, backgroundColor: '#1565BC', marginTop: 8 },
+  divider: { width: '100%', height: 1, backgroundColor: '#1565BC', marginTop: 8},
 })
