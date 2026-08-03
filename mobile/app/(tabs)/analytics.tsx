@@ -45,10 +45,10 @@ export default function AnalyticsScreen() {
         contentContainerStyle={{ padding: 18 }}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center mb-6">
+        <View className="flex-row justify-between items-center mb-3 -mt-2">
           <View style={{ width: 22 }} />
 
-          <Text className="text-2xl font-bold text-slate-800">Waste Analytics</Text>
+          <Text className="text-[23px] font-bold text-[#122A48]">Waste Analytics</Text>
 
           <Pressable onPress={() => setMonthPickerVisible(true)}>
             <Ionicons name="calendar-outline" size={22} color="#334155" />
@@ -85,7 +85,15 @@ export default function AnalyticsScreen() {
         {!loading && !error && (
           <>
             {/* Waste Volume */}
-            <View className="bg-white rounded-2xl p-4 mb-5">
+            <View className="bg-white rounded-2xl p-4 mb-5"
+              style={{
+                elevation: 2,
+                shadowColor: '#000',
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+              }}
+            >
               <Text className="font-semibold text-slate-700 mb-4">Estimated waste volume</Text>
 
               <View className="flex-row">
@@ -104,7 +112,15 @@ export default function AnalyticsScreen() {
             </View>
 
             {/* Detection */}
-            <View className="bg-white rounded-2xl p-4 mb-5">
+            <View className="bg-white rounded-2xl p-4 mb-5"
+              style={{
+                elevation: 2,
+                shadowColor: '#000',
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+              }}
+            >
               <Text className="font-semibold text-slate-700 mb-2">Solid debris detection</Text>
 
               {detections.length === 0 ? (
@@ -125,7 +141,15 @@ export default function AnalyticsScreen() {
             </View>
 
             {/* Classification */}
-            <View className="bg-white rounded-2xl p-4 mb-5">
+            <View className="bg-white rounded-2xl p-4 mb-5"
+              style={{
+                elevation: 2,
+                shadowColor: '#000',
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 2 },
+              }}
+            >
               <Text className="font-semibold text-slate-700 mb-4">Classified waste type</Text>
 
               {composition.map((item) => (

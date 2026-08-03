@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { View, Text, Button, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, Button, Pressable, ScrollView, ActivityIndicator } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 
 import { useAuth } from '@/lib/AuthContext'
@@ -51,7 +51,13 @@ function getNodeDetail(node: SensorNodeApi): NodeDetail {
   }
 }
 
-function StatCard({ icon, title, value, subtitle, subtitleColor, }: {
+function StatCard({
+  icon,
+  title,
+  value,
+  subtitle,
+  subtitleColor,
+}: {
   icon: keyof typeof Feather.glyphMap
   title: string
   value: string
@@ -59,13 +65,25 @@ function StatCard({ icon, title, value, subtitle, subtitleColor, }: {
   subtitleColor?: string
 }) {
   return (
-    <View style={styles.statCard}>
-      <View style={styles.statCardHeader}>
+    <View
+      className="flex-1 rounded-xl bg-white p-[15px]"
+      style={{
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      }}
+    >
+      <View className="mb-1.5 flex-row items-center gap-1.5">
         <Feather name={icon} size={14} color="#5B6472" />
-        <Text style={styles.statCardTitle}>{title}</Text>
+        <Text className="text-xs font-semibold text-[#5B6472]">{title}</Text>
       </View>
-      <Text style={styles.statCardValue}>{value}</Text>
-      <Text style={[styles.statCardSubtitle, subtitleColor ? { color: subtitleColor } : null]}>
+      <Text className="mb-0.5 text-xl font-bold text-[#1A1A1A]">{value}</Text>
+      <Text
+        className="text-[11px] text-[#8A93A0]"
+        style={subtitleColor ? { color: subtitleColor } : undefined}
+      >
         {subtitle}
       </Text>
     </View>
@@ -132,23 +150,29 @@ export default function TabOneScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <View style={styles.topBar}>
-        <Text style={styles.topBarText}>Localized Canal Map</Text>
+    <ScrollView
+      className="flex-1 bg-[#EDF2F7]"
+      contentContainerClassName="items-center gap-2.5 p-[15px]"
+    >
+      <View className="w-full items-center justify-center pt-[25px]">
+        <Text className="text-[21px] font-bold text-[#122A48]">Localized Canal Map</Text>
       </View>
 
-      <View style={styles.wrapper}>
+      <View className="w-full overflow-hidden rounded-xl">
         {error && (
-          <View style={styles.centerBox}>
-            <Text style={styles.errorText}>Failed to load map data.</Text>
-            <Pressable onPress={refetch} style={styles.retryButton}>
-              <Text style={styles.retryText}>Retry</Text>
+          <View className="items-center justify-center p-10">
+            <Text className="mb-2.5 font-semibold text-[#D81010]">Failed to load map data.</Text>
+            <Pressable
+              onPress={refetch}
+              className="rounded-lg border border-[#D8DCE2] px-4 py-2"
+            >
+              <Text className="text-[13px] text-[#5B6472]">Retry</Text>
             </Pressable>
           </View>
         )}
 
         {loading && !error && (
-          <View style={styles.centerBox}>
+          <View className="items-center justify-center p-10">
             <ActivityIndicator color="#2F6FED" />
           </View>
         )}
@@ -163,8 +187,8 @@ export default function TabOneScreen() {
               onMarkerPress={(id) => setSelectedNodeId(id as number)}
             />
 
-            <View style={styles.statsGrid}>
-              <View style={styles.statsRow}>
+            <View className="gap-2.5 p-3">
+              <View className="flex-row gap-2.5">
                 <StatCard
                   icon="map-pin"
                   title="Monitoring Points"
@@ -181,7 +205,7 @@ export default function TabOneScreen() {
                 />
               </View>
 
-              <View style={styles.statsRow}>
+              <View className="flex-row gap-2.5">
                 <StatCard
                   icon="slash"
                   title="Obstructed Canals"
@@ -206,11 +230,11 @@ export default function TabOneScreen() {
         )}
       </View>
 
-      <Text style={styles.text}>{result}</Text>
+      <Text className="text-center text-base">{result}</Text>
       <Button title="Test Backend Connection" onPress={testConnection} />
 
       <Pressable onPress={logout}>
-        <Text style={styles.text}>Log out (temp)</Text>
+        <Text className="text-center text-base">Log out (temp)</Text>
       </Pressable>
 
       <NodeDetailSheet
@@ -223,33 +247,3 @@ export default function TabOneScreen() {
     </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#EDF2F7' },
-  container: { alignItems: 'center', padding: 15, gap: 10 },
-  text: { fontSize: 16, textAlign: 'center' },
-  topBar: { width: '100%', paddingTop: 45, alignItems: 'center', justifyContent: 'center' },
-  topBarText: { fontSize: 17, fontWeight: '700', color: '#1A1A1A' },
-  wrapper: { width: '100%', backgroundColor: '#fafcfd', borderRadius: 12, overflow: 'hidden' },
-  centerBox: { padding: 40, alignItems: 'center', justifyContent: 'center' },
-  errorText: { color: '#D81010', fontWeight: '600', marginBottom: 10 },
-  retryButton: { borderWidth: 1, borderColor: '#D8DCE2', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
-  retryText: { color: '#5B6472', fontSize: 13 },
-  statsGrid: { padding: 12, gap: 10 },
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  statCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  statCardTitle: { fontSize: 12, fontWeight: '600', color: '#5B6472' },
-  statCardValue: { fontSize: 20, fontWeight: '700', color: '#1A1A1A', marginBottom: 2 },
-  statCardSubtitle: { fontSize: 11, color: '#8A93A0' },
-})

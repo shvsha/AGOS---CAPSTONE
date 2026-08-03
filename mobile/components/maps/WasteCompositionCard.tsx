@@ -24,12 +24,21 @@ export default function WasteCompositionCard({ totalKg, segments, size = 130, st
   let cumulativePercent = 0
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Waste Composition</Text>
+    <View
+      className="m-[15px] mt-[1px] rounded-xl bg-white p-5"
+      style={{
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      }}
+    >
+      <Text className="text-sm font-bold text-[#1A1A1A]">Waste Composition</Text>
 
-      <View style={styles.divider} />
+      <View className="my-3 h-px bg-[#e6e1e1]" />
 
-      <View style={styles.row}>
+      <View className="flex-row items-center gap-3">
 
         {/* chart */}
         <View style={{ width: size, height: size }}>
@@ -70,19 +79,22 @@ export default function WasteCompositionCard({ totalKg, segments, size = 130, st
           </Svg>
 
           {/* Center lbl*/}
-          <View style={[StyleSheet.absoluteFillObject, styles.centerLabel]}>
-            <Text style={styles.centerValue}>{totalKg}</Text>
-            <Text style={styles.centerUnit}>KG</Text>
+          <View className="absolute inset-0 items-center justify-center">
+            <Text className="text-[22px] font-extrabold text-[#1A1A1A]">{totalKg}</Text>
+            <Text className="mt-px text-[11px] font-semibold text-[#8A93A0]">KG</Text>
           </View>
         </View>
 
         {/* legend */}
-        <View style={styles.legend}>
+        <View className="flex-1 gap-2.5">
           {segments.map((seg, i) => (
-            <View key={i} style={styles.legendRow}>
-              <View style={[styles.legendDot, { backgroundColor: seg.color }]} />
-              <Text style={styles.legendLabel}>{seg.label}</Text>
-              <Text style={styles.legendPercent}>{seg.percent}%</Text>
+            <View key={i} className="flex-row items-center gap-2">
+              <View
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: seg.color }}
+              />
+              <Text className="flex-1 text-[10.5px] text-[#333333]">{seg.label}</Text>
+              <Text className="text-[10.5px] font-bold text-[#1A1A1A]">{seg.percent}%</Text>
             </View>
           ))}
 
@@ -93,84 +105,3 @@ export default function WasteCompositionCard({ totalKg, segments, size = 130, st
     </View>
   )
 }
-
-
-//card css
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    margin: 15,
-    marginTop: 1,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-
-  title: { 
-    fontSize: 14, 
-    fontWeight: '700', 
-    color: '#1A1A1A' 
-  },
-
-  divider: { 
-    height: 1, 
-    backgroundColor: '#e6e1e1', 
-    marginVertical: 12 
-  },
-
-  row: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 12 
-  },
-
-  centerLabel: { 
-    alignItems: 'center', 
-    justifyContent: 'center' 
-  },
-
-  centerValue: { 
-    fontSize: 22, 
-    fontWeight: '800', 
-    color: '#1A1A1A' 
-  },
-
-  centerUnit: { 
-    fontSize: 11, 
-    fontWeight: '600', 
-    color: '#8A93A0', 
-    marginTop: 1 
-  },
-
-  //legend css
-  legend: { flex: 1, gap: 10 },
-
-  legendRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8 
-  },
-
-  legendDot: { 
-    width: 10, 
-    height: 10, 
-    borderRadius: 5 
-  },
-
-  legendLabel: { 
-    flex: 1, 
-    fontSize: 10.5, 
-    color: '#333' 
-  },
-
-  legendPercent: { 
-    fontSize: 10.5, 
-    fontWeight: '700', 
-    color: '#1A1A1A' 
-  },
-
-})
