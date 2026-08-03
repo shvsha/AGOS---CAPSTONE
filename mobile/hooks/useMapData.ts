@@ -53,6 +53,10 @@ export function useMapData() {
   );
   const obstructedCount = obstructedNodeIds.size;
 
+  const awaitingResponseCount = new Set(
+    clogEvents.filter((e) => e.status === "Detected").map((e) => e.node)
+  ).size;
+
   const waterLevelReadings = nodes
     .map((n) => n.water_level)
     .filter((v): v is number => v != null);
@@ -68,12 +72,13 @@ export function useMapData() {
     monitoringPointsTotal: nodes.length,
     criticalNodesCount: criticalCount,
     obstructedCanalsCount: obstructedCount,
-    obstructedCanalsPercentOfTotal:
-      nodes.length > 0 ? Math.round((obstructedCount / nodes.length) * 100) : 0,
+    awaitingResponseCount: awaitingResponseCount,
     averageWaterLevelCm: avgWaterLevelCm,
   };
 
+  const totalWasteKg = Math.round(classifications.reduce((sum, w) => sum + (w.estimated_volume || 0), 0) * 10) / 10;
+
   const composition = buildComposition(classifications);
 
-  return { nodes, mappableNodes, stats, composition, loading, error, refetch: fetchAll };
+  return { nodes, mappableNodes, awaitingResponseCount, stats, totalWasteKg, composition, loading, error, refetch: fetchAll };
 }
