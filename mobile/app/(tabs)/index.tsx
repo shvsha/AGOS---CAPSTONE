@@ -78,13 +78,8 @@ export default function TabOneScreen() {
   const [result, setResult] = useState('Not tested yet')
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
 
-  const { nodes, mappableNodes, stats, composition, loading, error, refetch } = useMapData()
+  const { nodes, mappableNodes, stats, composition, totalWasteKg, loading, error, refetch } = useMapData()
   const { riskLevel } = useRainfallCondition()
-
-  const totalWasteKg = useMemo(
-    () => Math.round(composition.reduce((sum) => sum, 0)), // placeholder
-    [composition]
-  )
 
   const canalNodes = useMemo(
     () =>
@@ -191,7 +186,7 @@ export default function TabOneScreen() {
                   icon="slash"
                   title="Obstructed Canals"
                   value={String(stats.obstructedCanalsCount)}
-                  subtitle={`${stats.obstructedCanalsPercentOfTotal}% of total`}
+                  subtitle={`${stats.awaitingResponseCount} awaiting response`}
                 />
 
                 <StatCard
@@ -204,7 +199,7 @@ export default function TabOneScreen() {
             </View>
 
             <WasteCompositionCard
-              totalKg={Math.round(composition.reduce((sum, seg: any) => sum, 0))}
+              totalKg={totalWasteKg}
               segments={composition.map((c) => ({ label: c.type, percent: c.percent, color: c.color }))}
             />
           </>
