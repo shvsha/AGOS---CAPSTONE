@@ -12,6 +12,7 @@ from apps.rainfall.services import get_effective_condition, AlertThreshold
 
 class SensorNodeListView(generics.ListCreateAPIView):
     serializer_class = SensorNodeSerializer
+    pagination_class = None
 
     def get_permissions(self):
         if self.request.method == 'GET':

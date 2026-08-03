@@ -3,21 +3,16 @@ import { View, Text, StyleSheet, Modal, Pressable, TouchableOpacity, Animated, P
 import { Feather } from '@expo/vector-icons'
 import type { CanalStatus } from '@/components/maps/CanalMapScreen'
 
-export type WasteType = 'residual' | 'recyclable' | 'biodegradable' | 'special' | 'unclassified'
-
 export interface NodeDetail {
   id: string | number
-  title: string 
+  title: string
   status: CanalStatus
-  statusLabel: string 
-  waterLevelPercent: number
-  sensorReadingCm: number
-  lastUpdated: string 
-  flowRate: number 
-  flowStatusLabel: string 
-  wasteType: WasteType
-  clogPercentage: number
-  severity: string
+  statusLabel: string
+  waterLevelPercent: number | null
+  sensorReadingCm: number | null
+  lastUpdated: string
+  flowRate: number | null
+  clogPercentage: number | null
 }
 
 interface NodeDetailSheetProps {
@@ -28,33 +23,12 @@ interface NodeDetailSheetProps {
   onMarkCleared?: (nodeId: string | number) => void
 }
 
-//canal stats clr
+// matches CanalMapScreen/web's CONDITION_COLORS exactly
 const STATUS_COLORS: Record<CanalStatus, string> = {
-  none: '#2F6FED',
-  low: '#2ECC71',
-  medium: '#A3D93B',
-  high: '#F39C12',
-  critical: '#E74C3C',
+  Normal: '#1565BC',
+  Warning: '#FF9705',
+  Critical: '#D81010',
 }
-
-//waste classification
-const WASTE_TYPE_LABELS: Record<WasteType, string> = {
-  residual: 'Residual',
-  recyclable: 'Recyclable',
-  biodegradable: 'Biodegradable',
-  special: 'Special waste',
-  unclassified: 'Not yet classified',
-}
-
-//waste classification clr
-const WASTE_TYPE_COLORS: Record<WasteType, string> = {
-  residual: '#4B4B4B',
-  recyclable: '#2F6FED',
-  biodegradable: '#2ECC71',
-  special: '#E74C3C',
-  unclassified: '#B7BEC7',
-}
-
 
 export default function NodeDetailSheet({
   node,
@@ -63,12 +37,11 @@ export default function NodeDetailSheet({
   onRespond,
   onMarkCleared,
 }: NodeDetailSheetProps) {
-  
+
   const sheetHeight = Dimensions.get('window').height
 
   const translateY = useRef(new Animated.Value(sheetHeight)).current
 
-  
   useEffect(() => {
     if (visible && node) {
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start()
@@ -83,15 +56,13 @@ export default function NodeDetailSheet({
     }).start(() => onClose())
   }
 
-  //bot sheet code
   const panResponder = useRef(
     PanResponder.create({
-      
       onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_evt, gesture) => Math.abs(gesture.dy) > 2,
       onMoveShouldSetPanResponderCapture: (_evt, gesture) => Math.abs(gesture.dy) > 2,
-      
+
       onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_evt, gesture) => {
         if (gesture.dy > 0) translateY.setValue(gesture.dy)
@@ -117,10 +88,9 @@ export default function NodeDetailSheet({
       onPanResponderTerminate: () => {
         Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start()
       },
-      
     })
   ).current
-  
+
   if (!node || !visible) return null
 
   const statusColor = STATUS_COLORS[node.status]
@@ -139,7 +109,6 @@ export default function NodeDetailSheet({
         </TouchableOpacity>
 
         <View style={styles.titleRow}>
-
           <View style={styles.titleLeft}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <Text style={styles.title}>{node.title}</Text>
@@ -148,20 +117,24 @@ export default function NodeDetailSheet({
           <View style={[styles.statusPill, { backgroundColor: statusColor + '22' }]}>
             <Text style={[styles.statusPillText, { color: statusColor }]}>{node.statusLabel}</Text>
           </View>
-
         </View>
 
         <View style={styles.divider} />
 
-        {/* waterr lvl */}
+        {/* water level */}
         <View style={styles.sectionHeader}>
           <Feather name="droplet" size={13} color="#2F6FED" />
           <Text style={styles.sectionTitle}>WATER LEVEL DATA</Text>
         </View>
-        <Row label="Current level" value={`${node.waterLevelPercent}% capacity`} valueColor={statusColor} />
-
-        <Row label="Sensor reading" value={`${node.sensorReadingCm} cm from sensor`} />
-
+        <Row
+          label="Current level"
+          value={node.waterLevelPercent != null ? `${Math.round(node.waterLevelPercent)}% capacity` : '— % capacity'}
+          valueColor={statusColor}
+        />
+        <Row
+          label="Sensor reading"
+          value={node.sensorReadingCm != null ? `${node.sensorReadingCm} cm from sensor` : '— cm from sensor'}
+        />
         <Row label="Last updated" value={node.lastUpdated} muted />
 
         <View style={styles.divider} />
@@ -171,11 +144,9 @@ export default function NodeDetailSheet({
           <Feather name="activity" size={13} color="#2F6FED" />
           <Text style={styles.sectionTitle}>WATER FLOW DATA</Text>
         </View>
-
         <Row
           label="Flow rate"
-          value={`${node.flowStatusLabel}  ${node.flowRate >= 0 ? '+' : ''}${node.flowRate} L/min`}
-          valueColor="#E74C3C"
+          value={node.flowRate != null ? `${node.flowRate.toFixed(5)} m/s` : '— m/s'}
         />
 
         <View style={styles.divider} />
@@ -185,17 +156,10 @@ export default function NodeDetailSheet({
           <Feather name="slash" size={13} color="#2F6FED" />
           <Text style={styles.sectionTitle}>CLOG DETECTION</Text>
         </View>
-
         <Row
-          label="Waste type"
-          value={WASTE_TYPE_LABELS[node.wasteType]}
-          valueColor={WASTE_TYPE_COLORS[node.wasteType]}
+          label="Clog percentage"
+          value={node.clogPercentage != null ? `${node.clogPercentage}%` : '— %'}
         />
-
-        <Row label="Clog percentage" value={`${node.clogPercentage}%`} />
-
-        <Row label="Severity" value={node.severity} />
-
       </Animated.View>
     </Modal>
   )
@@ -234,7 +198,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    //bottom: 0,
     backgroundColor: '#F9FAFA',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -242,13 +205,7 @@ const styles = StyleSheet.create({
     paddingTop: 25,
     paddingBottom: 60,
   },
-
-  handleArea: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-
+  handleArea: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: 10 },
   handle: {
     alignSelf: 'center',
     width: 70,
@@ -258,71 +215,17 @@ const styles = StyleSheet.create({
     marginTop: 0,
     marginBottom: 30,
   },
-
   closeButton: { position: 'absolute', right: 16, top: 25 },
-
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 3,
-  },
-
-  titleLeft: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-    flexShrink: 1 
-  },
-
-  statusDot: { 
-    width: 9, 
-    height: 9, 
-    borderRadius: 4.5 
-  },
-
-  title: { 
-    fontSize: 18, 
-    fontWeight: '700', 
-    color: '#1A1A1A' 
-  },
-
-  statusPill: { 
-    borderRadius: 12, 
-    paddingVertical: 4, 
-    paddingHorizontal: 12 
-  },
-
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
+  titleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  statusDot: { width: 9, height: 9, borderRadius: 4.5 },
+  title: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  statusPill: { borderRadius: 12, paddingVertical: 4, paddingHorizontal: 12 },
   statusPillText: { fontSize: 12, fontWeight: '700' },
-
-  divider: { 
-    height: 1, 
-    backgroundColor: '#e6e1e1', 
-    marginVertical: 12 
-  },
-
-  sectionHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 6, 
-    marginBottom: 8 
-  },
-
-  sectionTitle: { 
-    fontSize: 11, 
-    fontWeight: '700', 
-    color: '#2F6FED', 
-    letterSpacing: 0.4 
-  },
-
-  row: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 10 },
-
+  divider: { height: 1, backgroundColor: '#e6e1e1', marginVertical: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', color: '#2F6FED', letterSpacing: 0.4 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   rowLabel: { fontSize: 13, color: '#5B6472' },
   rowValue: { fontSize: 13, color: '#1A1A1A', fontWeight: '600' },
-
-  
 })
