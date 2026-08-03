@@ -23,6 +23,7 @@ const MAPPING = {
   'chart.line.uptrend.xyaxis': 'insights',
   'document.on.document': 'description',
   'exit': 'logout',
+  'water-outline': 'opacity',
 } as IconMapping;
 
 /**
