@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, Text, View, ActivityIndicator } from "react-native";
+import { FlatList, Pressable, Text, View, ActivityIndicator, RefreshControl  } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -23,7 +23,7 @@ export default function AlertsScreen() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [page, setPage] = useState(1);
 
-  const { alerts, loading, error, refetch, markAsRead } = useAlerts(alertType, dateFilter);
+  const { alerts, loading, refreshing, error, refetch, markAsRead } = useAlerts(alertType, dateFilter);
 
   // Statistics
   const totalAlerts = alerts.length;
@@ -55,6 +55,9 @@ export default function AlertsScreen() {
           data={paginatedAlerts}
           keyExtractor={(item) => item.alert_id.toString()}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => refetch(true)} tintColor="#122A48" />
+          }
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingBottom: 30,

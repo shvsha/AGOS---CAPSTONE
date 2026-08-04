@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View, RefreshControl, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -28,8 +28,7 @@ export default function AnalyticsScreen() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthValue());
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
 
-  const { classifications, liveClassifications, nodes, loading, error, refetch } =
-    useAnalytics(selectedMonth);
+  const { classifications, liveClassifications, nodes, loading, refreshing, error, refetch } = useAnalytics(selectedMonth);
 
   const wasteVolumes = useMemo(() => buildWasteVolumes(classifications), [classifications]);
   const composition = useMemo(() => buildComposition(classifications), [classifications]);
@@ -43,6 +42,9 @@ export default function AnalyticsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 18 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => refetch(true)} tintColor="#122A48" />
+        }
       >
         {/* Header */}
         <View className="flex-row justify-between items-center mb-3 -mt-2">

@@ -1,10 +1,14 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { api } from '../../lib/api'
 import { useClogEvent } from '../../lib/ClogEventContext'
 import { ClogEvent } from '../../types/clog-events'
 import Pagination from '../../components/alerts/Pagination'
+import { SafeAreaView } from 'react-native-safe-area-context'
+
+import { useAuth } from '../../lib/AuthContext'
+import { useLiveSocket } from '../../lib/useLiveSocket'
 
 const PAGE_SIZE = 5
 const SEVERITY_TABS = ['All', 'High', 'Medium', 'Low'] as const
@@ -27,6 +31,8 @@ function formatDate(iso?: string | null) {
 export default function ClogEventsScreen() {
   const router = useRouter()
   const { setSelectedEvent } = useClogEvent()
+  const { user } = useAuth()
+  const hasLoadedOnce = useRef(false)
 
   const [events, setEvents] = useState<ClogEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,11 +42,16 @@ export default function ClogEventsScreen() {
   const [page, setPage] = useState(1)
 
   const fetchEvents = async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true)
+    if (isRefresh) {
+      setRefreshing(true)
+    } else if (!hasLoadedOnce.current) {
+      setLoading(true)
+    }
     setError(false)
     try {
       const data = await api.get('/api/clog-events/')
       setEvents(Array.isArray(data) ? data : [])
+      hasLoadedOnce.current = true
     } catch {
       setError(true)
     } finally {
@@ -48,12 +59,26 @@ export default function ClogEventsScreen() {
     }
   }
 
-  // re-fetch every time this tab regains focus, same UX idea as before,
-  // just going through the authenticated api client now
   useFocusEffect(
     useCallback(() => {
       fetchEvents()
     }, [])
+  )
+
+  useLiveSocket<ClogEvent>(
+    'ws/clog-events/',
+    (incoming) => {
+      if (user?.user_role === 'Barangay' && incoming.barangay !== user.barangay_id) {
+        return
+      }
+      setEvents((prev) => {
+        const exists = prev.some((e) => e.event_id === incoming.event_id)
+        return exists
+          ? prev.map((e) => (e.event_id === incoming.event_id ? incoming : e))
+          : [incoming, ...prev]
+      })
+    },
+    () => fetchEvents()
   )
 
   const filteredEvents = events
@@ -85,8 +110,8 @@ export default function ClogEventsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#EEF3F8]">
-      <View className="px-4 pt-3 pb-3 mt-10">
+    <SafeAreaView className="flex-1 bg-[#EEF3F8]" edges={['top']}>
+      <View className="px-4 pt-3 pb-3">
         <Text className="text-[23px] font-bold text-center text-[#122A48]">Clog Events</Text>
       </View>
 
@@ -244,6 +269,6 @@ export default function ClogEventsScreen() {
 
         <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   )
 }

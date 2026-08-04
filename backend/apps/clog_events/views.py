@@ -11,6 +11,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Q
 from django.utils import timezone
 from agos_backend.pdf_utils import render_to_pdf
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 
 class ClogEventListView(generics.ListCreateAPIView):
@@ -94,6 +96,12 @@ class UpdateClogStatusView(APIView):
             elif new_status == 'Responded':
                 event.responded_by = user
             event.save()
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "clog_events",
+                {"type": "clog_event_message", "clog_event": ClogEventSerializer(event).data}
+            )
 
             # Log the status update
             log_action(
