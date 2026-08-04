@@ -29,7 +29,10 @@ class BarangayMonthlyReportListView(generics.ListCreateAPIView):
         return BarangayMonthlyReport.objects.all().order_by('-submitted_at')
     
     def perform_create(self, serializer):
-        report = serializer.save()
+        report = serializer.save(
+            barangay=self.request.user.barangay,
+            submitted_by=self.request.user,
+        )
         log_action(
             user=self.request.user,
             action='Submitted Barangay Monthly Report',

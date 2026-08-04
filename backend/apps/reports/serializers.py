@@ -11,8 +11,8 @@ class ReportMediaSerializer(serializers.ModelSerializer):
 
     def get_file_url(self, obj):
         request = self.context.get('request')
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
+        if obj.file_path and request:
+            return request.build_absolute_uri(obj.file_path.url)
         return None
 
 class BarangayMonthlyReportSerializer(serializers.ModelSerializer):

@@ -12,6 +12,7 @@ class ClogEventSerializer(serializers.ModelSerializer):
     classification_details = WasteClassificationSerializer(source='classification', read_only=True)
     cleared_by_details = UserSerializer(source='cleared_by', read_only=True)
     reading_details = serializers.SerializerMethodField()
+    responded_by_details = UserSerializer(source='responded_by', read_only=True)
 
     class Meta:
         model = ClogEvent
