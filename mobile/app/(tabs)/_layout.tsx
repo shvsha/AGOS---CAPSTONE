@@ -41,7 +41,7 @@ export default function TabLayout() {
         name="alerts"
         options={{
           title: 'Alerts',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="bell.badge" color={color} />,
+          href: null, // no longer a bottom-tab item; reached via the bell icon on the main screens
         }}
       />
       <Tabs.Screen

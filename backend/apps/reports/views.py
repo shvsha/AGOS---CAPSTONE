@@ -5,7 +5,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum
 from .models import BarangayMonthlyReport, ReportMedia, MunicipalMonthlyReport
 from .serializers import ( BarangayMonthlyReportSerializer, ReportMediaSerializer, MunicipalMonthlyReportSerializer )
-from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay, IsAdminOrMENROOfficer 
+from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay, IsAdminOrMENROOfficer, CanAccessOwnBarangayReport, CanAccessOwnBarangayReportMedia
 from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -32,6 +32,7 @@ class BarangayMonthlyReportListView(generics.ListCreateAPIView):
         report = serializer.save(
             barangay=self.request.user.barangay,
             submitted_by=self.request.user,
+            status=self.request.data.get('status', 'Pending'),
         )
         log_action(
             user=self.request.user,
@@ -46,7 +47,7 @@ class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = BarangayMonthlyReport.objects.all()
     serializer_class = BarangayMonthlyReportSerializer
     lookup_field = 'monthly_report_id'
-    permission_classes = [IsAdminOrMENROOfficer  ]
+    permission_classes = [CanAccessOwnBarangayReport]
 
 
 class ReportMediaListView(generics.ListAPIView):
@@ -83,7 +84,7 @@ class ReportMediaUploadView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        media = ReportMedia(file=file, media_type=media_type, media_category=media_category, uploaded_by=request.user)
+        media = ReportMedia(file_path=file, media_type=media_type, media_category=media_category, uploaded_by=request.user)
 
         if clog_event_id:
             from apps.clog_events.models import ClogEvent
@@ -105,6 +106,13 @@ class ReportMediaUploadView(APIView):
             ReportMediaSerializer(media, context={'request': request}).data,
             status=status.HTTP_201_CREATED
         )
+
+
+class ReportMediaDetailView(generics.RetrieveDestroyAPIView):
+    queryset = ReportMedia.objects.all()
+    serializer_class = ReportMediaSerializer
+    lookup_field = 'media'
+    permission_classes = [CanAccessOwnBarangayReportMedia]
     
 
 class ReportMediaByClogEventView(generics.ListAPIView):
