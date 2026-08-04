@@ -4,6 +4,7 @@ from django.conf import settings
 
 class BarangayMonthlyReport(models.Model):
     STATUS_CHOICES = [
+        ('Draft', 'Draft'),
         ('Pending', 'Pending'),
         ('Reviewed', 'Reviewed'),
     ]
