@@ -4,6 +4,9 @@ import { SensorNodeApi, ClogEventApi } from "../types/map";
 import { WasteClassification } from "../types/analytics";
 import { buildComposition } from "../lib/analytics";
 
+import { useLiveSocket } from "../lib/useLiveSocket";
+import { useAuth } from "../lib/AuthContext";
+
 const UNRESOLVED_STATUSES = ["Detected", "Responded"];
 
 function currentMonthValue() {
@@ -16,10 +19,13 @@ export function useMapData() {
   const [clogEvents, setClogEvents] = useState<ClogEventApi[]>([]);
   const [classifications, setClassifications] = useState<WasteClassification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const { user } = useAuth();
+
+  const fetchAll = useCallback(async (isRefresh = false) => {
+    isRefresh ? setRefreshing(true) : setLoading(true);
     setError(false);
     try {
       const [nodeData, clogData, wasteData] = await Promise.all([
@@ -33,13 +39,63 @@ export function useMapData() {
     } catch {
       setError(true);
     } finally {
-      setLoading(false);
+      isRefresh ? setRefreshing(false) : setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    }, [fetchAll]);
+
+    useLiveSocket<{
+    node_details: { node_id: number };
+    water_level: number | null;
+    water_flow_rate: number | null;
+    clog_pct: number | null;
+    timestamp: string;
+  }>(
+    'ws/sensor-readings/',
+    (incoming) => {
+      const nodeId = incoming.node_details?.node_id;
+      if (nodeId == null) return;
+
+      const condition =
+        incoming.clog_pct == null ? null :
+        incoming.clog_pct >= 67 ? 'Critical' :
+        incoming.clog_pct >= 34 ? 'Warning' : 'Normal';
+
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.node_id === nodeId
+            ? {
+                ...n,
+                water_level: incoming.water_level,
+                water_flow_rate: incoming.water_flow_rate,
+                clog_pct: incoming.clog_pct,
+                condition,
+                last_reading_at: incoming.timestamp,
+              }
+            : n
+        )
+      );
+    },
+    () => fetchAll()
+  );
+
+  useLiveSocket<WasteClassification>(
+    'ws/waste-classification/',
+    (incoming) => {
+      if (
+        user?.user_role === 'Barangay' &&
+        incoming.node_details?.barangay_details?.barangay_id != null &&
+        incoming.node_details.barangay_details.barangay_id !== user.barangay_id
+      ) {
+        return;
+      }
+      setClassifications((prev) => [incoming, ...prev]);
+    },
+    () => fetchAll()
+  );
 
   const mappableNodes = nodes.filter(
     (n) => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null
@@ -80,5 +136,5 @@ export function useMapData() {
 
   const composition = buildComposition(classifications);
 
-  return { nodes, mappableNodes, awaitingResponseCount, stats, totalWasteKg, composition, loading, error, refetch: fetchAll };
+  return { nodes, mappableNodes, awaitingResponseCount, stats, totalWasteKg, composition, loading, refreshing, error, refetch: fetchAll };
 }

@@ -171,13 +171,14 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
             alert_context={'severity': clog_event.severity}
         )
 
-    @receiver(post_save, sender=SensorReading)
-    def broadcast_new_reading(sender, instance, created, **kwargs):
-        if not created:
-            return
 
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "sensor_readings",
-            {"type": "reading_message", "reading": SensorReadingSerializer(instance).data}
-        )
+@receiver(post_save, sender=SensorReading)
+def broadcast_new_reading(sender, instance, created, **kwargs):
+    if not created:
+        return
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "sensor_readings",
+        {"type": "reading_message", "reading": SensorReadingSerializer(instance).data}
+    )

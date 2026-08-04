@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "../lib/api";
 import { WasteClassification } from "../types/analytics";
 
+import { useLiveSocket } from "../lib/useLiveSocket";
+import { useAuth } from "../lib/AuthContext";
+
 export interface AnalyticsNode {
   node_id: number;
   node_name: string;
@@ -13,10 +16,13 @@ export function useAnalytics(selectedMonth: string) {
   const [liveClassifications, setLiveClassifications] = useState<WasteClassification[]>([]);
   const [nodes, setNodes] = useState<AnalyticsNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const { user } = useAuth();
+
+  const fetchAll = useCallback(async (isRefresh = false) => {
+    isRefresh ? setRefreshing(true) : setLoading(true);
     setError(false);
     try {
       const currentMonth = `${new Date().getFullYear()}-${String(
@@ -46,7 +52,7 @@ export function useAnalytics(selectedMonth: string) {
     } catch {
       setError(true);
     } finally {
-      setLoading(false);
+      isRefresh ? setRefreshing(false) : setLoading(false);
     }
   }, [selectedMonth]);
 
@@ -54,5 +60,27 @@ export function useAnalytics(selectedMonth: string) {
     fetchAll();
   }, [fetchAll]);
 
-  return { classifications, liveClassifications, nodes, loading, error, refetch: fetchAll };
+  useLiveSocket<WasteClassification>(
+    'ws/waste-classification/',
+    (incoming) => {
+      if (
+        user?.user_role === 'Barangay' &&
+        incoming.node_details?.barangay_details?.barangay_id != null &&
+        incoming.node_details.barangay_details.barangay_id !== user.barangay_id
+      ) {
+        return;
+      }
+
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
+      setLiveClassifications((prev) => [incoming, ...prev]);
+
+      if (selectedMonth === currentMonth) {
+        setClassifications((prev) => [incoming, ...prev]);
+      }
+    },
+    () => fetchAll()
+  );
+
+  return { classifications, liveClassifications, nodes, loading, refreshing, error, refetch: fetchAll };
 }

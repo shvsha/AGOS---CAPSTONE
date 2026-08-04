@@ -5,6 +5,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { useClogEvent } from '../lib/ClogEventContext'
 
+import { useLiveSocket } from '../lib/useLiveSocket'
+import { ClogEvent } from '../types/clog-events'
+
 function formatDate(iso?: string | null) {
   if (!iso) return '--'
   const d = new Date(iso)
@@ -40,6 +43,22 @@ export default function ClogDetails() {
       router.replace('/clogs')
     }
   }, [selectedEvent])
+
+  useLiveSocket<ClogEvent>(
+    'ws/clog-events/',
+    (incoming) => {
+      if (selectedEvent && incoming.event_id === selectedEvent.event_id) {
+        setSelectedEvent(incoming)
+      }
+    },
+    () => {
+      if (!selectedEvent) return
+      api.get('/api/clog-events/').then((list) => {
+        const match = Array.isArray(list) ? list.find((e: ClogEvent) => e.event_id === selectedEvent.event_id) : null
+        if (match) setSelectedEvent(match)
+      }).catch(() => {})
+    }
+  )
 
   if (!selectedEvent) return null
 

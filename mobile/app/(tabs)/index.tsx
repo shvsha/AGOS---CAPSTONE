@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { View, Text, Button, Pressable, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, Button, Pressable, ScrollView, ActivityIndicator, RefreshControl  } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useAuth } from '@/lib/AuthContext'
 import CanalMapScreen, { type CanalStatus } from '@/components/maps/CanalMapScreen'
@@ -51,13 +52,7 @@ function getNodeDetail(node: SensorNodeApi): NodeDetail {
   }
 }
 
-function StatCard({
-  icon,
-  title,
-  value,
-  subtitle,
-  subtitleColor,
-}: {
+function StatCard({ icon, title, value, subtitle, subtitleColor, }: {
   icon: keyof typeof Feather.glyphMap
   title: string
   value: string
@@ -96,7 +91,7 @@ export default function TabOneScreen() {
   const [result, setResult] = useState('Not tested yet')
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
 
-  const { nodes, mappableNodes, stats, composition, totalWasteKg, loading, error, refetch } = useMapData()
+  const { nodes, mappableNodes, stats, composition, totalWasteKg, loading, refreshing, error, refetch } = useMapData()
   const { riskLevel } = useRainfallCondition()
 
   const canalNodes = useMemo(
@@ -150,100 +145,105 @@ export default function TabOneScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-[#EDF2F7]"
-      contentContainerClassName="items-center gap-2.5 p-[15px]"
-    >
-      <View className="w-full items-center justify-center pt-[25px]">
-        <Text className="text-[21px] font-bold text-[#122A48]">Localized Canal Map</Text>
-      </View>
+    <SafeAreaView className="flex-1 bg-[#EDF2F7]" edges={['top']}>
+      <ScrollView
+        className="flex-1 bg-[#EDF2F7]"
+        contentContainerClassName="items-center gap-2.5 p-[15px]"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => refetch(true)} tintColor="#122A48" />
+        }
+      >
+        <View className="w-full items-center justify-center">
+          <Text className="text-[21px] font-bold text-[#122A48]">Localized Canal Map</Text>
+        </View>
 
-      <View className="w-full overflow-hidden rounded-xl">
-        {error && (
-          <View className="items-center justify-center p-10">
-            <Text className="mb-2.5 font-semibold text-[#D81010]">Failed to load map data.</Text>
-            <Pressable
-              onPress={refetch}
-              className="rounded-lg border border-[#D8DCE2] px-4 py-2"
-            >
-              <Text className="text-[13px] text-[#5B6472]">Retry</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {loading && !error && (
-          <View className="items-center justify-center p-10">
-            <ActivityIndicator color="#2F6FED" />
-          </View>
-        )}
-
-        {!loading && !error && (
-          <>
-            <CanalMapScreen
-              nodes={canalNodes}
-              centerLat={center.lat}
-              centerLng={center.lng}
-              riskLevel={riskLevel}
-              onMarkerPress={(id) => setSelectedNodeId(id as number)}
-            />
-
-            <View className="gap-2.5 p-3">
-              <View className="flex-row gap-2.5">
-                <StatCard
-                  icon="map-pin"
-                  title="Monitoring Points"
-                  value={String(stats.monitoringPointsTotal)}
-                  subtitle="Sensor nodes in this barangay"
-                />
-
-                <StatCard
-                  icon="alert-triangle"
-                  title="Critical Nodes"
-                  value={String(stats.criticalNodesCount)}
-                  subtitle="Immediate action is needed"
-                  subtitleColor="#E74C3C"
-                />
-              </View>
-
-              <View className="flex-row gap-2.5">
-                <StatCard
-                  icon="slash"
-                  title="Obstructed Canals"
-                  value={String(stats.obstructedCanalsCount)}
-                  subtitle={`${stats.awaitingResponseCount} awaiting response`}
-                />
-
-                <StatCard
-                  icon="droplet"
-                  title="Average water level"
-                  value={stats.averageWaterLevelCm != null ? `${stats.averageWaterLevelCm} cm` : '—'}
-                  subtitle="Across all nodes"
-                />
-              </View>
+        <View className="w-full overflow-hidden rounded-xl">
+          {error && (
+            <View className="items-center justify-center p-10">
+              <Text className="mb-2.5 font-semibold text-[#D81010]">Failed to load map data.</Text>
+              <Pressable
+                onPress={refetch}
+                className="rounded-lg border border-[#D8DCE2] px-4 py-2"
+              >
+                <Text className="text-[13px] text-[#5B6472]">Retry</Text>
+              </Pressable>
             </View>
+          )}
 
-            <WasteCompositionCard
-              totalKg={totalWasteKg}
-              segments={composition.map((c) => ({ label: c.type, percent: c.percent, color: c.color }))}
-            />
-          </>
-        )}
-      </View>
+          {loading && !error && (
+            <View className="items-center justify-center p-10">
+              <ActivityIndicator color="#2F6FED" />
+            </View>
+          )}
 
-      <Text className="text-center text-base">{result}</Text>
-      <Button title="Test Backend Connection" onPress={testConnection} />
+          {!loading && !error && (
+            <>
+              <CanalMapScreen
+                nodes={canalNodes}
+                centerLat={center.lat}
+                centerLng={center.lng}
+                riskLevel={riskLevel}
+                onMarkerPress={(id) => setSelectedNodeId(id as number)}
+              />
 
-      <Pressable onPress={logout}>
-        <Text className="text-center text-base">Log out (temp)</Text>
-      </Pressable>
+              <View className="gap-2.5 p-3">
+                <View className="flex-row gap-2.5">
+                  <StatCard
+                    icon="map-pin"
+                    title="Monitoring Points"
+                    value={String(stats.monitoringPointsTotal)}
+                    subtitle="Sensor nodes in this barangay"
+                  />
 
-      <NodeDetailSheet
-        node={selectedNode}
-        visible={selectedNode !== null}
-        onClose={() => setSelectedNodeId(null)}
-        onRespond={handleRespond}
-        onMarkCleared={handleMarkCleared}
-      />
-    </ScrollView>
+                  <StatCard
+                    icon="alert-triangle"
+                    title="Critical Nodes"
+                    value={String(stats.criticalNodesCount)}
+                    subtitle="Immediate action is needed"
+                    subtitleColor="#E74C3C"
+                  />
+                </View>
+
+                <View className="flex-row gap-2.5">
+                  <StatCard
+                    icon="slash"
+                    title="Obstructed Canals"
+                    value={String(stats.obstructedCanalsCount)}
+                    subtitle={`${stats.awaitingResponseCount} awaiting response`}
+                  />
+
+                  <StatCard
+                    icon="droplet"
+                    title="Average water level"
+                    value={stats.averageWaterLevelCm != null ? `${stats.averageWaterLevelCm} cm` : '—'}
+                    subtitle="Across all nodes"
+                  />
+                </View>
+              </View>
+
+              <WasteCompositionCard
+                totalKg={totalWasteKg}
+                segments={composition.map((c) => ({ label: c.type, percent: c.percent, color: c.color }))}
+              />
+            </>
+          )}
+        </View>
+
+        <Text className="text-center text-base">{result}</Text>
+        <Button title="Test Backend Connection" onPress={testConnection} />
+
+        <Pressable onPress={logout}>
+          <Text className="text-center text-base">Log out (temp)</Text>
+        </Pressable>
+
+        <NodeDetailSheet
+          node={selectedNode}
+          visible={selectedNode !== null}
+          onClose={() => setSelectedNodeId(null)}
+          onRespond={handleRespond}
+          onMarkCleared={handleMarkCleared}
+        />
+      </ScrollView>
+    </SafeAreaView>
   )
 }

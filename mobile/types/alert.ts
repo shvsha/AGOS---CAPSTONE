@@ -33,6 +33,7 @@ export interface Alert {
   alert_type: AlertType;
   node_name: string | null;
   barangay_name: string | null;
+  barangay_id?: number | null;
   timestamp: string;
   is_read: boolean;
   alert_context: AlertContext;

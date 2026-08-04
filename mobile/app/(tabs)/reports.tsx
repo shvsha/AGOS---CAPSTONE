@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, } from "react-native";
+import React, { useState, useCallback, useRef  } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -68,14 +68,20 @@ type ReportRow =
 export default function ReportsListScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const hasLoadedOnce = useRef(false);
 
   const [drafts, setDrafts] = useState<ReportDraft[]>([]);
   const [reports, setReports] = useState<BarangayMonthlyReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else if (!hasLoadedOnce.current) {
+      setIsLoading(true);
+    }
     setError("");
     try {
       const [localDrafts, res] = await Promise.all([
@@ -84,14 +90,14 @@ export default function ReportsListScreen() {
       ]);
       setDrafts(localDrafts);
       setReports(res.results ?? res);
+      hasLoadedOnce.current = true;
     } catch (err: any) {
       setError(err?.error ?? "Failed to load reports.");
     } finally {
-      setIsLoading(false);
+      isRefresh ? setRefreshing(false) : setIsLoading(false);
     }
   }, []);
 
-  // Refresh every time this screen comes into focus (e.g. after saving a draft or submitting)
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -132,7 +138,11 @@ export default function ReportsListScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#f8fafc]" edges={["top"]}>
-      <ScrollView contentContainerClassName="p-4 pb-8">
+      <ScrollView 
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#122A48" />
+        }
+        contentContainerClassName="p-4 pb-8">
 
         {/* Header Bar */}
         <View className="mb-4 flex-row items-center justify-between gap-3">
