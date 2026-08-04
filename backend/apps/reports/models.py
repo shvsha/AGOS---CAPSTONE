@@ -28,6 +28,7 @@ class BarangayMonthlyReport(models.Model):
     residual_waste_kg = models.FloatField(default=0)
     special_waste_kg = models.FloatField(null=True, blank=True)
     amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    remarks = models.TextField(null=True, blank=True)
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

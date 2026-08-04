@@ -64,10 +64,30 @@ export default function ClogDetails() {
     }
   }
 
+  const handleMarkAsCleared = async () => {
+    setError('')
+    setIsLoading(true)
+    try {
+      const updated = await api.patch(`/api/clog-events/${selectedEvent.event_id}/status/`, {
+        status: 'Cleared',
+      })
+      setSelectedEvent(updated)
+    } catch (err: any) {
+      setError(err?.error ?? 'Failed to update status. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleProceedToReport = () => {
-    // Chunk-ahead: this is the handoff point into the Reports flow —
-    // wired up properly once that phase starts.
-    router.push('/new-report')
+    const reportMonth = selectedEvent.detected_at.slice(0, 7) + '-01' // 'YYYY-MM-01'
+    router.push({
+      pathname: '/new-report',
+      params: {
+        barangay: String(selectedEvent.barangay),
+        report_month: reportMonth,
+      },
+    })
   }
 
   return (
@@ -249,10 +269,15 @@ export default function ClogDetails() {
                 <View className={`w-0.5 h-10 flex-1 my-1 ${isClearedDone ? 'bg-[#1F9D55]' : 'bg-[#E2E8F0]'}`} />
               </View>
               <View className="pb-5">
-                <Text className="text-sm font-extrabold text-[#122A48]">Responded</Text>
+                <Text className="text-sm font-extrabold t ext-[#122A48]">Responded</Text>
                 <Text className="text-[11px] text-[#64748B] mt-0.5">
                   {isRespondedDone ? 'Response team deployed' : 'Pending'}
                 </Text>
+                  {isRespondedDone && selectedEvent.responded_by_details && (
+                    <Text className="text-[11px] text-[#64748B] mt-0.5">
+                      by: {selectedEvent.responded_by_details.first_name} {selectedEvent.responded_by_details.last_name}
+                    </Text>
+                  )}
               </View>
             </View>
 
@@ -271,6 +296,11 @@ export default function ClogDetails() {
                 <Text className="text-[11px] text-[#64748B] mt-0.5">
                   {isClearedDone ? 'Clearing operation completed' : 'Pending'}
                 </Text>
+                  {isClearedDone && selectedEvent.cleared_by_details && (
+                    <Text className="text-[11px] text-[#64748B] mt-0.5">
+                      by: {selectedEvent.cleared_by_details.first_name} {selectedEvent.cleared_by_details.last_name}
+                    </Text>
+                  )}
               </View>
             </View>
           </View>
@@ -293,7 +323,13 @@ export default function ClogDetails() {
               </Pressable>
             )}
 
-            {(status === 'Responded' || status === 'Cleared') && (
+            {status === 'Responded' && (
+              <Pressable onPress={handleMarkAsCleared} disabled={isLoading} className="bg-[#1F9D55] py-3.5 rounded-xl items-center mt-2">
+                {isLoading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-sm">Mark as Cleared</Text>}
+              </Pressable>
+            )}
+
+            {isClearedDone && (
               <Pressable onPress={handleProceedToReport} className="bg-[#1F9D55] py-3.5 rounded-xl items-center mt-2">
                 <Text className="text-white font-bold text-sm">Proceed to Fill Report Form</Text>
               </Pressable>

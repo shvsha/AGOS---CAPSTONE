@@ -51,6 +51,13 @@ class ClogEvent(models.Model):
         blank=True,
         db_column='cleared_by'
     )
+    responded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='responded_events',
+    )
 
     class Meta:
         db_table = 'tbl_clog_events'

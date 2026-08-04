@@ -11,6 +11,7 @@ export interface ClogEvent {
   detected_at: string
   resolved_at: string | null
   cleared_by: number | null
+  responded_by: number | null
   barangay_details: {
     barangay_id: number
     barangay_name: string
@@ -43,6 +44,12 @@ export interface ClogEvent {
   } | null
 
   cleared_by_details: {
+    user_id: number
+    first_name: string
+    last_name: string
+  } | null
+
+  responded_by_details: {
     user_id: number
     first_name: string
     last_name: string

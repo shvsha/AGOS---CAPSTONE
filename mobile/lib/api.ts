@@ -111,4 +111,16 @@ export const api = {
     }
     return true
   },
+
+  upload: async (endpoint: string, formData: FormData, token?: string) => {
+    const t = token ?? (await getAccessToken())
+    const res = await fetchWithRefresh(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+      body: formData,
+    })
+    const result = await res.json()
+    if (!res.ok) throw result
+    return result
+  },
 }
