@@ -35,5 +35,5 @@ class ClogEventSerializer(serializers.ModelSerializer):
             'water_flow': r.water_flow,
             'reading_status': r.reading_status,
             'clog_pct': r.clog_pct,
-            'timestamp': r.timestamp,
+            'timestamp': r.timestamp.isoformat() if r.timestamp else None,
         }

@@ -7,26 +7,18 @@ import { api } from "@/lib/api";
 import { BarangayMonthlyReport } from "@/types/reports";
 
 
-function DetailLabelValue({ label, value, flex = 1, valueColor = "#1e293b", }: {
+function DetailLabelValue({ label, value, flex = 1, valueColor = "#122A48", }: {
   label: string;
   value: string;
   flex?: number;
   valueColor?: string;
 }) {
   return (
-    <View style={{ flex, marginBottom: 12 }}>
-      <Text
-        style={{
-          fontSize: 10,
-          fontWeight: "700",
-          color: "#94a3b8",
-          textTransform: "uppercase",
-          marginBottom: 4,
-        }}
-      >
+    <View className="mb-3" style={{ flex }}>
+      <Text className="mb-1 text-[10px] font-bold uppercase text-[#94a3b8]">
         {label}
       </Text>
-      <Text style={{ fontSize: 13, fontWeight: "700", color: valueColor }}>
+      <Text className="text-[13px] font-bold" style={{ color: valueColor }}>
         {value || "—"}
       </Text>
     </View>
@@ -39,30 +31,22 @@ function WasteCard({ icon, label, valueKg, }: {
   valueKg: number;
 }) {
   return (
-    <View
+    <View className="flex-1 rounded-xl border border-[#f1f5f9] bg-[#f8fafc] p-3"
       style={{
-        flex: 1,
-        backgroundColor: "#f8fafc",
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: "#f1f5f9",
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
       }}
     >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 6,
-        }}
-      >
+      <View className="mb-1.5 flex-row items-center gap-1.5">
         <MaterialCommunityIcons name={icon as any} size={16} color="#16a34a" />
-        <Text style={{ fontSize: 12, fontWeight: "600", color: "#334155" }}>
+        <Text className="text-xs font-semibold text-[#122A48]">
           {label}
         </Text>
       </View>
-      <Text style={{ fontSize: 18, fontWeight: "800", color: "#0f172a" }}>
+      <Text className="text-lg font-extrabold text-[#122A48]">
         ~ {valueKg} Kg
       </Text>
     </View>
@@ -71,24 +55,9 @@ function WasteCard({ icon, label, valueKg, }: {
 
 function SectionHeader({ icon, title }: { icon: string; title: string }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        marginBottom: 12,
-        marginTop: 4,
-      }}
-    >
+    <View className="mb-3 mt-1 flex-row items-center gap-1.5">
       <MaterialCommunityIcons name={icon as any} size={16} color="#16a34a" />
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: "700",
-          color: "#16a34a",
-          letterSpacing: 0.5,
-        }}
-      >
+      <Text className="text-xs font-bold tracking-wide text-[#16a34a]">
         {title}
       </Text>
     </View>
@@ -119,7 +88,8 @@ export default function ViewReportScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f8fafc" }}>
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#f8fafc]">
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color="#16a34a" />
       </SafeAreaView>
     );
@@ -127,10 +97,11 @@ export default function ViewReportScreen() {
 
   if (!report || loadError) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f8fafc" }}>
-        <Text style={{ color: "#64748b", fontSize: 14 }}>Report not found.</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 12 }}>
-          <Text style={{ color: "#1d4ed8", fontWeight: "600" }}>Go Back</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#f8fafc]">
+        <Stack.Screen options={{ headerShown: false }} />
+        <Text className="text-sm text-[#64748b]">Report not found.</Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-3">
+          <Text className="font-semibold text-[#1d4ed8]">Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -153,53 +124,69 @@ export default function ViewReportScreen() {
   const formattedEntryDate = new Date(report.clearing_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8fafc" }} edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-[#f8fafc]" edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "white", paddingHorizontal: 16, paddingVertical: 12 }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
+      <View className="flex-row items-center justify-between px-4 py-3">
+        <TouchableOpacity onPress={() => router.back()} className="p-1">
           <MaterialCommunityIcons name="arrow-left" size={22} color="#0f172a" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: "#0f172a" }}>Report Details</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-          <MaterialCommunityIcons name="close" size={22} color="#0f172a" />
-        </TouchableOpacity>
+        <Text className="text-base font-bold text-[#122A48] -ml-7">Report Details</Text>
+        <View></View>
       </View>
 
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: bannerBg, paddingHorizontal: 16, paddingVertical: 10 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      <View className="flex-row items-center justify-between px-4 py-2.5" style={{ backgroundColor: bannerBg }}>
+        <View className="flex-row items-center gap-1.5">
           <MaterialCommunityIcons name={bannerIcon as any} size={18} color={bannerText} />
-          <Text style={{ fontSize: 13, fontWeight: "700", color: bannerText }}>{statusLabel}</Text>
+          <Text className="text-[13px] font-bold" style={{ color: bannerText }}>{statusLabel}</Text>
         </View>
-        <Text style={{ fontSize: 12, fontWeight: "600", color: bannerText }}>{formattedEntryDate}</Text>
+        <Text className="text-xs font-semibold" style={{ color: bannerText }}>{formattedEntryDate}</Text>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 24 }}>
-        <View style={{ backgroundColor: "white", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#f1f5f9" }}>
+      <ScrollView className="flex-1" contentContainerClassName="px-3.5 pt-3 pb-6">
+        <View className="rounded-2xl border border-[#f1f5f9] bg-white p-4 "
+          style={{
+            elevation: 2,
+            shadowColor: '#000',
+            shadowOpacity: 0.06,
+            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 2 },
+          }}
+        >
           <SectionHeader icon="information-outline" title="REPORT DETAILS" />
 
-          <View style={{ marginTop: 4 }}>
+          <View className="mt-1 ">
             <DetailLabelValue label="REPORT MONTH" value={formattedMonth} />
-            <View style={{ flexDirection: "row" }}>
+            <View className="flex-row">
               <DetailLabelValue label="ENTRY DATE" value={formattedEntryDate} />
               <DetailLabelValue label="LOCATION" value={report.barangay_details?.barangay_name ?? ""} />
             </View>
-            <View style={{ flexDirection: "row" }}>
-              <DetailLabelValue label="AMOUNT SOLD (RECYCLABLES)" value={`₱ ${Number(report.amount_sold ?? 0).toFixed(2)}`} />
+            <View className="flex-row">
+              <DetailLabelValue label="AMOUNT SOLD" value={`₱ ${Number(report.amount_sold ?? 0).toFixed(2)}`} />
               <DetailLabelValue label="STATUS" value={statusLabel} valueColor={bannerText} />
             </View>
-            {report.remarks ? <DetailLabelValue label="REMARKS" value={report.remarks} /> : null}
+            <View className="flex-row">
+              <DetailLabelValue
+                label="SUBMITTED BY"
+                value={report.submitted_by_details ? `${report.submitted_by_details.first_name} ${report.submitted_by_details.last_name}` : ""}
+              />
+              <DetailLabelValue
+                label="VERIFIED BY"
+                value={report.verified_by_details ? `${report.verified_by_details.first_name} ${report.verified_by_details.last_name}` : ""}
+              />
+            </View>
+            {report.remarks ? <DetailLabelValue label="NARRATIVE REPORT" value={report.remarks} /> : null}
           </View>
 
-          <View style={{ height: 1, backgroundColor: "#f1f5f9", marginVertical: 12 }} />
+          <View className="my-3 h-px bg-[#f1f5f9]" />
 
           <SectionHeader icon="trash-can-outline" title="WASTE COLLECTED (KG)" />
-          <View style={{ gap: 10, marginBottom: 12 }}>
-            <View style={{ flexDirection: "row", gap: 10 }}>
+          <View className="mb-3 gap-2.5">
+            <View className="flex-row gap-2.5">
               <WasteCard icon="leaf" label="Biodegradable" valueKg={report.biodegradable_kg || 0} />
               <WasteCard icon="recycle" label="Recyclable" valueKg={report.recyclables_kg || 0} />
             </View>
-            <View style={{ flexDirection: "row", gap: 10 }}>
+            <View className="flex-row gap-2.5">
               <WasteCard icon="delete-outline" label="Residual" valueKg={report.residual_waste_kg || 0} />
               <WasteCard icon="archive-outline" label="Special" valueKg={report.special_waste_kg || 0} />
             </View>
@@ -207,25 +194,25 @@ export default function ViewReportScreen() {
 
           {hasAttachment && (
             <>
-              <View style={{ height: 1, backgroundColor: "#f1f5f9", marginVertical: 12 }} />
+              <View className="my-3 h-px bg-[#f1f5f9]" />
               <SectionHeader icon="paperclip" title="ATTACHMENTS" />
-              <View style={{ marginBottom: 12, gap: 10 }}>
+              <View className="mb-3 gap-2.5">
                 {beforePhotos.length > 0 && (
                   <View>
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748b", marginBottom: 6 }}>Before Clearing</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    <Text className="mb-1.5 text-[11px] font-semibold text-[#122A48]">Before Clearing</Text>
+                    <View className="flex-row flex-wrap gap-2">
                       {beforePhotos.map((m) => (
-                        <Image key={m.media} source={{ uri: m.file_url ?? undefined }} style={{ width: 80, height: 80, borderRadius: 10 }} />
+                        <Image key={m.media} source={{ uri: m.file_url ?? undefined }} className="h-20 w-20 rounded-[10px]" />
                       ))}
                     </View>
                   </View>
                 )}
                 {afterPhotos.length > 0 && (
                   <View>
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748b", marginBottom: 6 }}>After Clearing</Text>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    <Text className="mb-1.5 text-[11px] font-semibold text-[#122A48]">After Clearing</Text>
+                    <View className="flex-row flex-wrap gap-2">
                       {afterPhotos.map((m) => (
-                        <Image key={m.media} source={{ uri: m.file_url ?? undefined }} style={{ width: 80, height: 80, borderRadius: 10 }} />
+                        <Image key={m.media} source={{ uri: m.file_url ?? undefined }} className="h-20 w-20 rounded-[10px]" />
                       ))}
                     </View>
                   </View>
@@ -234,8 +221,8 @@ export default function ViewReportScreen() {
             </>
           )}
 
-          <View style={{ marginTop: 16 }}>
-            <View style={{ flexDirection: "row", gap: 10 }}>
+          <View className="mt-4">
+            <View className="flex-row gap-2.5">
               {isDraft && (
                 <TouchableOpacity
                   onPress={() =>
@@ -244,19 +231,19 @@ export default function ViewReportScreen() {
                       params: { barangay: String(report.barangay), report_month: report.report_month },
                     } as any)
                   }
-                  style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#cbd5e1", borderRadius: 10, paddingVertical: 12 }}
+                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-[#cbd5e1] bg-[#f1f5f9] py-3"
                 >
                   <MaterialCommunityIcons name="pencil-outline" size={18} color="#334155" />
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#334155" }}>Continue Draft</Text>
+                  <Text className="text-[13px] font-semibold text-[#334155]">Continue Draft</Text>
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity
                 onPress={() => Alert.alert("Export", "Exporting report to PDF...")}
-                style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#16a34a", borderRadius: 10, paddingVertical: 12 }}
+                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3"
               >
                 <MaterialCommunityIcons name="tray-arrow-up" size={18} color="white" />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "white" }}>Export to PDF</Text>
+                <Text className="text-[13px] font-semibold text-white">Export to PDF</Text>
               </TouchableOpacity>
             </View>
           </View>

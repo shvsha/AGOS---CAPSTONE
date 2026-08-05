@@ -10,6 +10,12 @@ export interface ReportMedia {
   uploaded_by: number | null
 }
 
+export interface ReportUser {
+  user_id: number
+  first_name: string
+  last_name: string
+}
+
 export interface BarangayMonthlyReport {
   monthly_report_id: number
   barangay: number
@@ -33,5 +39,7 @@ export interface BarangayMonthlyReport {
     longitude: number
     is_registered: boolean
   } | null
+  submitted_by_details: ReportUser | null
+  verified_by_details: ReportUser | null
   media: ReportMedia[]
 }

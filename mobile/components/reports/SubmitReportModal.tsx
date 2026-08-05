@@ -3,6 +3,9 @@ import { Modal, View, Text, TouchableOpacity, Pressable, ActivityIndicator } fro
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/lib/api";
 
+// temp test
+const DEV_BYPASS_END_OF_MONTH = true;
+
 interface SubmitReportModalProps {
   visible: boolean;
   onClose: () => void;
@@ -37,10 +40,9 @@ function getLastDayFormatted(date: Date): string {
 export function SubmitReportModal({ visible, onClose, onConfirm, reportMonth, summary, }: SubmitReportModalProps) {
   const targetDate = summary.entryDate || new Date();
 
-  // 1. Check if the date is the end of the month
   const isEndOfMonth = isLastDayOfMonth(targetDate);
+  // const isEndOfMonth = DEV_BYPASS_END_OF_MONTH || isLastDayOfMonth(targetDate);
 
-  // 2. Check against the real backend whether a report already exists for this barangay + month
   const [checking, setChecking] = useState(true);
   const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
 
@@ -69,7 +71,6 @@ export function SubmitReportModal({ visible, onClose, onConfirm, reportMonth, su
     };
   }, [visible, reportMonth]);
 
-  // Submit is blocked while checking, if it's NOT the end of the month, or if already submitted
   const isSubmissionBlocked = checking || !isEndOfMonth || isAlreadySubmitted;
 
   const formattedMonth = targetDate.toLocaleDateString("en-US", {

@@ -429,7 +429,9 @@ export default function NewReportScreen() {
       setIsEditingDraft(true);
       setIsDraftSavedModalVisible(true);
     } catch (err: any) {
-      Alert.alert("Error", err?.report_month?.[0] ?? err?.detail ?? "Couldn't save draft. Please try again.");
+      const firstFieldError = typeof err === "object" && err !== null ? Object.values(err)[0] : null;
+      const message = Array.isArray(firstFieldError) ? firstFieldError[0] : err?.detail;
+      Alert.alert("Error", message ?? "Couldn't save draft. Please try again.");
     } finally {
       setIsSavingDraft(false);
     }
@@ -512,7 +514,9 @@ export default function NewReportScreen() {
       ]);
     } catch (err: any) {
       setIsSubmitModalVisible(false);
-      Alert.alert("Submission Failed", err?.report_month?.[0] ?? err?.detail ?? "Something went wrong. Please try again.");
+      const firstFieldError = typeof err === "object" && err !== null ? Object.values(err)[0] : null;
+      const message = Array.isArray(firstFieldError) ? firstFieldError[0] : err?.detail;
+      Alert.alert("Error", message ?? "Couldn't submit report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

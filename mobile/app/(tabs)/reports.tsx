@@ -19,10 +19,10 @@ function MetricCard({ label, value }: { label: string; value: number }) {
         shadowOffset: { width: 0, height: 2 },
       }}
     >
-      <Text className="mb-1.5 text-xs font-medium text-[#475569]">
+      <Text className="mb-1.5 text-xs font-medium text-[#122A48]">
         {label}
       </Text>
-      <Text className="text-xl font-bold text-[#0f172a]">
+      <Text className="text-xl font-bold text-[#122A48]">
         {value}
       </Text>
     </View>
@@ -198,14 +198,14 @@ export default function ReportsListScreen() {
                 className="rounded-xl border border-[#e2e8f0] bg-white p-3.5"
               >
                 <View className="mb-2.5 flex-row items-start justify-between gap-2">
-                  <View className="flex-1 flex-row items-start gap-2">
+                  <View className="flex-1 flex-row items-center gap-2">
                     <MaterialCommunityIcons
                       name={isDraft ? "clipboard-text-outline" : "checkbox-marked-circle-outline"}
                       size={20}
                       color={isDraft ? "#d97706" : "#16a34a"}
                       style={{ marginTop: 2 }}
                     />
-                    <Text className="flex-1 shrink text-sm font-semibold leading-5 text-[#0f172a]">
+                    <Text className="flex-1 shrink text-sm font-semibold leading-5 text-[#122A48]">
                       {monthLabel} Report
                     </Text>
                   </View>
