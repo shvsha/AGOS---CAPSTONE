@@ -302,7 +302,10 @@ export default function BarangayReports() {
                           </span>
                         </TableCell>
                         <TableCell className="flex gap-3">
-                            <Button className="text-xs border border-[#1565BC80] bg-[#CDE3DE45] hover:bg-[#b8d5cf45] text-[#122A48] cursor-pointer">
+                            <Button 
+                              onClick={() => router.push('/menro/barangay-reports/view-barangay-report/')}
+                              className="text-xs border border-[#1565BC80] bg-[#CDE3DE45] hover:bg-[#b8d5cf45] text-[#122A48] cursor-pointer"
+                            >
                             <Eye size={16} className="mr-1" />
                             View
                           </Button>
