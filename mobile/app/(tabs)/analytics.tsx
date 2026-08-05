@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View, RefreshControl, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import AlertBellButton from "@/components/alerts/AlertBellButton";
 
 import DetectionRow from "../../components/analytics/DetectionRow";
 import WasteProgress from "../../components/analytics/WasteProgress";
@@ -50,11 +51,11 @@ export default function AnalyticsScreen() {
         <View className="flex-row justify-between items-center mb-3 -mt-2">
           <View style={{ width: 22 }} />
 
-          <Text className="text-[23px] font-bold text-[#122A48]">Waste Analytics</Text>
+          <Text className="text-[21px] font-bold text-[#122A48]">Waste Analytics</Text>
 
-          <Pressable onPress={() => setMonthPickerVisible(true)}>
-            <Ionicons name="calendar-outline" size={22} color="#334155" />
-          </Pressable>
+          <View className="flex-row items-center gap-3">
+            <AlertBellButton />
+          </View>
         </View>
 
         {/* Month label */}

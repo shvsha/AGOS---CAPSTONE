@@ -10,6 +10,7 @@ import WasteCompositionCard from '@/components/maps/WasteCompositionCard'
 import { useMapData } from '@/hooks/useMapData'
 import { useRainfallCondition } from '@/hooks/useRainfallCondition'
 import { SensorNodeApi } from '@/types/map'
+import AlertBellButton from '@/components/alerts/AlertBellButton'
 
 const BASE_URL = 'http://192.168.1.6:8000'
 
@@ -153,8 +154,10 @@ export default function TabOneScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => refetch(true)} tintColor="#122A48" />
         }
       >
-        <View className="w-full items-center justify-center -mt-2">
-          <Text className="text-[21px] font-bold text-[#122A48]">Localized Canal Map</Text>
+        <View className="w-full flex flex-row items-center justify-between -mt-2 px-1">
+          <View></View>
+          <Text className="ml-5 text-[21px] font-bold text-[#122A48]">Localized Canal Map</Text>
+          <AlertBellButton />
         </View>
 
         <View className="w-full overflow-hidden rounded-xl">
@@ -228,14 +231,6 @@ export default function TabOneScreen() {
             </>
           )}
         </View>
-
-        <Text className="text-center text-base">{result}</Text>
-        <Button title="Test Backend Connection" onPress={testConnection} />
-
-        <Pressable onPress={logout}>
-          <Text className="text-center text-base">Log out (temp)</Text>
-        </Pressable>
-
         <NodeDetailSheet
           node={selectedNode}
           visible={selectedNode !== null}

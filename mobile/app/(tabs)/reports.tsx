@@ -6,6 +6,10 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
 import { BarangayMonthlyReport } from "@/types/reports";
+import AlertBellButton from "@/components/alerts/AlertBellButton";
+
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Shadow } from "react-native-shadow-2";
 
 function MetricCard({ label, value }: { label: string; value: number }) {
   return (
@@ -64,6 +68,7 @@ export default function ReportsListScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const hasLoadedOnce = useRef(false);
+  const insets = useSafeAreaInsets()
 
   const [reports, setReports] = useState<BarangayMonthlyReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,20 +146,7 @@ export default function ReportsListScreen() {
             Clearing Operations Report
           </Text>
 
-          <TouchableOpacity
-            onPress={() => {
-              const now = new Date();
-              const reportMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-              router.push({
-                pathname: "/new-report",
-                params: { barangay: String(user?.barangay_id ?? ""), report_month: reportMonth },
-              } as any);
-            }}
-            className="shrink-0 flex-row items-center gap-1.5 rounded-lg bg-[#1d4ed8] px-3.5 py-2"
-          >
-            <MaterialCommunityIcons name="plus" size={18} color="white" />
-            <Text className="text-[13px] font-semibold text-white">Add report</Text>
-          </TouchableOpacity>
+          <AlertBellButton />
         </View>
 
         {error ? <Text className="mb-3 text-xs text-[#dc2626]">{error}</Text> : null}
@@ -263,6 +255,30 @@ export default function ReportsListScreen() {
           })}
         </View>
       </ScrollView>
+
+      <View style={{ position: "absolute", bottom: 20 + insets.bottom, right: 20 }}>
+        <Shadow
+          distance={8}
+          startColor="#0000001A"
+          offset={[0, 4]}
+          style={{ borderRadius: 16 }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              const now = new Date();
+              const reportMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+              router.push({
+                pathname: "/new-report",
+                params: { barangay: String(user?.barangay_id ?? ""), report_month: reportMonth },
+              } as any);
+            }}
+            className="flex-row items-center gap-2 rounded-2xl bg-[#1d4ed8] px-4 py-3.5"
+          >
+            <MaterialCommunityIcons name="plus" size={20} color="white" />
+            <Text className="text-[13px] font-semibold text-white">Add report</Text>
+          </TouchableOpacity>
+        </Shadow>
+      </View>
     </SafeAreaView>
   );
 }

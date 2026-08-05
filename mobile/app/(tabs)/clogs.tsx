@@ -6,6 +6,7 @@ import { useClogEvent } from '../../lib/ClogEventContext'
 import { ClogEvent } from '../../types/clog-events'
 import Pagination from '../../components/alerts/Pagination'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import AlertBellButton from '@/components/alerts/AlertBellButton'
 
 import { useAuth } from '../../lib/AuthContext'
 import { useLiveSocket } from '../../lib/useLiveSocket'
@@ -111,8 +112,10 @@ export default function ClogEventsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#EEF3F8]" edges={['top']}>
-      <View className="px-4 pt-3 pb-3">
-        <Text className="text-[23px] font-bold text-center text-[#122A48]">Clog Events</Text>
+      <View className="w-full flex flex-row items-center justify-between px-4 pt-3 pb-3">
+        <View></View>
+        <Text className="ml-5 text-[21px] font-bold text-center text-[#122A48]">Clog Events</Text>
+        <AlertBellButton />
       </View>
 
       {/* severity tabs */}
