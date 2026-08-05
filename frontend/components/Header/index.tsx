@@ -54,6 +54,7 @@ const pageTitles: Record<string, string> = {
   "/menro/analytics": "Waste Analytics",
   "/menro/resources": "Resource Optimization",
   "/menro/barangay-reports": "Barangay Reports",
+  "/menro/barangay-reports/view-barangay-report": "Barangay Reports",
   "/menro/reports": "Monthly Reports",
 }
 
