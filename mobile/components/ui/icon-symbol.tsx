@@ -24,6 +24,7 @@ const MAPPING = {
   'document.on.document': 'description',
   'exit': 'logout',
   'water-outline': 'opacity',
+  'person.crop.circle': 'account-circle',
 } as IconMapping;
 
 /**
