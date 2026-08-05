@@ -5,6 +5,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import { ClogEventProvider } from '../lib/ClogEventContext';
+import { AlertsProvider } from '../lib/AlertsContext';
 
 import "../global.css";
 
@@ -50,12 +51,14 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ClogEventProvider>
-        <ThemeProvider value={DefaultTheme}>
-          <AuthGate />
-          <StatusBar style="dark" />
-        </ThemeProvider>
-      </ClogEventProvider>
+      <AlertsProvider>
+        <ClogEventProvider>
+          <ThemeProvider value={DefaultTheme}>
+            <AuthGate />
+            <StatusBar style="dark" />
+          </ThemeProvider>
+        </ClogEventProvider>
+      </AlertsProvider>
     </AuthProvider>
   );
 }

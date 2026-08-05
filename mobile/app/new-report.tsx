@@ -5,7 +5,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { getDraft, saveDraft, deleteDraft } from "@/lib/reportDrafts";
 import { SubmitReportModal } from "@/components/reports/SubmitReportModal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +12,8 @@ import { useAuth } from "@/lib/AuthContext";
 interface PhotoAsset {
   uri: string;
   fileName: string;
+  mediaId?: number;
+  uploading?: boolean;
 }
 
 interface ReportFormState {
@@ -144,7 +145,6 @@ function SectionHeader({ icon, title }: { icon: string; title: string }) {
   );
 }
 
-// Grid of photo thumbnails for a category (Before / After), each removable, plus an "add" tile
 function PhotoUploadMulti({ label, photos, onAdd, onRemove, required = false, }: {
   label: string;
   photos: PhotoAsset[];
@@ -166,12 +166,19 @@ function PhotoUploadMulti({ label, photos, onAdd, onRemove, required = false, }:
             style={{ width: 96, height: 96 }}
           >
             <Image source={{ uri: photo.uri }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-            <TouchableOpacity
-              onPress={() => onRemove(index)}
-              className="absolute top-1 right-1 rounded-full bg-white/90 p-0.5"
-            >
-              <MaterialCommunityIcons name="close-circle" size={18} color="#ef4444" />
-            </TouchableOpacity>
+
+            {photo.uploading ? (
+              <View className="absolute inset-0 items-center justify-center bg-black/40">
+                <ActivityIndicator color="white" />
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => onRemove(index)}
+                className="absolute top-1 right-1 rounded-full bg-white/90 p-0.5"
+              >
+                <MaterialCommunityIcons name="close-circle" size={18} color="#ef4444" />
+              </TouchableOpacity>
+            )}
           </View>
         ))}
 
@@ -230,39 +237,64 @@ export default function NewReportScreen() {
   const reportMonth = params.report_month ?? null;
 
   const [form, setForm] = useState<ReportFormState>(INITIAL_STATE);
+  const [monthlyReportId, setMonthlyReportId] = useState<number | null>(null);
+  const [reportStatus, setReportStatus] = useState<"Draft" | "Pending" | "Reviewed" | null>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(true);
+
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [isSubmitModalVisible, setIsSubmitModalVisible] = useState(false);
   const [isDraftSavedModalVisible, setIsDraftSavedModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
-  // Load existing draft (if any) for this barangay + month, and prefill submitter name
   useEffect(() => {
-    if (barangayId && reportMonth) {
-      getDraft(barangayId, reportMonth).then((draft) => {
-        if (draft) {
-          setIsEditingDraft(true);
-          setForm((prev) => ({
-            ...prev,
-            entryDate: draft.clearing_date ? new Date(draft.clearing_date) : prev.entryDate,
-            recyclables_kg: draft.recyclables_kg,
-            biodegradable_kg: draft.biodegradable_kg,
-            residual_waste_kg: draft.residual_waste_kg,
-            special_waste_kg: draft.special_waste_kg,
-            amount_sold: Number(draft.amount_sold) || 0,
-            remarks: draft.remarks ?? "",
-            beforePhotos: draft.before_photos ?? [],
-            afterPhotos: draft.after_photos ?? [],
-          }));
-        }
-      });
+    if (!reportMonth) {
+      setIsLoadingReport(false);
+      return;
     }
+
+    api
+      .get(`/api/barangay-reports/mine/?report_month=${reportMonth}`)
+      .then((report) => {
+        setMonthlyReportId(report.monthly_report_id);
+        setReportStatus(report.status);
+        setIsEditingDraft(report.status === "Draft");
+
+        const mediaToPhotos = (category: "Before_Clearing" | "After_Clearing"): PhotoAsset[] =>
+          (report.media ?? [])
+            .filter((m: any) => m.media_category === category)
+            .map((m: any) => ({
+              uri: m.file_url,
+              fileName: m.file_path?.split("/").pop() ?? `photo_${m.media}.jpg`,
+              mediaId: m.media,
+            }));
+
+        setForm((prev) => ({
+          ...prev,
+          entryDate: report.clearing_date ? new Date(report.clearing_date) : prev.entryDate,
+          recyclables_kg: report.recyclables_kg,
+          biodegradable_kg: report.biodegradable_kg,
+          residual_waste_kg: report.residual_waste_kg,
+          special_waste_kg: report.special_waste_kg,
+          amount_sold: Number(report.amount_sold) || 0,
+          remarks: report.remarks ?? "",
+          beforePhotos: mediaToPhotos("Before_Clearing"),
+          afterPhotos: mediaToPhotos("After_Clearing"),
+        }));
+      })
+      .catch((err) => {
+        // 404 just means "no report yet this month" — not an error, stay on the empty form
+        if (err?.detail !== "Not found.") {
+          Alert.alert("Error", "Couldn't load your existing report. Please try again.");
+        }
+      })
+      .finally(() => setIsLoadingReport(false));
 
     if (user) {
       const nameParts = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
       setForm((prev) => ({ ...prev, submittedBy: nameParts || user.email || "" }));
     }
-  }, [barangayId, reportMonth, user]);
+  }, [reportMonth, user]);
 
   const update = <K extends keyof ReportFormState>(key: K, value: ReportFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -280,6 +312,26 @@ export default function NewReportScreen() {
     return types.length > 0 ? types.join(", ") : "Mixed Waste";
   };
 
+  const ensureDraftExists = async (): Promise<number> => {
+    if (monthlyReportId) return monthlyReportId;
+
+    const report = await api.post("/api/barangay-reports/", {
+      report_month: reportMonth,
+      clearing_date: form.entryDate.toISOString().split("T")[0],
+      recyclables_kg: form.recyclables_kg,
+      biodegradable_kg: form.biodegradable_kg,
+      residual_waste_kg: form.residual_waste_kg,
+      special_waste_kg: form.special_waste_kg,
+      amount_sold: form.amount_sold,
+      remarks: form.remarks,
+      status: "Draft",
+    });
+
+    setMonthlyReportId(report.monthly_report_id);
+    setReportStatus(report.status);
+    return report.monthly_report_id;
+  };
+
   const pickImages = async (field: "beforePhotos" | "afterPhotos") => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -293,44 +345,91 @@ export default function NewReportScreen() {
       allowsMultipleSelection: true,
     });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const newPhotos: PhotoAsset[] = result.assets.map((asset) => ({
-        uri: asset.uri,
-        fileName: asset.fileName || asset.uri.split("/").pop() || "evidence_image.jpg",
-      }));
+    if (result.canceled || result.assets.length === 0) return;
 
-      setForm((prev) => ({ ...prev, [field]: [...prev[field], ...newPhotos] }));
+    const category = field === "beforePhotos" ? "Before_Clearing" : "After_Clearing";
+    const pending: PhotoAsset[] = result.assets.map((asset) => ({
+      uri: asset.uri,
+      fileName: asset.fileName || asset.uri.split("/").pop() || "evidence_image.jpg",
+      uploading: true,
+    }));
+    setForm((prev) => ({ ...prev, [field]: [...prev[field], ...pending] }));
+
+    try {
+      const reportId = await ensureDraftExists();
+
+      for (const photo of pending) {
+        const formData = new FormData();
+        // @ts-ignore - React Native's FormData file shape differs from web
+        formData.append("file", { uri: photo.uri, name: photo.fileName, type: "image/jpeg" });
+        formData.append("media_type", "Image");
+        formData.append("media_category", category);
+        formData.append("monthly_report_id", String(reportId));
+
+        const media = await api.upload("/api/report-media/upload/", formData);
+
+        setForm((prev) => ({
+          ...prev,
+          [field]: prev[field].map((p) =>
+            p.uri === photo.uri && p.uploading ? { ...p, uploading: false, mediaId: media.media } : p
+          ),
+        }));
+      }
+    } catch (err) {
+      Alert.alert("Upload Failed", "One or more photos couldn't be uploaded. Please try again.");
+      setForm((prev) => ({ ...prev, [field]: prev[field].filter((p) => !p.uploading) }));
     }
   };
 
-  const removePhoto = (field: "beforePhotos" | "afterPhotos", index: number) => {
+  const removePhoto = async (field: "beforePhotos" | "afterPhotos", index: number) => {
+    const photo = form[field][index];
     setForm((prev) => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
+
+    if (photo.mediaId) {
+      try {
+        await api.delete(`/api/report-media/${photo.mediaId}/`);
+      } catch (err) {
+        Alert.alert("Error", "Couldn't remove that photo from the server. Please try again.");
+        setForm((prev) => ({
+          ...prev,
+          [field]: [...prev[field].slice(0, index), photo, ...prev[field].slice(index)],
+        }));
+      }
+    }
   };
 
   const handleSaveDraft = async () => {
-    if (!barangayId || !reportMonth) {
-      Alert.alert("Error", "Missing barangay or report month context.");
+    if (!reportMonth) {
+      Alert.alert("Error", "Missing report month context.");
       return;
     }
 
     setIsSavingDraft(true);
     try {
-      await saveDraft({
-        barangay: barangayId,
+      const payload = {
         report_month: reportMonth,
         clearing_date: form.entryDate.toISOString().split("T")[0],
         recyclables_kg: form.recyclables_kg,
         biodegradable_kg: form.biodegradable_kg,
         residual_waste_kg: form.residual_waste_kg,
         special_waste_kg: form.special_waste_kg,
-        amount_sold: String(form.amount_sold),
+        amount_sold: form.amount_sold,
         remarks: form.remarks,
-        before_photos: form.beforePhotos,
-        after_photos: form.afterPhotos,
-        updated_at: new Date().toISOString(),
-      });
+      };
+
+      if (monthlyReportId) {
+        const report = await api.patch(`/api/barangay-reports/${monthlyReportId}/`, payload);
+        setReportStatus(report.status);
+      } else {
+        const report = await api.post("/api/barangay-reports/", { ...payload, status: "Draft" });
+        setMonthlyReportId(report.monthly_report_id);
+        setReportStatus(report.status);
+      }
+
       setIsEditingDraft(true);
       setIsDraftSavedModalVisible(true);
+    } catch (err: any) {
+      Alert.alert("Error", err?.report_month?.[0] ?? err?.detail ?? "Couldn't save draft. Please try again.");
     } finally {
       setIsSavingDraft(false);
     }
@@ -381,30 +480,15 @@ export default function NewReportScreen() {
     setIsSubmitModalVisible(true);
   };
 
-  const uploadPhoto = async (
-    photo: PhotoAsset,
-    monthlyReportId: number,
-    mediaCategory: "Before_Clearing" | "After_Clearing"
-  ) => {
-    const formData = new FormData();
-    // @ts-ignore - React Native's FormData file shape differs from web
-    formData.append("file", { uri: photo.uri, name: photo.fileName, type: "image/jpeg" });
-    formData.append("media_type", "Image");
-    formData.append("media_category", mediaCategory);
-    formData.append("monthly_report_id", String(monthlyReportId));
-
-    await api.upload("/api/report-media/upload/", formData);
-  };
-
   const handleConfirmSubmit = async () => {
-    if (!barangayId || !reportMonth) {
-      Alert.alert("Error", "Missing barangay or report month context.");
+    if (!reportMonth) {
+      Alert.alert("Error", "Missing report month context.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const report = await api.post("/api/barangay-reports/", {
+      const payload = {
         report_month: reportMonth,
         clearing_date: form.entryDate.toISOString().split("T")[0],
         recyclables_kg: form.recyclables_kg,
@@ -413,17 +497,14 @@ export default function NewReportScreen() {
         special_waste_kg: form.special_waste_kg,
         amount_sold: form.amount_sold,
         remarks: form.remarks,
-      });
+        status: "Pending",
+      };
 
-      // Upload sequentially to keep this simple and easy to debug if one fails
-      for (const photo of form.beforePhotos) {
-        await uploadPhoto(photo, report.monthly_report_id, "Before_Clearing");
+      if (monthlyReportId) {
+        await api.patch(`/api/barangay-reports/${monthlyReportId}/`, payload);
+      } else {
+        await api.post("/api/barangay-reports/", payload);
       }
-      for (const photo of form.afterPhotos) {
-        await uploadPhoto(photo, report.monthly_report_id, "After_Clearing");
-      }
-
-      await deleteDraft(barangayId, reportMonth);
 
       setIsSubmitModalVisible(false);
       Alert.alert("Report Submitted", "Your report was successfully submitted!", [
@@ -431,11 +512,12 @@ export default function NewReportScreen() {
       ]);
     } catch (err: any) {
       setIsSubmitModalVisible(false);
-      Alert.alert("Submission Failed", err?.report_month?.[0] ?? err?.error ?? "Something went wrong. Please try again.");
+      Alert.alert("Submission Failed", err?.report_month?.[0] ?? err?.detail ?? "Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <SafeAreaView className="flex-1 bg-[#f8fafc]" edges={["top"]}>
@@ -454,129 +536,150 @@ export default function NewReportScreen() {
         <View className="w-7"></View>
       </View>
 
-      <ScrollView className="flex-1 text-[#122A48]" contentContainerClassName="px-3.5 pt-3 pb-6">
-        <View className="rounded-2xl border border-[#f1f5f9] bg-white p-3.5"
-          style={{
-            elevation: 2,
-            shadowColor: '#000',
-            shadowOpacity: 0.06,
-            shadowRadius: 4,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-
-          <SectionHeader icon="information-outline" title="OPERATIONAL DETAILS" />
-          <View className="mb-4 flex-row gap-2.5">
-            <Field label="Submitted by" value={form.submittedBy} onChangeText={(t) => update("submittedBy", t)} placeholder="Brgy. Tanod" />
-            <DateField label="Entry date" required value={form.entryDate} onChange={(d) => update("entryDate", d)} />
-          </View>
-
-          <View className="mb-3 h-px bg-[#f1f5f9]" />
-
-          <SectionHeader icon="trash-can-outline" title="WASTE COLLECTED (KG)" />
-
-          <View className="mb-3 flex-row gap-2.5">
-            <Field
-              label="Recyclable"
-              required
-              value={form.recyclables_kg === 0 ? "" : String(form.recyclables_kg)}
-              onChangeText={(t) => update("recyclables_kg", toNumber(t))}
-              placeholder="00.00"
-              keyboardType="decimal-pad"
-            />
-            <Field
-              label="Biodegradable"
-              required
-              value={form.biodegradable_kg === 0 ? "" : String(form.biodegradable_kg)}
-              onChangeText={(t) => update("biodegradable_kg", toNumber(t))}
-              placeholder="00.00"
-              keyboardType="decimal-pad"
-            />
-          </View>
-
-          <View className="mb-3.5 flex-row gap-2.5">
-            <Field
-              label="Residual"
-              required
-              value={form.residual_waste_kg === 0 ? "" : String(form.residual_waste_kg)}
-              onChangeText={(t) => update("residual_waste_kg", toNumber(t))}
-              placeholder="00.00"
-              keyboardType="decimal-pad"
-            />
-            <Field
-              label="Special Waste"
-              required
-              value={form.special_waste_kg === 0 ? "" : String(form.special_waste_kg)}
-              onChangeText={(t) => update("special_waste_kg", toNumber(t))}
-              placeholder="00.00"
-              keyboardType="decimal-pad"
-            />
-          </View>
-
-          <TotalCollectedCard amount={totalCollected} />
-
-          <View className="mb-4">
-            <Field label="Amount sold (₱)" value={form.amount_sold === 0 ? "" : String(form.amount_sold)} onChangeText={(t) => update("amount_sold", toNumber(t))} placeholder="e.g. 240.00" keyboardType="decimal-pad" />
-          </View>
-
-          <View className="mb-3 h-px bg-[#f1f5f9]" />
-
-          <SectionHeader icon="tray-arrow-up" title="UPLOAD EVIDENCE" />
-          <Field label="Narrative Report" required value={form.remarks} onChangeText={(t) => update("remarks", t)} placeholder="Give narrative report (min 10 characters)..." multiline numberOfLines={3} />
-
-          <PhotoUploadMulti
-            label="Before"
-            required
-            photos={form.beforePhotos}
-            onAdd={() => pickImages("beforePhotos")}
-            onRemove={(index) => removePhoto("beforePhotos", index)}
-          />
-          <PhotoUploadMulti
-            label="After"
-            required
-            photos={form.afterPhotos}
-            onAdd={() => pickImages("afterPhotos")}
-            onRemove={(index) => removePhoto("afterPhotos", index)}
-          />
-
-          {/* Bottom Actions */}
-          <View className="mt-3 flex-row gap-2.5">
-            <TouchableOpacity
-              onPress={handleSaveDraft}
-              disabled={isSavingDraft}
-              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] py-3 ${
-                isSavingDraft ? "opacity-60" : "opacity-100"
-              }`}
-            >
-              {isSavingDraft ? (
-                <ActivityIndicator color="#475569" />
-              ) : (
-                <>
-                  <MaterialCommunityIcons name="content-save-outline" size={18} color="#475569" />
-                  <Text className="text-[13px] font-semibold text-[#475569]">Save Draft</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleOpenSubmitModal}
-              disabled={isSubmitting}
-              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3 ${
-                isSubmitting ? "opacity-60" : "opacity-100"
-              }`}
-            >
-              <MaterialCommunityIcons name="send-outline" size={18} color="white" />
-              <Text className="text-[13px] font-semibold text-white">Submit</Text>
-            </TouchableOpacity>
-          </View>
+      {isLoadingReport ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color="#16a34a" size="large" />
         </View>
-      </ScrollView>
+      ) : reportStatus && reportStatus !== "Draft" ? (
+        <View className="flex-1 items-center justify-center px-8">
+          <MaterialCommunityIcons name="lock-outline" size={40} color="#94a3b8" />
+          <Text className="mt-3 text-center text-sm font-semibold text-[#334155]">
+            This month's report is already {reportStatus.toLowerCase()}
+          </Text>
+          <Text className="mt-1 text-center text-[13px] text-[#64748B]">
+            It can no longer be edited from here.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.replace("/(tabs)/reports" as any)}
+            className="mt-5 rounded-[10px] bg-[#16a34a] px-5 py-2.5"
+          >
+            <Text className="text-[13px] font-semibold text-white">Back to Reports</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView className="flex-1 text-[#122A48]" contentContainerClassName="px-3.5 pt-3 pb-6">
+          <View className="rounded-2xl border border-[#f1f5f9] bg-white p-3.5"
+            style={{
+              elevation: 2,
+              shadowColor: '#000',
+              shadowOpacity: 0.06,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 2 },
+            }}
+          >
+
+            <SectionHeader icon="information-outline" title="OPERATIONAL DETAILS" />
+            <View className="mb-4 flex-row gap-2.5">
+              <Field label="Submitted by" value={form.submittedBy} onChangeText={(t) => update("submittedBy", t)} placeholder="Brgy. Tanod" />
+              <DateField label="Entry date" required value={form.entryDate} onChange={(d) => update("entryDate", d)} />
+            </View>
+
+            <View className="mb-3 h-px bg-[#f1f5f9]" />
+
+            <SectionHeader icon="trash-can-outline" title="WASTE COLLECTED (KG)" />
+
+            <View className="mb-3 flex-row gap-2.5">
+              <Field
+                label="Recyclable"
+                required
+                value={form.recyclables_kg === 0 ? "" : String(form.recyclables_kg)}
+                onChangeText={(t) => update("recyclables_kg", toNumber(t))}
+                placeholder="00.00"
+                keyboardType="decimal-pad"
+              />
+              <Field
+                label="Biodegradable"
+                required
+                value={form.biodegradable_kg === 0 ? "" : String(form.biodegradable_kg)}
+                onChangeText={(t) => update("biodegradable_kg", toNumber(t))}
+                placeholder="00.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View className="mb-3.5 flex-row gap-2.5">
+              <Field
+                label="Residual"
+                required
+                value={form.residual_waste_kg === 0 ? "" : String(form.residual_waste_kg)}
+                onChangeText={(t) => update("residual_waste_kg", toNumber(t))}
+                placeholder="00.00"
+                keyboardType="decimal-pad"
+              />
+              <Field
+                label="Special Waste"
+                required
+                value={form.special_waste_kg === 0 ? "" : String(form.special_waste_kg)}
+                onChangeText={(t) => update("special_waste_kg", toNumber(t))}
+                placeholder="00.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <TotalCollectedCard amount={totalCollected} />
+
+            <View className="mb-4">
+              <Field label="Amount sold (₱)" value={form.amount_sold === 0 ? "" : String(form.amount_sold)} onChangeText={(t) => update("amount_sold", toNumber(t))} placeholder="e.g. 240.00" keyboardType="decimal-pad" />
+            </View>
+
+            <View className="mb-3 h-px bg-[#f1f5f9]" />
+
+            <SectionHeader icon="tray-arrow-up" title="UPLOAD EVIDENCE" />
+            <Field label="Narrative Report" required value={form.remarks} onChangeText={(t) => update("remarks", t)} placeholder="Give narrative report (min 10 characters)..." multiline numberOfLines={3} />
+
+            <PhotoUploadMulti
+              label="Before"
+              required
+              photos={form.beforePhotos}
+              onAdd={() => pickImages("beforePhotos")}
+              onRemove={(index) => removePhoto("beforePhotos", index)}
+            />
+            <PhotoUploadMulti
+              label="After"
+              required
+              photos={form.afterPhotos}
+              onAdd={() => pickImages("afterPhotos")}
+              onRemove={(index) => removePhoto("afterPhotos", index)}
+            />
+
+            {/* Bottom Actions */}
+            <View className="mt-3 flex-row gap-2.5">
+              <TouchableOpacity
+                onPress={handleSaveDraft}
+                disabled={isSavingDraft}
+                className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] py-3 ${
+                  isSavingDraft ? "opacity-60" : "opacity-100"
+                }`}
+              >
+                {isSavingDraft ? (
+                  <ActivityIndicator color="#475569" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="content-save-outline" size={18} color="#475569" />
+                    <Text className="text-[13px] font-semibold text-[#475569]">Save Draft</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleOpenSubmitModal}
+                disabled={isSubmitting}
+                className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3 ${
+                  isSubmitting ? "opacity-60" : "opacity-100"
+                }`}
+              >
+                <MaterialCommunityIcons name="send-outline" size={18} color="white" />
+                <Text className="text-[13px] font-semibold text-white">Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      )}
 
       <SubmitReportModal
         visible={isSubmitModalVisible}
         onClose={() => setIsSubmitModalVisible(false)}
         onConfirm={handleConfirmSubmit}
-        barangayId={barangayId}
         reportMonth={reportMonth}
         summary={{
           location: user?.barangay_details?.barangay_name ?? "Your barangay",

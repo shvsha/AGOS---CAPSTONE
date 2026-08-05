@@ -50,6 +50,32 @@ class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [CanAccessOwnBarangayReport]
 
 
+class MyBarangayReportView(APIView):
+    """
+    GET /api/barangay-reports/mine/?report_month=YYYY-MM-DD
+    Returns the current Barangay user's report for that month, or 404 if none exists yet.
+    Barangay-only — scoped to request.user.barangay, no barangay param needed/trusted.
+    """
+    permission_classes = [IsBarangay]
+
+    def get(self, request):
+        report_month = request.query_params.get('report_month')
+        if not report_month:
+            return Response({'error': 'report_month is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        report = BarangayMonthlyReport.objects.filter(
+            barangay=request.user.barangay,
+            report_month=report_month,
+        ).first()
+
+        if not report:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            BarangayMonthlyReportSerializer(report, context={'request': request}).data
+        )
+
+
 class ReportMediaListView(generics.ListAPIView):
     queryset = ReportMedia.objects.all()
     serializer_class = ReportMediaSerializer
@@ -95,9 +121,10 @@ class ReportMediaUploadView(APIView):
 
         if monthly_report_id:
             try:
-                media.monthly_report = BarangayMonthlyReport.objects.get(
-                    monthly_report_id=monthly_report_id
-                )
+                report = BarangayMonthlyReport.objects.get(monthly_report_id=monthly_report_id)
+                if request.user.user_role == 'Barangay' and report.barangay_id != request.user.barangay_id:
+                    return Response({'error': 'Not your report.'}, status=status.HTTP_403_FORBIDDEN)
+                media.monthly_report = report
             except BarangayMonthlyReport.DoesNotExist:
                 pass
 

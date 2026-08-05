@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ( BarangayMonthlyReportListView, BarangayMonthlyReportDetailView, ReportMediaListView, ReportMediaUploadView, ReportMediaDetailView, ReportMediaByClogEventView, MunicipalMonthlyReportListView, MunicipalMonthlyReportDetailView )
+from .views import ( BarangayMonthlyReportListView, BarangayMonthlyReportDetailView, ReportMediaListView, ReportMediaUploadView, ReportMediaDetailView, ReportMediaByClogEventView, MunicipalMonthlyReportListView, MunicipalMonthlyReportDetailView, MyBarangayReportView )
 
 urlpatterns = [
     path('barangay-reports/', BarangayMonthlyReportListView.as_view()),
@@ -10,4 +10,5 @@ urlpatterns = [
     path('report-media/clog-event/<int:event_id>/', ReportMediaByClogEventView.as_view(), name='report-media-by-clog-event'),
     path('municipal-reports/', MunicipalMonthlyReportListView.as_view()),
     path('municipal-reports/<int:municipal_report_id>/', MunicipalMonthlyReportDetailView.as_view()),
+    path('barangay-reports/mine/', MyBarangayReportView.as_view()),
 ]
