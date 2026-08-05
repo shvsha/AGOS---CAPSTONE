@@ -1,11 +1,10 @@
 import React, { useState, useCallback, useRef  } from "react";
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/AuthContext";
-import { listDrafts, ReportDraft } from "@/lib/reportDrafts";
 import { BarangayMonthlyReport } from "@/types/reports";
 
 function MetricCard({ label, value }: { label: string; value: number }) {
@@ -60,17 +59,12 @@ function formatMonth(reportMonth: string) {
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-// Unified row type so drafts (local) and submitted reports (backend) can render in one list
-type ReportRow =
-  | { kind: "draft"; key: string; draft: ReportDraft }
-  | { kind: "submitted"; key: string; report: BarangayMonthlyReport };
 
 export default function ReportsListScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const hasLoadedOnce = useRef(false);
 
-  const [drafts, setDrafts] = useState<ReportDraft[]>([]);
   const [reports, setReports] = useState<BarangayMonthlyReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,15 +78,11 @@ export default function ReportsListScreen() {
     }
     setError("");
     try {
-      const [localDrafts, res] = await Promise.all([
-        listDrafts(),
-        api.get("/api/barangay-reports/"),
-      ]);
-      setDrafts(localDrafts);
+      const res = await api.get("/api/barangay-reports/");
       setReports(res.results ?? res);
       hasLoadedOnce.current = true;
     } catch (err: any) {
-      setError(err?.error ?? "Failed to load reports.");
+      setError(err?.detail ?? "Failed to load reports.");
     } finally {
       isRefresh ? setRefreshing(false) : setIsLoading(false);
     }
@@ -104,28 +94,30 @@ export default function ReportsListScreen() {
     }, [loadData])
   );
 
-  const totalReports = drafts.length + reports.length;
-  const draftsCount = drafts.length;
-  const submittedCount = reports.length;
+  const totalReports = reports.length;
+  const draftsCount = reports.filter((r) => r.status === "Draft").length;
+  const submittedCount = reports.filter((r) => r.status !== "Draft").length;
   const pendingCount = reports.filter((r) => r.status === "Pending").length;
 
-  const rows: ReportRow[] = [
-    ...drafts.map((d): ReportRow => ({ kind: "draft", key: `draft-${d.barangay}-${d.report_month}`, draft: d })),
-    ...reports.map((r): ReportRow => ({ kind: "submitted", key: `report-${r.monthly_report_id}`, report: r })),
-  ].sort((a, b) => {
-    const aDate = a.kind === "draft" ? a.draft.updated_at : a.report.submitted_at;
-    const bDate = b.kind === "draft" ? b.draft.updated_at : b.report.submitted_at;
-    return new Date(bDate).getTime() - new Date(aDate).getTime();
-  });
+  const sortedReports = [...reports].sort(
+    (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+  );
 
-  const getTotalKg = (r: { recyclables_kg: number; biodegradable_kg: number; residual_waste_kg: number; special_waste_kg: number | null }) =>
+  const getTotalKg = (r: BarangayMonthlyReport) =>
     r.recyclables_kg + r.biodegradable_kg + r.residual_waste_kg + (r.special_waste_kg ?? 0);
 
-  const goToDraft = (draft: ReportDraft) => {
-    router.push({
-      pathname: "/new-report",
-      params: { barangay: String(draft.barangay), report_month: draft.report_month },
-    } as any);
+  const goToReport = (report: BarangayMonthlyReport) => {
+    if (report.status === "Draft") {
+      router.push({
+        pathname: "/new-report",
+        params: { barangay: String(report.barangay), report_month: report.report_month },
+      } as any);
+    } else {
+      router.push({
+        pathname: "/view-report",
+        params: { id: String(report.monthly_report_id) },
+      } as any);
+    }
   };
 
   if (isLoading) {
@@ -138,13 +130,12 @@ export default function ReportsListScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#f8fafc]" edges={["top"]}>
-      <ScrollView 
+      <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#122A48" />
         }
-        contentContainerClassName="p-4 pb-8">
-
-        {/* Header Bar */}
+        contentContainerClassName="p-4 pb-8"
+      >
         <View className="mb-4 flex-row items-center justify-between gap-3">
           <Text className="flex-1 text-lg font-bold text-[#122A48]" numberOfLines={2}>
             Clearing Operations Report
@@ -166,11 +157,8 @@ export default function ReportsListScreen() {
           </TouchableOpacity>
         </View>
 
-        {error ? (
-          <Text className="mb-3 text-xs text-[#dc2626]">{error}</Text>
-        ) : null}
+        {error ? <Text className="mb-3 text-xs text-[#dc2626]">{error}</Text> : null}
 
-        {/* Metric Cards Grid */}
         <View className="mb-5 gap-2.5">
           <View className="flex-row gap-2.5">
             <MetricCard label="Total reports" value={totalReports} />
@@ -182,51 +170,33 @@ export default function ReportsListScreen() {
           </View>
         </View>
 
-        <Text className="mb-3 text-sm font-semibold text-[#122A48]">
-          Recent Reports
-        </Text>
+        <Text className="mb-3 text-sm font-semibold text-[#122A48]">Recent Reports</Text>
 
-        {/* Reports Cards List */}
         <View className="gap-3">
-          {rows.length === 0 && (
-            <Text className="mt-5 text-center text-[13px] text-[#94a3b8]">
-              No reports yet this period.
-            </Text>
+          {sortedReports.length === 0 && (
+            <Text className="mt-5 text-center text-[13px] text-[#94a3b8]">No reports yet this period.</Text>
           )}
 
-          {rows.map((row) => {
-            const isDraft = row.kind === "draft";
-            const monthLabel = isDraft ? formatMonth(row.draft.report_month) : formatMonth(row.report.report_month);
-            const totalKg = isDraft ? getTotalKg(row.draft) : getTotalKg(row.report);
-            const status: "Draft" | "Pending" | "Reviewed" = isDraft ? "Draft" : row.report.status;
-            const filesCount = isDraft
-              ? row.draft.before_photos.length + row.draft.after_photos.length
-              : row.report.media.length;
+          {sortedReports.map((report) => {
+            const isDraft = report.status === "Draft";
+            const monthLabel = formatMonth(report.report_month);
+            const totalKg = getTotalKg(report);
+            const filesCount = report.media.length;
 
             return (
               <TouchableOpacity
-                key={row.key}
+                key={report.monthly_report_id}
                 activeOpacity={0.9}
-                onPress={() => {
-                  if (isDraft) {
-                    goToDraft(row.draft);
-                  } else {
-                    router.push({
-                      pathname: "/view-report",
-                      params: { id: String(row.report.monthly_report_id) },
-                    } as any);
-                  }
-                }}
+                onPress={() => goToReport(report)}
                 style={{
                   elevation: 2,
-                  shadowColor: '#000',
+                  shadowColor: "#000",
                   shadowOpacity: 0.06,
                   shadowRadius: 4,
                   shadowOffset: { width: 0, height: 2 },
                 }}
                 className="rounded-xl border border-[#e2e8f0] bg-white p-3.5"
               >
-                {/* Header Row */}
                 <View className="mb-2.5 flex-row items-start justify-between gap-2">
                   <View className="flex-1 flex-row items-start gap-2">
                     <MaterialCommunityIcons
@@ -239,17 +209,14 @@ export default function ReportsListScreen() {
                       {monthLabel} Report
                     </Text>
                   </View>
-
-                  <StatusBadge status={status} />
+                  <StatusBadge status={report.status} />
                 </View>
 
-                {/* Sub Metadata Row */}
                 <View className="mb-3.5 flex-row items-center gap-3">
                   <View className="flex-row items-center gap-1">
                     <MaterialCommunityIcons name="scale-balance" size={14} color="#64748b" />
                     <Text className="text-[11px] text-[#64748b]">{totalKg.toFixed(2)} kg</Text>
                   </View>
-
                   <View className="flex-row items-center gap-1">
                     <MaterialCommunityIcons name="paperclip" size={14} color="#64748b" />
                     <Text className="text-[11px] text-[#64748b]">
@@ -260,34 +227,36 @@ export default function ReportsListScreen() {
 
                 <View className="mb-3 h-px bg-[#f1f5f9]" />
 
-                {/* Card Action Buttons */}
                 <View className="flex-row gap-2">
-                  {isDraft ? (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        goToDraft(row.draft);
-                      }}
-                      className="flex-1 flex-row items-center justify-center gap-1 rounded-md bg-[#15803d] py-1.5"
-                    >
-                      <MaterialCommunityIcons name="pencil-outline" size={14} color="white" />
-                      <Text className="text-xs font-semibold text-white">Continue draft</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        router.push({
-                          pathname: "/view-report",
-                          params: { id: String(row.report.monthly_report_id) },
-                        } as any);
-                      }}
-                      className="flex-1 flex-row items-center justify-center gap-1 rounded-md border border-[#cbd5e1] py-1.5"
-                    >
-                      <MaterialCommunityIcons name="eye-outline" size={14} color="#475569" />
-                      <Text className="text-xs font-medium text-[#475569]">View</Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      goToReport(report);
+                    }}
+                    className={`flex-1 flex-row items-center justify-center gap-1 rounded-md py-1.5 ${
+                      isDraft ? "bg-[#15803d]" : "border border-[#cbd5e1]"
+                    }`}
+                  >
+                    <MaterialCommunityIcons
+                      name={isDraft ? "pencil-outline" : "eye-outline"}
+                      size={14}
+                      color={isDraft ? "white" : "#475569"}
+                    />
+                    <Text className={`text-xs font-semibold ${isDraft ? "text-white" : "text-[#475569] font-medium"}`}>
+                      {isDraft ? "Continue draft" : "View"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Alert.alert("Export", "Exporting report to PDF...");
+                    }}
+                    className="flex-1 flex-row items-center justify-center gap-1 rounded-md border border-[#cbd5e1] py-1.5"
+                  >
+                    <MaterialCommunityIcons name="tray-arrow-up" size={14} color="#475569" />
+                    <Text className="text-xs font-medium text-[#475569]">Export</Text>
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             );

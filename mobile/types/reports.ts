@@ -25,7 +25,7 @@ export interface BarangayMonthlyReport {
   submitted_by: number | null
   verified_by: number | null
   submitted_at: string
-  status: 'Pending' | 'Reviewed'
+  status: 'Draft' | 'Pending' | 'Reviewed'
   barangay_details: {
     barangay_id: number
     barangay_name: string

@@ -153,7 +153,7 @@ export default function TabOneScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => refetch(true)} tintColor="#122A48" />
         }
       >
-        <View className="w-full items-center justify-center">
+        <View className="w-full items-center justify-center -mt-2">
           <Text className="text-[21px] font-bold text-[#122A48]">Localized Canal Map</Text>
         </View>
 

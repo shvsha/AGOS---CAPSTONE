@@ -7,7 +7,6 @@ interface SubmitReportModalProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  barangayId: number | null;
   reportMonth: string | null;
   summary: {
     location: string;
@@ -35,14 +34,7 @@ function getLastDayFormatted(date: Date): string {
   });
 }
 
-export function SubmitReportModal({
-  visible,
-  onClose,
-  onConfirm,
-  barangayId,
-  reportMonth,
-  summary,
-}: SubmitReportModalProps) {
+export function SubmitReportModal({ visible, onClose, onConfirm, reportMonth, summary, }: SubmitReportModalProps) {
   const targetDate = summary.entryDate || new Date();
 
   // 1. Check if the date is the end of the month
@@ -53,19 +45,19 @@ export function SubmitReportModal({
   const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
 
   useEffect(() => {
-    if (!visible || !barangayId || !reportMonth) return;
+    if (!visible || !reportMonth) return;
 
     let cancelled = false;
     setChecking(true);
 
     api
-      .get(`/api/barangay-reports/?barangay=${barangayId}&report_month=${reportMonth}`)
-      .then((res) => {
+      .get(`/api/barangay-reports/mine/?report_month=${reportMonth}`)
+      .then((report) => {
         if (cancelled) return;
-        const list = res.results ?? res;
-        setIsAlreadySubmitted(Array.isArray(list) && list.length > 0);
+        setIsAlreadySubmitted(report.status !== "Draft");
       })
-      .catch(() => {
+      .catch((err) => {
+        // 404 = no report yet this month, so nothing to block on
         if (!cancelled) setIsAlreadySubmitted(false);
       })
       .finally(() => {
@@ -75,7 +67,7 @@ export function SubmitReportModal({
     return () => {
       cancelled = true;
     };
-  }, [visible, barangayId, reportMonth]);
+  }, [visible, reportMonth]);
 
   // Submit is blocked while checking, if it's NOT the end of the month, or if already submitted
   const isSubmissionBlocked = checking || !isEndOfMonth || isAlreadySubmitted;
