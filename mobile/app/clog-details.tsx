@@ -111,7 +111,7 @@ export default function ClogDetails() {
 
   return (
     <View className="flex-1 bg-[#FAFCFD]">
-      <View className="px-4 pt-4 pb-3 bg-white flex-row items-center mt-7 b">
+      <View className="px-4 pt-4 flex-row items-center mt-7 b">
         <Pressable onPress={() => router.back()} className="mr-2 flex gap-2 flex-row items-center">
           <MaterialCommunityIcons name="chevron-left" size={24} color="#122A48" />
           <Text className="text-base font-extrabold text-[#122A48]">Event Details</Text>

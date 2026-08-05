@@ -69,7 +69,7 @@ class MyBarangayReportView(APIView):
         ).first()
 
         if not report:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(
             BarangayMonthlyReportSerializer(report, context={'request': request}).data

@@ -97,11 +97,14 @@ class UpdateClogStatusView(APIView):
                 event.responded_by = user
             event.save()
 
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                "clog_events",
-                {"type": "clog_event_message", "clog_event": ClogEventSerializer(event).data}
-            )
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "clog_events",
+                    {"type": "clog_event_message", "clog_event": ClogEventSerializer(event).data}
+                )
+            except Exception:
+                pass
 
             # Log the status update
             log_action(
