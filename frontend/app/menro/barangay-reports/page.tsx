@@ -293,17 +293,25 @@ export default function BarangayReports() {
                         <TableCell className="text-[#122A48] text-left h-14 -mr-10">{reports.submitted_by_details?.first_name} {reports.submitted_by_details?.last_name}</TableCell>
                         <TableCell className="text-[#122A48] text-left h-14">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                            reports.status
+                            reports.status === "Reviewed"
+                              ? "bg-[#B2FBC173] text-[#2C7B3C]"
+                              : reports.status === "Pending"
                               ? "bg-[#DBEAFE] text-[#1565BC]"
-                              : "bg-[#B2FBC173] text-[#2C7B3C]"
+                              : "bg-[#E5E5E6] text-[#727272]"
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${reports.status ? "bg-[#1565BC]" : "bg-[#2C7B3C]"}`} />
-                            {reports.status ? "Pending" : "Verified"}
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              reports.status === "Reviewed"
+                                ? "bg-[#2C7B3C]"
+                                : reports.status === "Pending"
+                                ? "bg-[#1565BC]"
+                                : "bg-[#727272]"
+                            }`} />
+                            {reports.status}
                           </span>
                         </TableCell>
                         <TableCell className="flex gap-3">
                             <Button 
-                              onClick={() => router.push('/menro/barangay-reports/view-barangay-report/')}
+                              onClick={() => router.push(`/menro/barangay-reports/view-barangay-report/?id=${reports.monthly_report_id}`)}
                               className="text-xs border border-[#1565BC80] bg-[#CDE3DE45] hover:bg-[#b8d5cf45] text-[#122A48] cursor-pointer"
                             >
                             <Eye size={16} className="mr-1" />
