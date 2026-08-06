@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 
 // lib
 import { api } from "@/lib/api"
-import { getUserRole, clearAuth } from "@/lib/auth"
+import { getUserRole, clearAuth, getUser } from "@/lib/auth"
 import { useDrawer } from "@/lib/drawer-context"
 import { DIALOG_COLOR } from "@/lib/constant"
 
@@ -27,6 +27,30 @@ import {
 // logo
 import Image from "next/image"
 import AgosLogo from '../../public/agos-logo.png'
+
+
+const getAvatarColor = (role: string) => {
+  if (role === "MENRO") return "#2C7B3C"
+  if (role === "MENRO_Staff") return "#37b851"
+  return "#122A48"
+}
+
+const getRoleLabel = (role: string) => {
+  if (role === "MENRO") return "MENRO Officer"
+  if (role === "MENRO_Staff") return "MENRO Staff"
+  if (role === "Admin") return "Administrator"
+  return role
+}
+
+type User = {
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  username: string;
+  user_role: string;
+  status: string;
+}
 
 
 type NavItem = {
@@ -89,6 +113,7 @@ const navItems: Record<string, NavItem[]> = {
 export default function NavBar() {
   // us
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [logoutDialog, setLogoutDialog] = useState<boolean>(false)
   
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
@@ -96,6 +121,11 @@ export default function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const { drawerOpen, setDrawerOpen } = useDrawer()
+
+  const fullName = currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : ""
+  const nameFontSize = fullName.length > 12
+    ? Math.max(8, 12 - (fullName.length - 9))
+    : 12
 
   const toggleDropdown = (label: string) => {
     setOpenDropdowns(prev => ({ ...prev, [label]: !prev[label] }))
@@ -120,6 +150,14 @@ export default function NavBar() {
       }
     })
   }, [pathname])
+
+  useEffect(() => {
+    const role = getUserRole()
+    if (role) {
+      setUserRole(role)
+    }
+    setCurrentUser(getUser())
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -237,18 +275,32 @@ export default function NavBar() {
         </nav>
 
         {/* Logout Dialog */}
-        <div className="border-t p-2">
+        <div className="border-t p-2 flex gap-4">
+          <div className="flex justify-center items-center">
+            <div
+              className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+              style={{ backgroundColor: getAvatarColor(userRole ?? "") }}
+            >
+              {currentUser ? `${currentUser.first_name.charAt(0)}${currentUser.last_name.charAt(0)}` : ""}
+            </div>
+            </div>
+          <div className="flex flex-col justify-center">
+          <p className="font-semibold truncate max-w-[110px]" style={{ fontSize: `${nameFontSize}px` }}>
+            {fullName}
+          </p>
+          <p className="text-[10px]">{currentUser ? getRoleLabel(currentUser.user_role) : ""}</p>
+        </div>
           <button
             suppressHydrationWarning
             onClick={() => setLogoutDialog(true)}
             className='
-              flex items-center w-full cursor-pointer py-3 text-[#122A48] hover:bg-[#eaedf2]
+              flex items-center cursor-pointer py-3 text-[#122A48] hover:bg-[#eaedf2]
               rounded transition-all duration-200 overflow-hidden whitespace-nowrap px-[13px] gap-3'
           >
-            <span className="flex-shrink-0 w-5 flex items-center justify-center">
+            <span className="flex-shrink-0 flex items-center justify-center">
               <LogOut size={20} />
             </span>
-            <span className="text-sm font-medium">Logout</span>
+            
           </button>
         </div>
 
@@ -355,8 +407,10 @@ export default function NavBar() {
           })}
         </nav>
 
+
+
         {/* Logout */}
-        <div className="border-t p-2">
+        <div className="border-t p-2 flex">
           <button
             onClick={() => { setDrawerOpen(false); setLogoutDialog(true) }}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[#122A48] hover:bg-[#eaedf2] text-[13px] font-medium transition-colors"

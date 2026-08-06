@@ -77,14 +77,17 @@ type Alert = {
   alert_context?: Record<string, any> 
 }
 
-type MonthlyReports = {
+type BarangayReports = {
   monthly_report_id: number
   report_month: string
-  entry_date: number
-  submitted_by: string
-  verified_by: string
+  submitted_by: number | null
+  verified_by: number | null
   submitted_at: string
-  status: string
+  status: 'Draft' | 'Pending' | 'Reviewed'
+  barangay_details: {
+    barangay_id: number
+    barangay_name: string
+  } | null
 }
 
 type NodeHealth = {
@@ -167,8 +170,8 @@ export default function Dashboard() {
   const [allClogEvents, setAllClogEvents] = useState<ClogEvents[]>([])
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
   const [allAlerts, setAllAlerts] = useState<Alert[]>([])
-  const [allMonthlyReports, setAllMonthlyReports] = useState<MonthlyReports[]>([])
   const [allNodeHealth, setAllNodeHealth] = useState<NodeHealth[]>([])
+  const [barangayReports, setBarangayReports] = useState<BarangayReports[]>([])
 
   // alert dialog state
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
@@ -212,6 +215,23 @@ export default function Dashboard() {
 
   const recentWaste = todayWaste.slice(0, 7)
 
+  const now = new Date()
+  const getMonthOptions = () => {
+    const months = []
+    const year = now.getFullYear()
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(year, m, 1)
+      months.push({
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      })
+    }
+    return months
+  }
+  const monthOptions = getMonthOptions()
+  const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
+
   // fetch of data
   const fetchSensorNodes = async () => {
     try {
@@ -231,7 +251,7 @@ export default function Dashboard() {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setAllMonthlyReports(data.results ?? data)
+      setBarangayReports(data.results ?? data)
     } catch {}
   }
 
@@ -290,7 +310,7 @@ export default function Dashboard() {
 
   const fetchBarangays = async () => {
     try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`)
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       setAllBarangays(data.results ?? data)
@@ -417,8 +437,9 @@ export default function Dashboard() {
             {/* monthly report progress */}
             <div>
               <ReportProgressBar
-                reports={allMonthlyReports}
-                month="May 2026"
+                reports={barangayReports.filter(r => r.report_month.startsWith(selectedMonth))}
+                totalBarangays={allBarangays.length}
+                month={monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth}
               />
             </div>
           </div>
