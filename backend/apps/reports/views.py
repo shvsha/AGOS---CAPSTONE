@@ -8,6 +8,7 @@ from .serializers import ( BarangayMonthlyReportSerializer, ReportMediaSerialize
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay, IsAdminOrMENROOfficer, CanAccessOwnBarangayReport, CanAccessOwnBarangayReportMedia
 from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
+from .services import sync_municipal_report
 
 
 class BarangayMonthlyReportListView(generics.ListCreateAPIView):
@@ -48,6 +49,11 @@ class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BarangayMonthlyReportSerializer
     lookup_field = 'monthly_report_id'
     permission_classes = [CanAccessOwnBarangayReport]
+
+    def perform_update(self, serializer):
+        report = serializer.save()
+        if report.status == 'Reviewed':
+            sync_municipal_report(report.report_month, generated_by=self.request.user)
 
 
 class MyBarangayReportView(APIView):

@@ -61,6 +61,8 @@ class BarangayMonthlyReportSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 class MunicipalMonthlyReportSerializer(serializers.ModelSerializer):
+    generated_by_details = UserSerializer(source='generated_by', read_only=True)
+
     class Meta:
         model = MunicipalMonthlyReport
         fields = '__all__'
