@@ -26,7 +26,7 @@ class BarangayMonthlyReportListView(generics.ListCreateAPIView):
             return BarangayMonthlyReport.objects.filter(
                 barangay=user.barangay
             ).order_by('-submitted_at')
-        return BarangayMonthlyReport.objects.all().order_by('-submitted_at')
+        return BarangayMonthlyReport.objects.exclude(status='Draft').order_by('-submitted_at')
     
     def perform_create(self, serializer):
         report = serializer.save(
