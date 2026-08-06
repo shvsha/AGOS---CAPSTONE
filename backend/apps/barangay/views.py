@@ -48,7 +48,7 @@ class BarangayDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class BarangayAllView(generics.ListAPIView):
     serializer_class = BarangaySerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdminOrMENROOrBarangay]
     pagination_class = None
 
     def get_queryset(self):

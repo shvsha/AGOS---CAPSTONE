@@ -22,10 +22,18 @@ export interface BarangayMonthlyReport {
   municipal_report: number | null
   report_month: string
   clearing_date: string
+  bote_kg: number
+  bakal_kg: number
+  papel_kg: number
+  plastic_kg: number
+  karton_kg: number
   recyclables_kg: number
   biodegradable_kg: number
   residual_waste_kg: number
   special_waste_kg: number | null
+  amount_sold_bote_plastic: string | null
+  amount_sold_bakal: string | null
+  amount_sold_papel_karton: string | null
   amount_sold: string | null
   remarks: string | null
   submitted_by: number | null

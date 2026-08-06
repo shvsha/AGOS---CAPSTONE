@@ -19,11 +19,17 @@ interface PhotoAsset {
 interface ReportFormState {
   submittedBy: string;
   entryDate: Date;
-  recyclables_kg: number;
+  bote_kg: number;
+  bakal_kg: number;
+  papel_kg: number;
+  plastic_kg: number;
+  karton_kg: number;
   biodegradable_kg: number;
   residual_waste_kg: number;
   special_waste_kg: number;
-  amount_sold: number;
+  amount_sold_bote_plastic: number;
+  amount_sold_bakal: number;
+  amount_sold_papel_karton: number;
   remarks: string;
   beforePhotos: PhotoAsset[];
   afterPhotos: PhotoAsset[];
@@ -32,11 +38,17 @@ interface ReportFormState {
 const INITIAL_STATE: ReportFormState = {
   submittedBy: "",
   entryDate: new Date(),
-  recyclables_kg: 0,
+  bote_kg: 0,
+  bakal_kg: 0,
+  papel_kg: 0,
+  plastic_kg: 0,
+  karton_kg: 0,
   biodegradable_kg: 0,
   residual_waste_kg: 0,
   special_waste_kg: 0,
-  amount_sold: 0,
+  amount_sold_bote_plastic: 0,
+  amount_sold_bakal: 0,
+  amount_sold_papel_karton: 0,
   remarks: "",
   beforePhotos: [],
   afterPhotos: [],
@@ -272,11 +284,17 @@ export default function NewReportScreen() {
         setForm((prev) => ({
           ...prev,
           entryDate: report.clearing_date ? new Date(report.clearing_date) : prev.entryDate,
-          recyclables_kg: report.recyclables_kg,
+          bote_kg: report.bote_kg,
+          bakal_kg: report.bakal_kg,
+          papel_kg: report.papel_kg,
+          plastic_kg: report.plastic_kg,
+          karton_kg: report.karton_kg,
           biodegradable_kg: report.biodegradable_kg,
           residual_waste_kg: report.residual_waste_kg,
           special_waste_kg: report.special_waste_kg,
-          amount_sold: Number(report.amount_sold) || 0,
+          amount_sold_bote_plastic: Number(report.amount_sold_bote_plastic) || 0,
+          amount_sold_bakal: Number(report.amount_sold_bakal) || 0,
+          amount_sold_papel_karton: Number(report.amount_sold_papel_karton) || 0,
           remarks: report.remarks ?? "",
           beforePhotos: mediaToPhotos("Before_Clearing"),
           afterPhotos: mediaToPhotos("After_Clearing"),
@@ -300,12 +318,13 @@ export default function NewReportScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const totalRecyclables = form.bote_kg + form.bakal_kg + form.papel_kg + form.plastic_kg + form.karton_kg;
   const totalCollected =
-    form.recyclables_kg + form.biodegradable_kg + form.residual_waste_kg + form.special_waste_kg;
+    totalRecyclables + form.biodegradable_kg + form.residual_waste_kg + form.special_waste_kg;
 
   const getWasteTypesSummary = () => {
     const types: string[] = [];
-    if (form.recyclables_kg > 0) types.push("Recyclable");
+    if (totalRecyclables > 0) types.push("Recyclable");
     if (form.biodegradable_kg > 0) types.push("Biodegradable");
     if (form.residual_waste_kg > 0) types.push("Residual");
     if (form.special_waste_kg > 0) types.push("Special Waste");
@@ -318,11 +337,17 @@ export default function NewReportScreen() {
     const report = await api.post("/api/barangay-reports/", {
       report_month: reportMonth,
       clearing_date: form.entryDate.toISOString().split("T")[0],
-      recyclables_kg: form.recyclables_kg,
+      bote_kg: form.bote_kg,
+      bakal_kg: form.bakal_kg,
+      papel_kg: form.papel_kg,
+      plastic_kg: form.plastic_kg,
+      karton_kg: form.karton_kg,
       biodegradable_kg: form.biodegradable_kg,
       residual_waste_kg: form.residual_waste_kg,
       special_waste_kg: form.special_waste_kg,
-      amount_sold: form.amount_sold,
+      amount_sold_bote_plastic: form.amount_sold_bote_plastic,
+      amount_sold_bakal: form.amount_sold_bakal,
+      amount_sold_papel_karton: form.amount_sold_papel_karton,
       remarks: form.remarks,
       status: "Draft",
     });
@@ -409,11 +434,17 @@ export default function NewReportScreen() {
       const payload = {
         report_month: reportMonth,
         clearing_date: form.entryDate.toISOString().split("T")[0],
-        recyclables_kg: form.recyclables_kg,
+        bote_kg: form.bote_kg,
+        bakal_kg: form.bakal_kg,
+        papel_kg: form.papel_kg,
+        plastic_kg: form.plastic_kg,
+        karton_kg: form.karton_kg,
         biodegradable_kg: form.biodegradable_kg,
         residual_waste_kg: form.residual_waste_kg,
         special_waste_kg: form.special_waste_kg,
-        amount_sold: form.amount_sold,
+        amount_sold_bote_plastic: form.amount_sold_bote_plastic,
+        amount_sold_bakal: form.amount_sold_bakal,
+        amount_sold_papel_karton: form.amount_sold_papel_karton,
         remarks: form.remarks,
       };
 
@@ -450,7 +481,7 @@ export default function NewReportScreen() {
     }
 
     const hasAtLeastOneWaste =
-      form.recyclables_kg > 0 ||
+      totalRecyclables > 0 ||
       form.biodegradable_kg > 0 ||
       form.residual_waste_kg > 0 ||
       form.special_waste_kg > 0;
@@ -493,11 +524,17 @@ export default function NewReportScreen() {
       const payload = {
         report_month: reportMonth,
         clearing_date: form.entryDate.toISOString().split("T")[0],
-        recyclables_kg: form.recyclables_kg,
+        bote_kg: form.bote_kg,
+        bakal_kg: form.bakal_kg,
+        papel_kg: form.papel_kg,
+        plastic_kg: form.plastic_kg,
+        karton_kg: form.karton_kg,
         biodegradable_kg: form.biodegradable_kg,
         residual_waste_kg: form.residual_waste_kg,
         special_waste_kg: form.special_waste_kg,
-        amount_sold: form.amount_sold,
+        amount_sold_bote_plastic: form.amount_sold_bote_plastic,
+        amount_sold_bakal: form.amount_sold_bakal,
+        amount_sold_papel_karton: form.amount_sold_papel_karton,
         remarks: form.remarks,
         status: "Pending",
       };
@@ -582,49 +619,69 @@ export default function NewReportScreen() {
 
             <SectionHeader icon="trash-can-outline" title="WASTE COLLECTED (KG)" />
 
-            <View className="mb-3 flex-row gap-2.5">
-              <Field
-                label="Recyclable"
-                required
-                value={form.recyclables_kg === 0 ? "" : String(form.recyclables_kg)}
-                onChangeText={(t) => update("recyclables_kg", toNumber(t))}
-                placeholder="00.00"
-                keyboardType="decimal-pad"
-              />
-              <Field
-                label="Biodegradable"
-                required
-                value={form.biodegradable_kg === 0 ? "" : String(form.biodegradable_kg)}
-                onChangeText={(t) => update("biodegradable_kg", toNumber(t))}
-                placeholder="00.00"
-                keyboardType="decimal-pad"
-              />
+            {/* Recyclables card */}
+            <View className="mb-3.5 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+              <Text className="mb-2.5 text-xs font-bold text-[#334155]">
+                Recyclables<Text className="text-[#dc2626]">*</Text>
+              </Text>
+
+              <View className="mb-2.5 flex-row gap-2.5">
+                <Field label="Bote (Kg)" value={form.bote_kg === 0 ? "" : String(form.bote_kg)} onChangeText={(t) => update("bote_kg", toNumber(t))} placeholder="00.00" keyboardType="decimal-pad" />
+                <Field label="Plastic (Kg)" value={form.plastic_kg === 0 ? "" : String(form.plastic_kg)} onChangeText={(t) => update("plastic_kg", toNumber(t))} placeholder="00.00" keyboardType="decimal-pad" />
+              </View>
+              <View className="mb-3 flex-row gap-2.5">
+                <Field label="Amount Sold — Bote/Plastic (₱)" value={form.amount_sold_bote_plastic === 0 ? "" : String(form.amount_sold_bote_plastic)} onChangeText={(t) => update("amount_sold_bote_plastic", toNumber(t))} placeholder="e.g. 20.00" keyboardType="decimal-pad" />
+              </View>
+
+              <View className="mb-2.5 flex-row gap-2.5">
+                <Field label="Bakal (Kg)" value={form.bakal_kg === 0 ? "" : String(form.bakal_kg)} onChangeText={(t) => update("bakal_kg", toNumber(t))} placeholder="00.00" keyboardType="decimal-pad" />
+                <Field label="Amount Sold — Bakal (₱)" value={form.amount_sold_bakal === 0 ? "" : String(form.amount_sold_bakal)} onChangeText={(t) => update("amount_sold_bakal", toNumber(t))} placeholder="e.g. 0.00" keyboardType="decimal-pad" />
+              </View>
+
+              <View className="mb-2.5 flex-row gap-2.5">
+                <Field label="Papel (Kg)" value={form.papel_kg === 0 ? "" : String(form.papel_kg)} onChangeText={(t) => update("papel_kg", toNumber(t))} placeholder="00.00" keyboardType="decimal-pad" />
+                <Field label="Karton (Kg)" value={form.karton_kg === 0 ? "" : String(form.karton_kg)} onChangeText={(t) => update("karton_kg", toNumber(t))} placeholder="00.00" keyboardType="decimal-pad" />
+              </View>
+              <View className="flex-row gap-2.5">
+                <Field label="Amount Sold — Papel/Karton (₱)" value={form.amount_sold_papel_karton === 0 ? "" : String(form.amount_sold_papel_karton)} onChangeText={(t) => update("amount_sold_papel_karton", toNumber(t))} placeholder="e.g. 28.00" keyboardType="decimal-pad" />
+              </View>
             </View>
 
-            <View className="mb-3.5 flex-row gap-2.5">
-              <Field
-                label="Residual"
-                required
-                value={form.residual_waste_kg === 0 ? "" : String(form.residual_waste_kg)}
-                onChangeText={(t) => update("residual_waste_kg", toNumber(t))}
-                placeholder="00.00"
-                keyboardType="decimal-pad"
-              />
-              <Field
-                label="Special Waste"
-                required
-                value={form.special_waste_kg === 0 ? "" : String(form.special_waste_kg)}
-                onChangeText={(t) => update("special_waste_kg", toNumber(t))}
-                placeholder="00.00"
-                keyboardType="decimal-pad"
-              />
+            {/* Other waste card */}
+            <View className="mb-3.5 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+              <Text className="mb-2.5 text-xs font-bold text-[#334155]">Other Waste (Kg)</Text>
+
+              <View className="mb-2.5 flex-row gap-2.5">
+                <Field
+                  label="Biodegradable"
+                  required
+                  value={form.biodegradable_kg === 0 ? "" : String(form.biodegradable_kg)}
+                  onChangeText={(t) => update("biodegradable_kg", toNumber(t))}
+                  placeholder="00.00"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View className="flex-row gap-2.5">
+                <Field
+                  label="Residual"
+                  required
+                  value={form.residual_waste_kg === 0 ? "" : String(form.residual_waste_kg)}
+                  onChangeText={(t) => update("residual_waste_kg", toNumber(t))}
+                  placeholder="00.00"
+                  keyboardType="decimal-pad"
+                />
+                <Field
+                  label="Special Waste"
+                  required
+                  value={form.special_waste_kg === 0 ? "" : String(form.special_waste_kg)}
+                  onChangeText={(t) => update("special_waste_kg", toNumber(t))}
+                  placeholder="00.00"
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
 
             <TotalCollectedCard amount={totalCollected} />
-
-            <View className="mb-4">
-              <Field label="Amount sold (₱)" value={form.amount_sold === 0 ? "" : String(form.amount_sold)} onChangeText={(t) => update("amount_sold", toNumber(t))} placeholder="e.g. 240.00" keyboardType="decimal-pad" />
-            </View>
 
             <View className="mb-3 h-px bg-[#f1f5f9]" />
 

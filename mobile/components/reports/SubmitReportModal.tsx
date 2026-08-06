@@ -40,8 +40,8 @@ function getLastDayFormatted(date: Date): string {
 export function SubmitReportModal({ visible, onClose, onConfirm, reportMonth, summary, }: SubmitReportModalProps) {
   const targetDate = summary.entryDate || new Date();
 
-  // const isEndOfMonth = isLastDayOfMonth(targetDate);
-  const isEndOfMonth = DEV_BYPASS_END_OF_MONTH || isLastDayOfMonth(targetDate);
+  const isEndOfMonth = isLastDayOfMonth(targetDate);
+  // const isEndOfMonth = DEV_BYPASS_END_OF_MONTH || isLastDayOfMonth(targetDate);
 
   const [checking, setChecking] = useState(true);
   const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
