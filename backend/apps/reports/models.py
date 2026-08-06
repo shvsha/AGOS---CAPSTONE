@@ -130,12 +130,10 @@ class MunicipalMonthlyReport(models.Model):
     total_karton_kg = models.FloatField(default=0)
 
     total_biodegradable_kg = models.FloatField(default=0)
-    total_composting_kg = models.FloatField(null=True, blank=True)
     total_residual_waste_kg = models.FloatField(default=0)
     total_special_waste_kg = models.FloatField(null=True, blank=True)
     total_amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_barangays_reported = models.IntegerField(default=0)
-    total_clog_events = models.IntegerField(default=0)
     generated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
