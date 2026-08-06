@@ -58,6 +58,10 @@ type Clogs = {
     last_name: string
     position: string
   } | null
+  classification_details: {
+    classification_id: number
+    dominant_waste_type: string
+  }
 }
 
 type ClogMedia = {
@@ -432,6 +436,11 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                   <p>Sensor Node</p>
                   <p>{selectedClog.node_details?.node_name}</p>
                 </div>
+                <div className="flex justify-between text-[13px]">
+                  <p>Waste Classification</p>
+                  <p>{selectedClog.classification_details.dominant_waste_type}</p>
+
+                </div>
               </div>
 
               <hr />
@@ -464,88 +473,6 @@ useEffect(() => { fetchMedia() }, [selectedClog])
 
               </div>
               
-              {/* Response information */}
-              <hr />
-
-              <div className="text-[#122A48] px-4 flex flex-col gap-3">
-                <div className="w-full">
-                  <p className="font-medium">Response Information</p>
-                </div>
-
-                {selectedClog.status !== "Cleared" && selectedClog.status !== "Verified" ? (
-                  <div className="flex flex-col gapp2 justify-center items-center py-3">
-                    <Clock3 size={30}/>
-                    <p className="text-[13px] text-center">Clog event has not <br /> been cleared yet.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-between text-[13px]">
-                      <p>Submitted by</p>
-                      <p>{selectedClog.cleared_by_details?.position}</p>
-                    </div>
-
-                    <div className="flex justify-between text-[13px]">
-                      <p>Resolved at</p>
-                      <p>
-                        {selectedClog.resolved_at
-                        ? new Date(selectedClog.resolved_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
-                        : '—'}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-between text-[13px]">
-                      <p>Duration</p>
-                      <p>{selectedClog.resolved_at ? getDuration(selectedClog.detected_at, selectedClog.resolved_at) : '—'}</p>
-                    </div>
-                  </>
-                )}
-
-              </div>
-
-              <hr />
-
-              <div className="text-[#122A48] px-4 flex flex-col gap-3">
-                <div className="w-full">
-                  <p className="font-medium">Attachments</p>
-                </div>
-
-                {selectedClog.status !== "Cleared" && selectedClog.status !== "Verified" ? (
-                  <div className="flex flex-col gapp2 justify-center items-center py-3">
-                    <Clock3 size={30}/>
-                    <p className="text-[13px] text-center">Clog event has not <br /> been cleared yet.</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex gap-3 justify-center">
-                      {['Sensor_Detection', 'Before_Clearing', 'After_Clearing'].map(category => {
-                        const item = clogMedia.find(m => m.media_category === category)
-                        return (
-                          <div key={category} className="flex flex-col justify-center items-center gap-1">
-                            {item ? (
-                              <img src={item.file_url} alt={category} className="rounded-lg w-20 h-20 object-cover" />
-                            ) : (
-                              <div className="w-20 h-20 rounded-lg bg-[#E5E5E6] flex items-center justify-center">
-                                <p className="text-[10px] text-[#C6C6C8] text-center px-1">No image</p>
-                              </div>
-                            )}
-                            <p className="text-xs text-[#727272] text-center">{CATEGORY_LABELS[category]}</p>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    <div className="mb-3">
-                      <Button className="rounded-lg bg-[#25893ACC] hover:bg-[#1f6a2fcc] px-3 py-2 text-white cursor-pointer">
-                        <Download size={30}/>
-                        Download Attachments
-                      </Button>
-                    </div>
-                  </>
-                )}
-
-
-              </div>
-
             </div>
           )}
           

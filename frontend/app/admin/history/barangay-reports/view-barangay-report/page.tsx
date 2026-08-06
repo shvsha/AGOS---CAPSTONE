@@ -3,27 +3,22 @@
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
-// log
+// icons
+import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
+
+// logo
 import RosLogo from '@/public/ROS-logo.jpg'
 import Image from "next/image"
-
-// icons
-import { ArrowLeft, CheckCircle2, FileText, Image as ImageIcon } from "lucide-react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 
 // components
-import { DialogModal } from "@/components/DialogModal"
-import { Toast } from "@/components/Toast"
-import { useToast } from "@/components/hooks/useToast"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 
 // lib
-import { api } from "@/lib/api"
-import { getUser } from "@/lib/auth"
-import { DIALOG_COLOR } from "@/lib/constant"
+import { fetchWithAuth } from "@/lib/auth"
 
 type ReportMedia = {
   media: number
@@ -222,7 +217,7 @@ function NarrativePhotos({ report, beforePhotos, afterPhotos, }: {
   )
 }
 
-export default function ViewBarangayReport() {
+export default function ViewBarangayReportAdmin() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get("id")
@@ -231,10 +226,6 @@ export default function ViewBarangayReport() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
   const [activeTab, setActiveTab] = useState<"details" | "narrative">("details")
-  const [verifyDialog, setVerifyDialog] = useState(false)
-  const [verifying, setVerifying] = useState(false)
-
-  const { toasts, addToast, removeToast } = useToast()
 
   const fetchReport = async () => {
     if (!id) {
@@ -245,7 +236,9 @@ export default function ViewBarangayReport() {
     setLoading(true)
     setFetchError(false)
     try {
-      const data = await api.get(`/api/barangay-reports/${id}/`)
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/${id}/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
       setReport(data)
     } catch {
       setFetchError(true)
@@ -255,25 +248,6 @@ export default function ViewBarangayReport() {
   }
 
   useEffect(() => { fetchReport() }, [id])
-
-  const handleVerify = async () => {
-    if (!report) return
-    setVerifyDialog(false)
-    setVerifying(true)
-    try {
-      const user = getUser()
-      const updated = await api.patch(`/api/barangay-reports/${report.monthly_report_id}/`, {
-        status: "Reviewed",
-        verified_by: user?.user_id,
-      })
-      setReport(prev => (prev ? { ...prev, ...updated } : updated))
-      addToast("Report has been verified.", "success")
-    } catch (err: any) {
-      addToast(err?.detail ?? "Failed to verify report.", "error")
-    } finally {
-      setVerifying(false)
-    }
-  }
 
   const beforePhotos = report?.media.filter(m => m.media_category === "Before_Clearing") ?? []
   const afterPhotos = report?.media.filter(m => m.media_category === "After_Clearing") ?? []
@@ -296,82 +270,53 @@ export default function ViewBarangayReport() {
   }
 
   return (
-    <>
-      <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex flex-col">
 
-        {/* Sticky action bar */}
-        <div className="flex justify-between items-center bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg px-4 py-3 mb-4 sticky top-0 z-10">
-          <div className="flex items-center gap-1">
-            <button onClick={() => router.push("/menro/barangay-reports")} className="cursor-pointer p-2 rounded-lg hover:bg-[#e8eef1]">
-              <ArrowLeft size={18} className="text-[#122A48]" />
-            </button>
-            <div className="flex gap-3 items-center">
-              <p className="font-bold text-[#122A48] text-sm">
-                {report.barangay_details?.barangay_name} — {formatMonthYear(report.report_month)}
-              </p>
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                report.status === "Reviewed" ? "bg-[#B2FBC173] text-[#2C7B3C]" : "bg-[#DBEAFE] text-[#1565BC]"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${report.status === "Reviewed" ? "bg-[#2C7B3C]" : "bg-[#1565BC]"}`} />
-                {report.status}
-              </span>
-            </div>
+      {/* Header bar — no verify action, admin is read-only here */}
+      <div className="flex justify-between items-center bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg px-4 py-3 mb-4 sticky top-0 z-10">
+        <div className="flex items-center gap-1">
+          <button onClick={() => router.push("/admin/history/barangay-reports")} className="cursor-pointer p-2 rounded-lg hover:bg-[#e8eef1]">
+            <ArrowLeft size={18} className="text-[#122A48]" />
+          </button>
+          <div className="flex gap-3 items-center">
+            <p className="font-bold text-[#122A48] text-sm">
+              {report.barangay_details?.barangay_name} — {formatMonthYear(report.report_month)}
+            </p>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+              report.status === "Reviewed" ? "bg-[#B2FBC173] text-[#2C7B3C]" : "bg-[#DBEAFE] text-[#1565BC]"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${report.status === "Reviewed" ? "bg-[#2C7B3C]" : "bg-[#1565BC]"}`} />
+              {report.status}
+            </span>
           </div>
-
-          {report.status === "Pending" && (
-            <Button
-              onClick={() => setVerifyDialog(true)}
-              disabled={verifying}
-              className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
-            >
-              <CheckCircle2 size={16} className="mr-1" />
-              {verifying ? "Verifying..." : "Verify Report"}
-            </Button>
-          )}
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setActiveTab("details")}
-            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
-              activeTab === "details" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
-            }`}
-          >
-            <FileText size={14} /> Report Details
-          </button>
-          <button
-            onClick={() => setActiveTab("narrative")}
-            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
-              activeTab === "narrative" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
-            }`}
-          >
-            <ImageIcon size={14} /> Narrative & Photos
-          </button>
-        </div>
-
-        {activeTab === "details" ? (
-          <MRFTable report={report} />
-        ) : (
-          <NarrativePhotos report={report} beforePhotos={beforePhotos} afterPhotos={afterPhotos} />
-        )}
-
       </div>
 
-      <DialogModal
-        open={verifyDialog}
-        onClose={() => setVerifyDialog(false)}
-        onConfirm={handleVerify}
-        color={DIALOG_COLOR.lightgreen}
-        icon={CheckCircle2}
-        iconColor={DIALOG_COLOR.green}
-        title="Verify Report"
-        description={<>Are you sure you want to mark this report as <strong>Reviewed</strong>? This confirms the data has been checked and finalized.</>}
-        cancelLabel="Cancel"
-        confirmLabel="Verify"
-      />
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setActiveTab("details")}
+          className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
+            activeTab === "details" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
+          }`}
+        >
+          <FileText size={14} /> Report Details
+        </button>
+        <button
+          onClick={() => setActiveTab("narrative")}
+          className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
+            activeTab === "narrative" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
+          }`}
+        >
+          <ImageIcon size={14} /> Narrative & Photos
+        </button>
+      </div>
 
-      <Toast toasts={toasts} onRemove={removeToast} />
-    </>
+      {activeTab === "details" ? (
+        <MRFTable report={report} />
+      ) : (
+        <NarrativePhotos report={report} beforePhotos={beforePhotos} afterPhotos={afterPhotos} />
+      )}
+    </div>
   )
 }

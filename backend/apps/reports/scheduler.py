@@ -10,10 +10,9 @@ logger = logging.getLogger(__name__)
 
 def generate_municipal_report():
     from .models import BarangayMonthlyReport, MunicipalMonthlyReport
-    
+
     today = timezone.now().date()
 
-    # Check if today is the last day of the month
     last_day = calendar.monthrange(today.year, today.month)[1]
     if today.day != last_day:
         return
@@ -26,26 +25,30 @@ def generate_municipal_report():
     )
 
     totals = submitted_reports.aggregate(
-        total_recyclables=Sum('recyclables_kg'),
+        total_bote=Sum('bote_kg'),
+        total_bakal=Sum('bakal_kg'),
+        total_papel=Sum('papel_kg'),
+        total_plastic=Sum('plastic_kg'),
+        total_karton=Sum('karton_kg'),
         total_amount_sold=Sum('amount_sold'),
         total_biodegradable=Sum('biodegradable_kg'),
-        total_composting=Sum('composting_kg'),
         total_residual=Sum('residual_waste_kg'),
         total_special=Sum('special_waste_kg'),
-        total_clog_events=Sum('clog_events_addressed'),
     )
 
     MunicipalMonthlyReport.objects.update_or_create(
         report_month=report_month,
         defaults={
-            'total_recyclables_kg': totals['total_recyclables'] or 0,
+            'total_bote_kg': totals['total_bote'] or 0,
+            'total_bakal_kg': totals['total_bakal'] or 0,
+            'total_papel_kg': totals['total_papel'] or 0,
+            'total_plastic_kg': totals['total_plastic'] or 0,
+            'total_karton_kg': totals['total_karton'] or 0,
             'total_amount_sold': totals['total_amount_sold'] or 0,
             'total_biodegradable_kg': totals['total_biodegradable'] or 0,
-            'total_composting_kg': totals['total_composting'] or 0,
             'total_residual_waste_kg': totals['total_residual'] or 0,
             'total_special_waste_kg': totals['total_special'] or 0,
             'total_barangays_reported': submitted_reports.count(),
-            'total_clog_events': totals['total_clog_events'] or 0,
             'status': 'Draft',
         }
     )

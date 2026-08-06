@@ -24,11 +24,23 @@ class BarangayMonthlyReport(models.Model):
     )
     report_month = models.DateField()
     clearing_date = models.DateField()
+
+    bote_kg = models.FloatField(default=0)
+    bakal_kg = models.FloatField(default=0)
+    papel_kg = models.FloatField(default=0)
+    plastic_kg = models.FloatField(default=0)
+    karton_kg = models.FloatField(default=0)
+
     recyclables_kg = models.FloatField(default=0)
     biodegradable_kg = models.FloatField(default=0)
     residual_waste_kg = models.FloatField(default=0)
     special_waste_kg = models.FloatField(null=True, blank=True)
+
+    amount_sold_bote_plastic = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    amount_sold_bakal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    amount_sold_papel_karton = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     amount_sold = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
     remarks = models.TextField(null=True, blank=True)
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -110,7 +122,13 @@ class MunicipalMonthlyReport(models.Model):
 
     municipal_report_id = models.AutoField(primary_key=True)
     report_month = models.DateField(unique=True)
-    total_recyclables_kg = models.FloatField(default=0)
+
+    total_bote_kg = models.FloatField(default=0)
+    total_bakal_kg = models.FloatField(default=0)
+    total_papel_kg = models.FloatField(default=0)
+    total_plastic_kg = models.FloatField(default=0)
+    total_karton_kg = models.FloatField(default=0)
+
     total_biodegradable_kg = models.FloatField(default=0)
     total_composting_kg = models.FloatField(null=True, blank=True)
     total_residual_waste_kg = models.FloatField(default=0)

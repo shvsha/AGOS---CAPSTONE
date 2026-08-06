@@ -7,6 +7,44 @@ import { api } from "@/lib/api";
 import { BarangayMonthlyReport } from "@/types/reports";
 
 
+function RecyclablesCard({ report }: { report: BarangayMonthlyReport }) {
+  const groups = [
+    { label: "Bote / Plastic", kg: (report.bote_kg || 0) + (report.plastic_kg || 0), amount: report.amount_sold_bote_plastic },
+    { label: "Bakal", kg: report.bakal_kg || 0, amount: report.amount_sold_bakal },
+    { label: "Papel / Karton", kg: (report.papel_kg || 0) + (report.karton_kg || 0), amount: report.amount_sold_papel_karton },
+  ];
+
+  return (
+    <View className="flex-1 rounded-xl border border-[#f1f5f9] bg-[#f8fafc] p-3 -mt-[px]"
+      style={{
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      }}
+    >
+      <View className="mb-1.5 flex-row items-center gap-1.5">
+        <MaterialCommunityIcons name="recycle" size={16} color="#16a34a" />
+        <Text className="text-xs font-semibold text-[#334155]">Recyclables</Text>
+      </View>
+      <View className="gap-2">
+        {groups.map((g) => (
+          <View key={g.label} className="flex-row justify-between">
+            <Text className="text-[11px] text-[#64748b]">{g.label}</Text>
+            <View className="items-end">
+              <Text className="text-[11px] font-bold text-[#0f172a]">{g.kg} kg</Text>
+              <Text className="text-[10px] text-[#16a34a]">
+                {g.amount ? `₱ ${Number(g.amount).toFixed(2)}` : "—"}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function DetailLabelValue({ label, value, flex = 1, valueColor = "#122A48", }: {
   label: string;
   value: string;
@@ -47,7 +85,7 @@ function WasteCard({ icon, label, valueKg, }: {
         </Text>
       </View>
       <Text className="text-lg font-extrabold text-[#122A48]">
-        ~ {valueKg} Kg
+        {valueKg} Kg
       </Text>
     </View>
   );
@@ -162,7 +200,7 @@ export default function ViewReportScreen() {
               <DetailLabelValue label="LOCATION" value={report.barangay_details?.barangay_name ?? ""} />
             </View>
             <View className="flex-row">
-              <DetailLabelValue label="AMOUNT SOLD" value={`₱ ${Number(report.amount_sold ?? 0).toFixed(2)}`} />
+              <DetailLabelValue label="TOTAL AMOUNT SOLD" value={`₱ ${Number(report.amount_sold ?? 0).toFixed(2)}`} />
               <DetailLabelValue label="STATUS" value={statusLabel} valueColor={bannerText} />
             </View>
             <View className="flex-row">
@@ -184,7 +222,9 @@ export default function ViewReportScreen() {
           <View className="mb-3 gap-2.5">
             <View className="flex-row gap-2.5">
               <WasteCard icon="leaf" label="Biodegradable" valueKg={report.biodegradable_kg || 0} />
-              <WasteCard icon="recycle" label="Recyclable" valueKg={report.recyclables_kg || 0} />
+            </View>
+            <View className="mt-2.5">
+              <RecyclablesCard report={report} />
             </View>
             <View className="flex-row gap-2.5">
               <WasteCard icon="delete-outline" label="Residual" valueKg={report.residual_waste_kg || 0} />

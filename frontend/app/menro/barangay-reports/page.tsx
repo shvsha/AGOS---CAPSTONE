@@ -137,7 +137,7 @@ export default function BarangayReports() {
       setFetchError(false)
 
       const [barangaysRes, reportsRes] = await Promise.all([
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`),
+        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`),
         fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`),
       ])
 
@@ -179,7 +179,7 @@ export default function BarangayReports() {
               <SelectTrigger className="cursor-pointer w-40 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent position="popper" className='w-40 min-w-0'>
+              <SelectContent position="popper" className='w-40 min-w-0 !max-h-70 overflow-y-auto'>
                 {monthOptions.map(m => (
                   <SelectItem key={m.value} className="p-2 py-1 cursor-pointer text-[#122A48]" value={m.value}>
                     {m.label}
@@ -193,7 +193,7 @@ export default function BarangayReports() {
               <SelectTrigger className="w-40 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangays" />
               </SelectTrigger>
-              <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+              <SelectContent position="popper" className="!max-h-70 overflow-y-auto">
                 <SelectItem value="All">All Barangays</SelectItem>
                 {[...allBarangays]
                   .sort((a, b) =>
