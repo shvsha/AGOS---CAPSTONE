@@ -542,6 +542,9 @@ export default function Page() {
                   <p className="text-[#727272] text-xs">
                     Snapshots available on the server, from scheduled and manual backups.
                   </p>
+                  <p className="text-[#727272] text-[10px] -mt-1">
+                    Snapshots are available based on your Server backup path.
+                  </p>
 
                   {restorePoints.length === 0 ? (
                     <p className="text-[#727272] text-xs italic mt-1">No restore points available yet.</p>
@@ -607,7 +610,23 @@ export default function Page() {
                               </span>
                             </TableCell>
                             <TableCell className="text-xs">{log.triggered_by_name}</TableCell>
-                            <TableCell className="text-xs">{log.file_name || "—"}</TableCell>
+                            <TableCell className="text-xs flex justify-center">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${
+                                log.status === 'failed'   ? 'bg-[#FFE5E5] text-[#D81010]' :
+                                'bg-[#B2FBC173] text-[#2C7B3C]'
+                              }`}>
+                                {log.status === 'failed' ? 'Failed' : 'Success'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {log.status === 'failed' && log.error_message ? (
+                                <span className="text-[#D81010] max-w-50 block truncate" title={log.error_message}>
+                                  {log.error_message}
+                                </span>
+                              ) : (
+                                log.file_name || "—"
+                              )}
+                            </TableCell>
                             <TableCell className="text-xs">
                               {new Date(log.created_at).toLocaleString()}
                             </TableCell>
