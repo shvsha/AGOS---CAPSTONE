@@ -2,11 +2,10 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck  } from "lucide-react"
+import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical  } from "lucide-react"
 
 // react
-import { useState, useEffect, useCallback, useRef } from "react"
-
+import { useState, useEffect, useCallback, useRef, Fragment } from "react"
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -124,7 +123,17 @@ export default function HotspotManagement() {
   // filters
   const [search, setSearch] = useState("")
   const [filterBarangay, setFilterBarangay] = useState("All")
-  const [filterStatus, setFilterStatus] = useState("All")
+
+  const [openBarangayIds, setOpenBarangayIds] = useState<Set<number>>(new Set())
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null)
+
+  const toggleBarangayRow = (barangayId: number) => {
+    setOpenBarangayIds(prev => {
+      const next = new Set(prev)
+      next.has(barangayId) ? next.delete(barangayId) : next.add(barangayId)
+      return next
+    })
+  }
 
   // form state
   const [barangay, setBarangay] = useState("")
@@ -150,6 +159,7 @@ export default function HotspotManagement() {
   const [loadingDialog, setLoadingDialog] = useState<{ open: boolean }>({ open: false })
   const [deleteDialog, setDeleteDialog] = useState<DialogState>({ open: false, hotspot: null })
   const [blockedDialog, setBlockedDialog] = useState<{ open: boolean }>({ open: false })
+  const [dialogBarangay, setDialogBarangay] = useState<Barangay | null>(null)
 
   const { toasts, addToast, removeToast } = useToast()
 
@@ -157,14 +167,23 @@ export default function HotspotManagement() {
 
   const filtered = hotspots
     .filter(h => filterBarangay === "All" || String(h.barangay_details?.barangay_id) === filterBarangay)
-    .filter(h => filterStatus === "All" || (filterStatus === "Available" ? !h.is_occupied : h.is_occupied))
     .filter(h =>
       [h.name, h.barangay_details?.barangay_name, h.description]
         .some(f => f?.toLowerCase().includes(search.toLowerCase()))
     )
     .sort((a, b) => b.hotspot_id - a.hotspot_id)
+  
+  // barangay-level rows
+  const filteredBarangays = allBarangays
+    .filter(b => filterBarangay === "All" || String(b.barangay_id) === filterBarangay)
+    .filter(b => b.barangay_name?.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
 
-  const barangayRef = useRef<HTMLDivElement>(null)
+  const hotspotsByBarangay = (barangayId: number) =>
+    hotspots
+      .filter(h => h.barangay_details?.barangay_id === barangayId)
+      .sort((a, b) => b.hotspot_id - a.hotspot_id)
+
   const hotspotNameRef = useRef<HTMLDivElement>(null)
   const descriptionRef = useRef<HTMLDivElement>(null)
   const canalWidthRef = useRef<HTMLDivElement>(null)
@@ -184,7 +203,7 @@ export default function HotspotManagement() {
     }
   })
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 6)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangays, 4)
 
   const total = hotspots.length
   const occupied = hotspots.filter(h => h.is_occupied).length
@@ -228,10 +247,22 @@ export default function HotspotManagement() {
         setCanalWidth(String(formDialog.hotspot.canal_width ?? ""))
         setCanalShape(formDialog.hotspot.canal_shape ?? "rectangular")
         setSensorHeight(String(formDialog.hotspot.sensor_height ?? ""))
-        // load boundary for prefilled barangay
         if (formDialog.hotspot.barangay_details?.barangay_name) {
           loadBoundary(formDialog.hotspot.barangay_details.barangay_name)
         }
+      } else if (dialogBarangay) {
+        // add — prefilled from the barangay row that triggered this
+        setBarangay(String(dialogBarangay.barangay_id))
+        setDescription("")
+        setLatitude("")
+        setLongitude("")
+        setCanalWidth("")
+        setCanalShape("rectangular")
+        setSensorHeight("")
+        setCanalDepth("")
+        setFieldErrors({})
+        loadBoundary(dialogBarangay.barangay_name)
+        fetchNextHotspotCode(dialogBarangay.barangay_id)
       }
     } else {
       setBarangay("")
@@ -245,8 +276,19 @@ export default function HotspotManagement() {
       setFieldErrors({})
       setBoundaryGeoJson(null)
       setBoundaryFallback(false)
+      setDialogBarangay(null)
     }
   }, [formDialog.open])
+  
+  useEffect(() => {
+    function handleClickOutside() {
+      setOpenMenuId(null)
+    }
+    if (openMenuId !== null) {
+      document.addEventListener("click", handleClickOutside)
+      return () => document.removeEventListener("click", handleClickOutside)
+    }
+  }, [openMenuId])
 
 
   // Boundary fetch on barangay select
@@ -288,27 +330,14 @@ export default function HotspotManagement() {
 
 
   // handlers
-  const handleBarangaySelect = (value: string) => {
-    setBarangay(value)
-    setLatitude("")
-    setLongitude("")
-    if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: "" }))
-
-    const selected = allBarangays.find(b => String(b.barangay_id) === value)
-    if (selected) loadBoundary(selected.barangay_name)
-
-    if (!isEdit && value) {
-      const fetchNextCode = async () => {
-        try {
-          const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/next-code/?barangay=${value}`)
-          if (!res.ok) return
-          const data = await res.json()
-          setHotspotCode(data.next_code ?? '')
-        } catch {
-          // silently ignore
-        }
-      }
-      fetchNextCode()
+  const fetchNextHotspotCode = async (barangayId: string | number) => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/next-code/?barangay=${barangayId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setHotspotCode(data.next_code ?? '')
+    } catch {
+      // silently ignore
     }
   }
 
@@ -336,7 +365,6 @@ export default function HotspotManagement() {
   // validation handlers
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!barangay) errors.barangay = "This field is required."
     if (!hotspotCode.trim()) errors.hotspotCode = "This field is required."
     if (!description.trim()) errors.description = "This field is required."
     if (!latitude) errors.latitude = "Please click on the map to set the location."
@@ -350,9 +378,7 @@ export default function HotspotManagement() {
 
     if (Object.keys(errors).length > 0) {
       // scroll to first error
-      if (errors.barangay) {
-        barangayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      } else if (errors.hotspotCode) {
+      if (errors.hotspotCode) {
         hotspotNameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       } else if (errors.description) {
         descriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -467,22 +493,6 @@ export default function HotspotManagement() {
               </SelectContent>
             </Select>
 
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="cursor-pointer text-xs w-34 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectItem className="cursor-pointer text-xs p-2" value="All">All Status</SelectItem>
-                <SelectItem className="cursor-pointer text-xs p-2" value="Available">Available</SelectItem>
-                <SelectItem className="cursor-pointer text-xs p-2" value="Occupied">Occupied</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => setFormDialog({ open: true, hotspot: null })}
-              className="p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
-            >
-              <FaPlus color="white"/> Add Hotspot
-            </Button>
           </div>
         </div>
 
@@ -513,10 +523,7 @@ export default function HotspotManagement() {
                 <TableRow>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">ID</TableHead>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">DESCRIPTION</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOTS</TableHead>
                   <TableHead className="font-semibold text-left text-[#727272] text-xs">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -524,7 +531,7 @@ export default function HotspotManagement() {
               <TableBody>
                 {fetchError ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-15">
+                    <TableCell colSpan={4} className="text-center py-15">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load hotspots. Please try again later.</p>
                         <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
@@ -532,74 +539,134 @@ export default function HotspotManagement() {
                     </TableCell>
                   </TableRow>
 
-                ) : filtered.length === 0 ? (
+                ) : filteredBarangays.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-15">
+                    <TableCell colSpan={4} className="text-center py-15">
                       <div className="flex flex-col items-center gap-3">
                         <div className="rounded-full bg-[#E5E5E6] p-4">
                           <Target size={36} color="#727272" />
                         </div>
-                        <p className="text-[#122A48] font-bold">No hotspots found</p>
+                        <p className="text-[#122A48] font-bold">No barangays found</p>
                         <p className="text-[#727272] text-sm">
-                          No canal hotspots have been added yet.
-                          <> Click the button above to add one.</>
+                          No registered barangays match your search.
                         </p>
-                        <Button
-                          onClick={() => setFormDialog({ open: true, hotspot: null })}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                        >
-                          + Add Hotspot
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
 
                 ) : (
-                  paginated.map(hotspot => (
-                    <TableRow key={hotspot.hotspot_id} className="border-b border-[#C6C6C8] text-xs">
-                      <TableCell className="text-[#122A48] text-left h-14">{hotspot.hotspot_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14">{hotspot.barangay_details?.barangay_name}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 font-medium">{hotspot.name}</TableCell>
-                      <TableCell className="text-[#727272] text-left h-14 text-xs max-w-48 truncate">
-                        {hotspot.description || "—"}
-                      </TableCell>
+                  paginated.map(barangay => {
+                    const barangayHotspots = hotspotsByBarangay(barangay.barangay_id)
+                    const isOpen = openBarangayIds.has(barangay.barangay_id)
 
-                      <TableCell className="text-left h-14.5">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                          hotspot.is_occupied
-                            ? "bg-[#DBEAFE] text-[#1565BC]"
-                            : "bg-[#B2FBC173] text-[#2C7B3C]"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${hotspot.is_occupied ? "bg-[#1565BC]" : "bg-[#2C7B3C]"}`} />
-                          {hotspot.is_occupied ? "Occupied" : "Available"}
-                        </span>
-                      </TableCell>
+                    return (
+                      <Fragment key={barangay.barangay_id}>
+                        <TableRow className="border-b border-[#C6C6C8] text-xs">
+                          <TableCell className="text-[#122A48] text-left h-14">{barangay.barangay_id}</TableCell>
+                          <TableCell className="text-[#122A48] text-left h-14 font-medium">{barangay.barangay_name}</TableCell>
+                          <TableCell className="text-[#122A48] text-left h-14">
+                            {barangayHotspots.length} Hotspot{barangayHotspots.length !== 1 ? "s" : ""}
+                          </TableCell>
+                          <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-14">
+                            <Button
+                              onClick={() => toggleBarangayRow(barangay.barangay_id)}
+                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3 text-xs px-3"
+                            >
+                              {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              View ({barangayHotspots.length})
+                            </Button>
+                            <Button
+                              onClick={() => { setDialogBarangay(barangay); setFormDialog({ open: true, hotspot: null }) }}
+                              className="p-3 py-3 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white text-xs"
+                            >
+                              <FaPlus color="white" size={12} /> Add Hotspot
+                            </Button>
+                          </TableCell>
+                        </TableRow>
 
-                      <TableCell className="text-[#122A48] text-left h-14">
-                        <Button
-                          onClick={() => setViewMapDialog({ open: true, hotspot })}
-                          className="rounded-lg text-xs text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-3 px-3"
-                        >
-                          <Map size={16} /> View on map
-                        </Button>
-                      </TableCell>
+                        {isOpen && (
+                          <TableRow className="border-b border-[#C6C6C8] hover:bg-transparent">
+                            <TableCell colSpan={4} className="bg-[#F7F9FA] p-3 pl-10">
+                              <div className="flex flex-col gap-2">
+                                {barangayHotspots.length === 0 ? (
+                                  <p className="text-[#727272] text-xs py-2 ml-12.5">No hotspots registered for this barangay yet.</p>
+                                ) : (
+                                  barangayHotspots.map(hotspot => (
+                                    <div
+                                      key={hotspot.hotspot_id}
+                                      className="flex items-center gap-3 bg-white border border-[#C6C6C8] rounded-lg shadow-[0_2px_4px_-2px_rgba(0,0,0,0.1)] px-4 py-3 w-200"
+                                    >
+                                      <div className="w-40 min-w-0">
+                                        <p className="font-bold text-xs text-[#122A48]">{hotspot.name}</p>
+                                        <p className="text-[#727272] text-xs capitalize">{hotspot.canal_shape}</p>
+                                      </div>
+                                      <div className="w-40 min-w-0 text-[#727272] text-xs truncate">
+                                        {hotspot.description || "—"}
+                                      </div>
+                                      <div className="flex-shrink-0">
+                                        <div className="flex-shrink-0">
+                                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                            hotspot.is_occupied
+                                              ? "bg-[#DBEAFE] text-[#1565BC]"
+                                              : "bg-[#B2FBC173] text-[#2C7B3C]"
+                                          }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${hotspot.is_occupied ? "bg-[#1565BC]" : "bg-[#2C7B3C]"}`} />
+                                            {hotspot.is_occupied ? "Occupied" : "Available"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="flex-shrink-0 flex gap-2">
+                                        <div className="flex-shrink-0 flex gap-2 relative">
+                                          <Button
+                                            onClick={() => setViewMapDialog({ open: true, hotspot })}
+                                            className="rounded-lg text-xs text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-3 px-3"
+                                          >
+                                            <Map size={16} /> View on map
+                                          </Button>
 
-                      <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-14">
-                        <Button
-                          onClick={() => setFormDialog({ open: true, hotspot })}
-                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3 text-xs px-3"
-                        >
-                          <SquarePen size={16} /> Edit
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteClick(hotspot)}
-                          className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-[#dfc6c6] cursor-pointer border border-[#C6C6C8] py-3 text-xs px-3"
-                        >
-                          <Trash2 size={16} /> Remove
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                                          <div className="relative">
+                                            <Button
+                                              id={`menu-btn-${hotspot.hotspot_id}`}
+                                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === hotspot.hotspot_id ? null : hotspot.hotspot_id) }}
+                                              className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3 px-3"
+                                            >
+                                              <MoreVertical size={16} />
+                                            </Button>
+
+                                            {openMenuId === hotspot.hotspot_id && (
+                                              <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-32 overflow-hidden"
+                                                style={{
+                                                  top: document.getElementById(`menu-btn-${hotspot.hotspot_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                                  right: window.innerWidth - (document.getElementById(`menu-btn-${hotspot.hotspot_id}`)?.getBoundingClientRect().right ?? 0),
+                                                }}
+                                              >
+                                                <button
+                                                  onClick={() => { setOpenMenuId(null); setFormDialog({ open: true, hotspot }) }}
+                                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                                >
+                                                  <SquarePen size={14} /> Edit
+                                                </button>
+                                                <button
+                                                  onClick={() => { setOpenMenuId(null); handleDeleteClick(hotspot) }}
+                                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                                >
+                                                  <Trash2 size={14} /> Remove
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -650,27 +717,13 @@ export default function HotspotManagement() {
                 </div>
 
                 <div className="flex gap-3 border-t border-[#C6C6C8] p-2.5 md:p-4">
-                  {/* Barangay select */}
-                  <div ref={barangayRef} className="flex-1">
+                  {/* Barangay (read-only context) */}
+                  <div className="flex-1">
                     <Field className="flex gap-1.5 flex-col flex-1">
-                      <FieldLabel className="text-[#122A48] text-xs md:text-sm">
-                        BARANGAY <span className="text-[#FF0000]">*</span>
-                      </FieldLabel>
-                      <Select value={barangay} onValueChange={handleBarangaySelect}>
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? "border-[#FF0000]" : "border-[#727272]"}`}>
-                          <SelectValue placeholder="Select Barangay..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-60 overflow-y-auto">
-                          {[...allBarangays]
-                            .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
-                            .map(b => (
-                              <SelectItem key={b.barangay_id} value={String(b.barangay_id)} className="p-1 md:p-2 text-[#122A48]">
-                                {b.barangay_name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                      <FieldError className="text-xs">{fieldErrors.barangay}</FieldError>
+                      <FieldLabel className="text-[#122A48] text-xs md:text-sm">BARANGAY</FieldLabel>
+                      <div className="flex items-center rounded-lg bg-[#F0F0F0] border border-[#C6C6C8] px-3 h-9 md:h-10.5 text-xs md:text-sm text-[#122A48] font-medium">
+                        {selectedBarangayName ?? "—"}
+                      </div>
                     </Field>
                   </div>
 
@@ -779,7 +832,7 @@ export default function HotspotManagement() {
                         <SelectContent position="popper">
                           <SelectItem value="rectangular">Rectangular</SelectItem>
                           <SelectItem value="trapezoidal">Trapezoidal</SelectItem>
-                          <SelectItem value="Circle">Circle</SelectItem>
+                          <SelectItem value="circular">Circular</SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>
