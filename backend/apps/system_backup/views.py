@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from django.http import FileResponse
 from rest_framework.views import APIView
@@ -24,7 +25,6 @@ class ManualBackupView(APIView):
 
             config = BackupConfig.objects.filter(config_id=1).first()
             if config and config.server_backup_path and os.path.isdir(config.server_backup_path):
-                import shutil
                 server_copy_path = os.path.join(config.server_backup_path, file_name)
                 shutil.copy2(archive_path, server_copy_path)
 
@@ -40,9 +40,11 @@ class ManualBackupView(APIView):
                 as_attachment=True,
                 filename=file_name,
             )
+            response._resource_closers.append(lambda: shutil.rmtree(tmp_dir, ignore_errors=True))
             return response
 
         except Exception as e:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             BackupLog.objects.create(
                 backup_type='manual',
                 status='failed',
