@@ -448,7 +448,7 @@ export default function HotspotManagement() {
       <div className="hidden md:flex flex-col">
 
         {/* Header */}
-        <div className="flex justify-between w-full mb-4">
+        <div className="flex justify-between w-full mb-2">
           <div className="font-bold text-[#122A48] flex justify-center items-center ">
             <p className="text-[15px]">Canal Hotspots</p>
           </div>
@@ -456,25 +456,25 @@ export default function HotspotManagement() {
             <SearchFilter value={search} onChange={setSearch} placeholder="Search hotspot..." width="w-60" height="h-9" />
 
             <Select value={filterBarangay} onValueChange={setFilterBarangay}>
-              <SelectTrigger className="w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangays" />
               </SelectTrigger>
               <SelectContent position="popper" className="max-h-60 overflow-y-auto">
-                <SelectItem value="All">All Barangays</SelectItem>
+                <SelectItem value="All" className="cursor-pointer text-xs p-2">All Barangays</SelectItem>
                 {[...allBarangays].sort((a, b) => a.barangay_name.localeCompare(b.barangay_name)).map(b => (
-                  <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>{b.barangay_name}</SelectItem>
+                  <SelectItem className="p-2 cursor-pointer text-xs" key={b.barangay_id} value={String(b.barangay_id)}>{b.barangay_name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-34 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer text-xs w-34 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent position="popper">
-                <SelectItem value="All">All Status</SelectItem>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="Occupied">Occupied</SelectItem>
+                <SelectItem className="cursor-pointer text-xs p-2" value="All">All Status</SelectItem>
+                <SelectItem className="cursor-pointer text-xs p-2" value="Available">Available</SelectItem>
+                <SelectItem className="cursor-pointer text-xs p-2" value="Occupied">Occupied</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -487,7 +487,7 @@ export default function HotspotManagement() {
         </div>
 
         {/* Summary cards */}
-        <div className="flex justify-between w-full text-[#122A48] -mt-1">
+        <div className="flex justify-between w-full text-[#122A48]">
           {[
             { icon: <Target size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Hotspots" },
             { icon: <MapPinCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: available, label: "Available" },
@@ -504,7 +504,7 @@ export default function HotspotManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-130">
+        <div className="flex gap-4 mt-2 h-132">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Hotspot List</p>
 

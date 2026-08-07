@@ -215,8 +215,8 @@ export default function Monitoring() {
 
         {/* title and date/time */}
         <div className='flex justify-between'>
-          <p className='font-bold text-[#122A48] text-lg'>Live Feed</p>
-          <div className='flex gap-3 text-[#727272] text-sm items-center'>
+          <p className='font-bold text-[#122A48] text-[15px]'>Live Feed</p>
+          <div className='flex gap-3 text-[#122A48] text-xs items-center'>
             <p>{dateTime?.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             |
             <p>{dateTime?.toLocaleTimeString()}</p>
@@ -228,36 +228,36 @@ export default function Monitoring() {
         </div>
 
         {/* summary cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-3">
+        <div className="flex justify-between w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Occupied Nodes" },
             { icon: <Activity   size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: critical,  label: "Critical Events" },
             { icon: <TriangleAlert size={20} color="#FF9705" />, bg: "bg-[#F4E4A7]", count: warning, label: "Warning"   },
             { icon: <Waves      size={20} color="#1868A9" />, bg: "bg-[#1868A929]", count: normal,  label: "Normal"  },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-tight">{card.count}</span>
-                <p className="text-sm">{card.label}</p>
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* body */}
-        <div className='flex gap-4 mt-3 h-129'>
+        <div className='flex gap-2 mt-3 h-129'>
 
           {/* table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-205 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-205 rounded-lg flex flex-col h-133'>
             {/* filters */}
-            <div className='flex gap-3 items-center p-4'>
-              <SearchFilter value={search} onChange={setSearch} placeholder='Search sensor node or barangay...' width='w-95' />
+            <div className='flex gap-3 items-center p-3'>
+              <SearchFilter value={search} onChange={setSearch} placeholder='Search sensor node or barangay...' width='w-105' height='h-9' />
               {CONDITIONS.map(c => (
                 <Button
                   key={c}
                   onClick={() => setCondition(c)}
-                  className={`cursor-pointer rounded-full border px-5 py-2 text-sm font-medium transition-colors
+                  className={`cursor-pointer rounded-full border px-5 py-2 text-xs font-medium transition-colors
                     ${condition === c
                       ? "bg-[#1565BC] hover:bg-[#135aa6] text-white"
                       : "bg-transparent text-[#122A48] border-[#C6C6C8] hover:bg-[#c3dffe]"
@@ -269,19 +269,19 @@ export default function Monitoring() {
             </div>
 
             <div className='px-4'>
-              <p className='font-bold text-[#122A48] mb-3 -mt-1'>Canal Sensor Nodes</p>
+              <p className='font-bold text-[#122A48] mb-2 -mt-1 text-sm'>Canal Sensor Nodes</p>
             </div>
 
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
                 <TableRow>
-                  <TableHead className='font-semibold text-left text-[#727272]'>NODE ID</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>BARANGAY</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>WATER LEVEL</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>FLOW RATE</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>CLOG</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>CONDITION</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE ID</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>FLOW RATE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLOG</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONDITION</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -317,24 +317,24 @@ export default function Monitoring() {
                 ) : (
                   paginated.map(node => (
                     <TableRow key={node.node_id} className='font-medium text-[#122A48]'>
-                      <TableCell className='text-leftleft h-14'>{node.node_id}</TableCell>
-                      <TableCell className='text-leftleft'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
-                      <TableCell className='text-leftleft'>
+                      <TableCell className='text-leftleft text-xs h-14'>{node.node_id}</TableCell>
+                      <TableCell className='text-leftleft text-xs'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
+                      <TableCell className='text-leftleft text-xs'>
                         <Button
                           onClick={() => setViewMapDialog({ open: true, node: node })}
-                          className="text-[13px] rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-2.5 px-2"
+                          className="text-xs rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-2.5 px-2"
                         >
                          <Map size={16}/>
                           View on map
                         </Button>
                       </TableCell>
-                      <TableCell className='text-leftleft'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
-                      <TableCell className='text-leftleft'>
+                      <TableCell className='text-leftleft text-xs'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
+                      <TableCell className='text-leftleft text-xs'>
                         {node.water_flow_rate != null ? `${Number(node.water_flow_rate).toFixed(5)} m/s` : "—"}
                         
                       </TableCell>
-                      <TableCell className={`text-leftleft ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
-                      <TableCell className={`text-left font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
+                      <TableCell className={`text-leftleft text-xs ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
+                      <TableCell className={`text-left text-xs font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -351,9 +351,9 @@ export default function Monitoring() {
           </div>
 
           {/* live alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
-            <div className='flex justify-between items-center justify-between p-2 px-3'>
-              <p className='font-semibold text-[#122A48]'>Live Alerts</p>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col h-133'>
+            <div className='flex justify-between items-center justify-between p-2'>
+              <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
             <div className='flex flex-col gap-2 p-3 overflow-y-auto'>
@@ -424,12 +424,13 @@ export default function Monitoring() {
                 </div>
 
               </div>
-            </div>
+            </div> */}
+           
 
             {/* clog level legend */}
             <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
-                <p className='font-semibold text-[#122A48]'>Clog Level Legend</p>
+                <p className='font-semibold text-[#122A48] text-sm'>Clog Level Legend</p>
                 <hr />
               </div>
               <div className='flex flex-col'>

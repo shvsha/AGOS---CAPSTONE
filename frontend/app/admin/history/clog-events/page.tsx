@@ -221,18 +221,18 @@ useEffect(() => { fetchMedia() }, [selectedClog])
         <div className="flex justify-between w-full">
           {/* filters */}
           <div className="flex gap-3 w-full">
-            <SearchFilter value={search} onChange={setSearch} placeholder='Search clog...' height="h-11" />
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search clog event...' height="h-9" />
 
             <Select value={barangay} onValueChange={setBarangay}>
-              <SelectTrigger className="w-35 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangay" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-35 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All Barangay">All Barangay</SelectItem>
+                <SelectItem className="text-xs p-2 text-[#122A48]" value="All Barangay">All Barangay</SelectItem>
                 {[...allBarangays]
                   .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                   .map(b => (
-                    <SelectItem key={b.barangay_id} value={b.barangay_name} className="p-2 text-[#122A48]">
+                    <SelectItem key={b.barangay_id} value={b.barangay_name} className="text-xs cursor-pointer p-2 text-[#122A48]">
                       {b.barangay_name}
                     </SelectItem>
                   ))}
@@ -240,14 +240,14 @@ useEffect(() => { fetchMedia() }, [selectedClog])
             </Select>
 
             <Select value={severity} onValueChange={setSeverity}>
-              <SelectTrigger className="w-35 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-35 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All Severity">All Severity</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Low">Low</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Medium">Medium</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="High">High</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Severity">All Severity</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Low">Low</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Medium">Medium</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="High">High</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -269,32 +269,32 @@ useEffect(() => { fetchMedia() }, [selectedClog])
             { icon: <Clock3 size={20} color="#582579" />, bg: "bg-[#E5EAFF]", count: 0, label: "Average Resolution Time" },
             { icon: <ClipboardCheck size={20} color="#A21111" />, bg: "bg-[#D8101059]", count: 0,  label: "Monthly Completed Events" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-tight">{card.count}</span>
-                <p className="text-sm">{card.label}</p>
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* table and preview */}
-        <div className="flex gap-3 mt-3 ">
+        <div className="flex gap-3 mt-3 h-130 ">
 
           {/* Table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-125 w-250 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-250 rounded-lg flex flex-col'>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
-                  <TableHead className='font-semibold text-left text-[#727272]'>EVENT ID</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>SEVERITY</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>DETECTED AT</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>RESOLVED AT</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>WATER LEVEL</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>WATER FLOW</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>STATUS</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>EVENT ID</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>SEVERITY</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DETECTED AT</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>RESOLVED AT</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER FLOW</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>STATUS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -391,7 +391,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
             <div className="flex flex-col gap-3 text-[#122A48]">
 
               {/* Event details */}
-              <div className="p-3 px-4 ull font-medium -mb-3">
+              <div className="p-2 px-4 ull font-semibold -mb-3 text-sm">
                 <p className="text-[#122A48]">Event details</p>
               </div>
 
@@ -399,13 +399,13 @@ useEffect(() => { fetchMedia() }, [selectedClog])
 
               <div className="flex gap-3 px-4 justify-between">
                 <div className="flex flex-col gap-3">
-                  <p className="text-[#1565BC] underline">CLG-202610{selectedClog.event_id}</p>
-                  <p className="text-sm">Clog event - {selectedClog.severity}</p>
+                  <p className="text-[#1565BC] text-sm underline">CLG-2026{selectedClog.event_id}</p>
+                  <p className="text-xs">Clog event - {selectedClog.severity}</p>
                 </div>
                 <div className="flex items-center">
-                  <span className={`inline-flex items-center px-5 py-1 rounded-full text-[13px] font-semibold ${
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold ${
                     selectedClog.severity === 'High'   ? 'bg-[#FFE5E5] text-[#D81010]' :
-                    selectedClog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#E4B600]' :
+                    selectedClog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#d0a806]' :
                     'bg-[#B2FBC173] text-[#2C7B3C]'
                   }`}>
                     {selectedClog.severity}
@@ -418,13 +418,13 @@ useEffect(() => { fetchMedia() }, [selectedClog])
               {/* Event inforamtion */}
               <div className="text-[#122A48] px-4 flex flex-col gap-3">
                 <div>
-                  <p className="font-medium">Event Information</p>
+                  <p className="font-medium text-sm">Event Information</p>
                 </div>
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Location (Barangay)</p>
                   <p>{selectedClog.barangay_details?.barangay_name}</p>
                 </div>
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Detected At</p>
                   <p>
                     {selectedClog.detected_at
@@ -432,11 +432,11 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                       : '—'}
                   </p>
                 </div>
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Sensor Node</p>
                   <p>{selectedClog.node_details?.node_name}</p>
                 </div>
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Waste Classification</p>
                   <p>{selectedClog.classification_details.dominant_waste_type}</p>
 
@@ -448,25 +448,25 @@ useEffect(() => { fetchMedia() }, [selectedClog])
               {/* Incident details */}
               <div className="text-[#122A48] px-4 flex flex-col gap-3">
                 <div className="w-full">
-                  <p className="font-medium">Incident Details</p>
+                  <p className="font-medium text-sm">Incident Details</p>
                 </div>
 
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Water Level</p>
                   <p>{selectedClog.reading_details?.water_level ?? '—'} cm</p>
                 </div>
 
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Water Flow</p>
                   <p>~ {selectedClog.reading_details?.water_flow_rate ?? '—'} m/s</p>
                 </div>
                 
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Severity</p>
                   <p>{selectedClog.severity}</p>
                 </div>
 
-                <div className="flex justify-between text-[13px]">
+                <div className="flex justify-between text-xs">
                   <p>Status</p>
                   <p>{selectedClog.status}</p>
                 </div>

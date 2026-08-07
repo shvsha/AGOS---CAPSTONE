@@ -178,19 +178,19 @@ export default function Waste() {
         {/* filter */}
         <div className="flex w-full justify-between">
           <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder='Search...' height="h-11" />
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search waste classification...' height="h-9" />
 
             {/* barangay filter */}
             <Select value={barangayFilterOpt} onValueChange={setBarangayFilterOpt}>
-              <SelectTrigger className="w-35 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangay" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-35 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All Barangay">All Barangay</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Barangay">All Barangay</SelectItem>
                 {[...allBarangays]
                   .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                   .map(b => (
-                    <SelectItem key={b.barangay_id} value={b.barangay_name} className="p-2 text-[#122A48]">
+                    <SelectItem key={b.barangay_id} value={b.barangay_name} className="text-xs cursor-pointer p-2 text-[#122A48]">
                       {b.barangay_name}
                     </SelectItem>
                   ))}
@@ -199,29 +199,29 @@ export default function Waste() {
             
             {/* dominant waste type filter */}
             <Select value={dominantWaste} onValueChange={setDominantWaste}>
-              <SelectTrigger className="w-35 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-30 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangay" />
               </SelectTrigger>
-              <SelectContent position="popper" className='w-35 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All Waste">All Waste</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Recyclable">Recyclable</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Biodegradable">Biodegradable</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Residual">Residual</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Special Waste">Special Waste</SelectItem>
+              <SelectContent position="popper" className='w-30 min-w-0'>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Waste">All Waste</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Recyclable">Recyclable</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Biodegradable">Biodegradable</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Residual">Residual</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Special Waste">Special Waste</SelectItem>
               </SelectContent>
             </Select>
 
             {/* sensor node filter */}
             <Select value={sensorNode} onValueChange={setSensorNode}>
-              <SelectTrigger className="w-35 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Nodes" />
               </SelectTrigger>
-              <SelectContent position="popper" className='w-35 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All Nodes">All Nodes</SelectItem>
+              <SelectContent position="popper" className='w-27 min-w-0'>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Nodes">All Nodes</SelectItem>
                 {[...allSensorNodes]
                   .sort((a, b) => a.node_name.localeCompare(b.node_name))
                   .map(n => (
-                    <SelectItem key={n.node_id} value={n.node_name} className="p-2 text-[#122A48]">
+                    <SelectItem key={n.node_id} value={n.node_name} className="text-xs cursor-pointer p-2 text-[#122A48]">
                       {n.node_name}
                     </SelectItem>
                   ))}
@@ -246,11 +246,11 @@ export default function Waste() {
             { icon: <Recycle size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: recyclable, label: "Recyclable" },
             { icon: <Trash2 size={20} color="#D48A00" />, bg: "bg-[#EED7AA]", count: residual_others,  label: "Residual/Others" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-tight">{card.count}</span>
-                <p className="text-sm">{card.label}</p>
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
               </div>
             </div>
           ))}
@@ -260,17 +260,17 @@ export default function Waste() {
         <div className="flex gap-2 mt-2">
           
           {/* TABLE  */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-126 w-250 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-131 w-250 rounded-lg flex flex-col'>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
-                  <TableHead className='font-semibold text-left text-[#727272]'>CLASSIFICATION ID</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>DOMINANT WASTE TYPE</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>TIMESTAMP</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>NODE</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>LOCATION  </TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>READING ID</TableHead>
-                  <TableHead className='font-semibold text-left text-[#727272]'>CONFIDENCE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLASSIFICATION ID</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DOMINANT WASTE TYPE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>TIMESTAMP</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION  </TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>READING ID</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONFIDENCE</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -313,7 +313,7 @@ export default function Waste() {
                         }`}
                         onClick={() => setSelectedWaste(waste)}
                       >
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">WCL-20261026-00{waste.classification_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-13 text-xs">WCL-2026-{waste.classification_id}</TableCell>
                         <TableCell className="text-left h-13 text-xs">
                           <span className="inline-flex items-center gap-2">
                             <span className={`rounded-full p-1.5 flex items-center justify-center ${
@@ -373,34 +373,34 @@ export default function Waste() {
             ) : (
               <div className="flex flex-col gap-3 text-[#122A48]">
                 <div className="w-full -mb-2">
-                  <p className="p-3 font-medium">Classification details</p>
+                  <p className="p-2 font-medium text-sm">Classification details</p>
                 </div>
 
                 <hr className="-mt-1.5" />
 
                 <div className="w-full">
-                  <p className="underline text-[#1565BC] p-3 py-1.5">WCL-20261026-00{selectedWaste.classification_id}</p>
+                  <p className="underline text-[#1565BC] p-3 py-1 text-sm">WCL-2026-{selectedWaste.classification_id}</p>
                 </div>
 
                 <hr />
 
                 <div className="flex flex-col p-3 pt-0 -mb-2">
                   <div className="w-full">
-                    <p className="font-medium ">Classification Information</p>
+                    <p className="font-medium text-sm">Classification Information</p>
                   </div>
 
                   {/* dominant waste type */}
-                  <div className="flex justify-between mt-2 text-sm">
+                  <div className="flex justify-between mt-2 text-xs">
                     <p>Dominant Waste Type</p>
                     <p className="text-left">{selectedWaste.dominant_waste_type}</p>
                   </div>
                   {/* confidence */}
-                  <div className="flex justify-between mt-1 text-sm">
+                  <div className="flex justify-between mt-1 text-xs">
                     <p>Confidence</p>
                     <p className="text-left">{selectedWaste.confidence}%</p>
                   </div>
                   {/* timestamp */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Timestamp</p>
                     <p>
                       {selectedWaste.timestamp
@@ -409,22 +409,22 @@ export default function Waste() {
                     </p>
                   </div>
                   {/* estimated weight */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Estimated weight (kg)</p>
                     <p className="text-left">{selectedWaste.estimated_volume} kg</p>
                   </div>
                   {/* location */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Location</p>
                     <p className="text-left">{selectedWaste.node_details.barangay_details.barangay_name}</p>
                   </div>
                   {/* reading id */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Reading ID</p>
                     <p className="flex-left">RDG-0{selectedWaste.reading}</p>
                   </div>
                   {/* sensor node */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Sensor Node</p>
                     <p className="flex-left">{selectedWaste.node_details.node_name}</p>
                   </div>
@@ -434,26 +434,26 @@ export default function Waste() {
 
                 <div className="flex flex-col p-3 pt-0">
                   <div className="w-full">
-                    <p className="font-medium">Waste</p>
+                    <p className="font-medium text-sm">Waste</p>
                   </div>
                   
                   {/* biodegradable */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Biodegradable</p>
                     <p>{selectedWaste.biodegradable_pct}%</p>
                   </div>
                   {/* Recyclable */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Recyclable</p>
                     <p>{selectedWaste.recyclable_pct}%</p>
                   </div>
                   {/* Residual */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Residual</p>
                     <p>{selectedWaste.residual_pct}%</p>
                   </div>
                   {/* special waste */}
-                  <div className="flex justify-between text-sm mt-1">
+                  <div className="flex justify-between text-xs mt-1">
                     <p>Special Waste</p>
                     <p>{selectedWaste.special_waste_pct}%</p>
                   </div>

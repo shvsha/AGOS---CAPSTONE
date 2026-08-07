@@ -128,7 +128,9 @@ export default function Form() {
   }, [id])
 
   const selectedBarangay = barangays.find(b => b.barangay_id === barangayId)
-  const officeDisplay = role === 'MENRO' ? MENRO_OFFICE : selectedBarangay?.barangay_name ?? 'Office/Barangay'
+  const officeDisplay = (role === 'MENRO' || role === 'MENRO_Staff')
+    ? MENRO_OFFICE
+    : selectedBarangay?.barangay_name ?? 'Office/Barangay'
 
   // handlers
   const handleCancelDialog = () => {
@@ -255,12 +257,12 @@ export default function Form() {
           {/* left side */}
           <div className="flex gap-3">
             <div className={`rounded-lg py-3 px-3 text-white ${isEdit ? 'bg-[#FF9705]' : 'bg-[#1565BC]'}`}>
-              {isEdit ? <SquarePen size={24} /> : <UserPlus size={24} />}
+              {isEdit ? <SquarePen size={20} /> : <UserPlus size={20} />}
             </div>
 
             <div className="flex flex-col text-[#122A48] justify-center">
-              <p className="font-bold">{isEdit ? 'Edit User Account' : 'Add User Account'}</p>
-              <p className="text-[13px]">
+              <p className="font-bold text-sm">{isEdit ? 'Edit User Account' : 'Add User Account'}</p>
+              <p className="text-xs">
                 {isEdit ? `Modifying account for ${fname} ${lname} | ${ROLE_DISPLAY[role] ?? role}` : '...'}
               </p>
             </div>
@@ -269,27 +271,27 @@ export default function Form() {
           {/* right side */}
             <Button
               onClick={() => router.push('/admin/users')}
-              className="rounded-lg bg-[#FAFCFD] hover:bg-[#bdcfd7] px-9 py-5 text-[#122A48] border border-[#C6C6C8] cursor-pointer"
+              className="rounded-lg bg-[#FAFCFD] hover:bg-[#bdcfd7] px-3 py-3 text-xs text-[#122A48] border border-[#C6C6C8] cursor-pointer"
             >
               Back
             </Button>
         </div>
 
         {/* bottom part */}
-        <div className="flex gap-5 mt-5">
+        <div className="flex gap-2 mt-3">
           {/* profile container */}
-          <div className="flex flex-col justify-center bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-3 w-110 h-105 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
-            <div className={`bg-[#2C7B3C] rounded-full w-25 h-25 mx-auto flex items-center justify-center text-white font-bold ${isEdit ? 'text-[43px]' : 'text-[40px] '}`}>
+          <div className="flex flex-col justify-center bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-1 w-110 h-90 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className={`bg-[#2C7B3C] rounded-full w-18 h-18 mx-auto flex items-center justify-center text-white font-bold ${isEdit ? 'text-[33px]' : 'text-[30px] '}`}>
               {isEdit ? `${fname.charAt(0)}${lname.charAt(0)}` : '?'}
             </div>
 
-            <p className="text-center text-[#122A48] mt-3 font-bold">{isEdit ? `${fname} ${lname}` : 'Full Name'}</p>
-            <p className="text-center text-[#122A48] text-sm">
+            <p className="text-center text-[#122A48] mt-2 font-bold text-sm">{isEdit ? `${fname} ${lname}` : 'Full Name'}</p>
+            <p className="text-center text-[#122A48] text-xs">
               {isEdit ? ROLE_DISPLAY[role] ?? role : '---'}
             </p>
 
             {/* status */}
-            <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium justify-center mx-auto mt-1.5 ${
+            <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium justify-center mx-auto mt-1.5 ${
               (isEdit ? status : 'Active') === 'Active'
                 ? 'bg-[#B2FBC173] text-[#2C7B3C]'
                 : 'bg-[#FFE5E5] text-[#D81010]'
@@ -301,13 +303,13 @@ export default function Form() {
             </span>
 
             <div className="flex flex-col gap-1 mt-7 px-4">
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-[#122A48] font-medium">Role</span>
                 <span className="font-semibold text-[#122A48]">
                   {isEdit ? ROLE_DISPLAY[role] ?? role : '---'}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-[#122A48] font-medium">Email</span>
                 <span className="font-semibold text-[#122A48]">{isEdit ? email : '---'}</span>
               </div>
@@ -316,36 +318,36 @@ export default function Form() {
             <hr className="mx-4 my-7" />
 
             <div className={`rounded-full flex gap-2 bg-[#1565BC29] text-[#1565BC] py-1.5 justify-center items-center ${isEdit ? 'mx-17' : 'mx-17'} `}>
-              <MapPin size={21}/>
-              <p className="text-center text-sm">{officeDisplay}</p>
+              <MapPin size={15}/>
+              <p className="text-center text-xs">{officeDisplay}</p>
             </div>
           </div>
 
           {/* form container */}
-          <form className="flex flex-col gap-3 w-full">
+          <form className="flex flex-col gap-4 w-full">
             
             {/* personal information */}
-            <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-2 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
               {/* header */}
-              <div className="flex gap-3 p-4 w-238">
+              <div className="flex gap-3 p-3 w-238">
                 <div className="rounded-lg p-3 text-[#1565BC] bg-[#CDE3DE]">
-                  <UserRound size={25}/>
+                  <UserRound size={20}/>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <p className="font-bold">Personal Information</p>
-                  <p className="text-[13px] text-[#727272]">Basic identity details of the user</p>
+                  <p className="font-bold text-sm">Personal Information</p>
+                  <p className="text-xs text-[#727272]">Basic identity details of the user</p>
                 </div>
               </div>
 
               <hr />
 
               {/* inputs for PI */}
-              <div className="p-3">
+              <div className="p-2">
                 <div className="flex gap-5 w-full">
                   {/* fname */}
                   <div ref={fnameRef}>
                     <Field className="flex gap-1.5 flex-col w-[400px]">
-                      <FieldLabel className="text-[#122A48] text-sm">FIRST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <FieldLabel className="text-[#122A48] text-xs">FIRST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Input
                           name="fname"
                           value={fname}
@@ -353,18 +355,18 @@ export default function Form() {
                             setFname(e.target.value)
                           }}
                           placeholder="e.g. Patricia"
-                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                          className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-8 bg-[#1565BC05] ${
                             fieldErrors.fname ? 'border-[#FF0000]' : 'border-[#727272]'
                           }`}
                         />
-                        <FieldError className="text-xs">{fieldErrors.fname}</FieldError>
+                        <FieldError className="text-[11px]">{fieldErrors.fname}</FieldError>
                     </Field>
                   </div>
                   
                   {/* lname */}
                   <div ref={lnameRef} >
                     <Field className="flex gap-1.5 flex-col w-[400px]">
-                      <FieldLabel className="text-[#122A48] text-sm">LAST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <FieldLabel className="text-[#122A48] text-xs">LAST NAME <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Input
                           name="lname"
                           value={lname}
@@ -372,11 +374,11 @@ export default function Form() {
                             setLname(e.target.value)
                           }}
                           placeholder="e.g. Quinto"
-                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                          className={`text-[#122A48] rounded-lg text-xs bg-white !font-normal h-8 bg-[#1565BC05] ${
                             fieldErrors.lname ? 'border-[#FF0000]' : 'border-[#727272]'
                           }`}
                         />
-                        <FieldError className="text-xs">{fieldErrors.lname}</FieldError>
+                        <FieldError className="text-[11px]">{fieldErrors.lname}</FieldError>
                     </Field>
                   </div>
                 </div>
@@ -386,15 +388,15 @@ export default function Form() {
             </div>
 
             {/* role and assignment */}
-            <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-2 mt-3 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
               {/* header */}
-              <div className="flex gap-3 p-4 w-238">
+              <div className="flex gap-3 p-3 w-238">
                 <div className="rounded-lg p-3 text-[#1565BC] bg-[#CDE3DE]">
-                  <ClipboardCheck size={25}/>
+                  <ClipboardCheck size={20}/>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <p className="font-bold">Role & Assignment</p>
-                  <p className="text-[13px] text-[#727272]">Access level and barangay coverage</p>
+                  <p className="font-bold text-sm">Role & Assignment</p>
+                  <p className="text-xs text-[#727272]">Access level and barangay coverage</p>
                 </div>
               </div>
 
@@ -406,7 +408,7 @@ export default function Form() {
                   {/* role */}
                   <div ref={roleRef}>
                     <Field className="flex gap-1.5 flex-col w-[400px]">
-                      <FieldLabel className="text-[#122A48] text-sm">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <FieldLabel className="text-[#122A48] text-xs">ROLE <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Select
                           value={role}
                           onValueChange={(value) => {
@@ -418,17 +420,17 @@ export default function Form() {
                             if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }))
                           }}
                         >
-                          <SelectTrigger className={`text-sm !font-normal bg-[#1565BC05] py-[21px] rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectTrigger className={`text-xs cursor-pointer !font-normal bg-[#1565BC05] h-8 rounded-lg ${fieldErrors.role ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                             <SelectValue placeholder="Select Role..." />
                           </SelectTrigger>
                           <SelectContent position="popper" side="bottom">
-                            <SelectItem className="text-[#122A48] p-2 text-sm" value="Admin">Admin</SelectItem>
-                            <SelectItem className="text-[#122A48] p-2 text-sm" value="MENRO">MENRO Officer</SelectItem>
-                            <SelectItem className="text-[#122A48] p-2 text-sm" value="MENRO_Staff">MENRO Staff</SelectItem>
-                            <SelectItem className="text-[#122A48] p-2 text-sm" value="Barangay">Barangay Personnel</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-xs cursor-pointer" value="Admin">Admin</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-xs cursor-pointer" value="MENRO">MENRO Officer</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-xs cursor-pointer" value="MENRO_Staff">MENRO Staff</SelectItem>
+                            <SelectItem className="text-[#122A48] p-2 text-xs cursor-pointer" value="Barangay">Barangay Personnel</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FieldError className="text-xs">{fieldErrors.role}</FieldError>
+                        <FieldError className="text-[11px]">{fieldErrors.role}</FieldError>
                     </Field>
                   </div>
                   
@@ -436,7 +438,7 @@ export default function Form() {
                   {role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && (
                     <div ref={barangayRef}>
                       <Field className="flex gap-1.5 flex-col w-[400px]">
-                        <FieldLabel className="text-[#122A48] text-sm">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <FieldLabel className="text-[#122A48] text-xs">BARANGAY <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Select
                           value={barangayId ? String(barangayId) : ''}
                           onValueChange={(value) => {
@@ -444,18 +446,18 @@ export default function Form() {
                             if (fieldErrors.barangayId) setFieldErrors(prev => ({ ...prev, barangayId: '' }))
                           }}
                         >
-                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectTrigger className={`!font-normal bg-[#1565BC05] h-8 cursor-pointer text-xs rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                             <SelectValue placeholder="Select..." />
                           </SelectTrigger>
                           <SelectContent position="popper">
                             {barangays.map(b => (
-                              <SelectItem key={b.barangay_id} value={String(b.barangay_id)}>
+                              <SelectItem className="text-xs cursor-pointer p-2" key={b.barangay_id} value={String(b.barangay_id)}>
                                 {b.barangay_name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <FieldError className="text-xs">{fieldErrors.barangayId}</FieldError>
+                        <FieldError className="text-[11px]">{fieldErrors.barangayId}</FieldError>
                       </Field>
                     </div>
                   )}
@@ -466,7 +468,7 @@ export default function Form() {
                   <div className="mt-3">
                     <div ref={positionRef}>
                       <Field className="flex gap-1.5 flex-col w-100">
-                        <FieldLabel className="text-[#122A48] text-sm">POSITION <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <FieldLabel className="text-[#122A48] text-xs">POSITION <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Select
                           value={position}
                           onValueChange={(value) => {
@@ -474,16 +476,16 @@ export default function Form() {
                             if (fieldErrors.position) setFieldErrors(prev => ({ ...prev, position: '' }))
                           }}
                         >
-                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-[20px] rounded-lg ${fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectTrigger className={`!font-normal bg-[#1565BC05] h-8 cursor-pointer text-xs rounded-lg ${fieldErrors.position ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                             <SelectValue placeholder="Select position..." />
                           </SelectTrigger>
                           <SelectContent position="popper" className='w-100 min-w-0'>
-                            <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Inspector">Barangay Health Inspector</SelectItem>
-                            <SelectItem className="p-2 text-[#122A48]" value="Barangay Secretary">Barangay Secretary</SelectItem>
-                            <SelectItem className="p-2 text-[#122A48]" value="Barangay Health Care Worker">Barangay Health Care Worker</SelectItem>
+                            <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay Health Inspector">Barangay Health Inspector</SelectItem>
+                            <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay Secretary">Barangay Secretary</SelectItem>
+                            <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay Health Care Worker">Barangay Health Care Worker</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FieldError className="text-xs">{fieldErrors.position}</FieldError>
+                        <FieldError className="text-[11px]">{fieldErrors.position}</FieldError>
                       </Field>
                     </div>
                   </div>
@@ -493,15 +495,15 @@ export default function Form() {
             </div>
 
             {/* acct credentials */}
-            <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-2 mt-3 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div className="text-[#122A48] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
               {/* header */}
-              <div className="flex gap-3 p-4 w-238">
+              <div className="flex gap-3 p-3 w-238">
                 <div className="rounded-lg p-3 text-[#1565BC] bg-[#CDE3DE]">
-                  <UserCheck size={25}/>
+                  <UserCheck size={20}/>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <p className="font-bold">Account Credentials</p>
-                  <p className="text-[13px] text-[#727272]">Login email information</p>
+                  <p className="font-bold text-sm">Account Credentials</p>
+                  <p className="text-xs text-[#727272]">Login email information</p>
                 </div>
               </div>
 
@@ -513,7 +515,7 @@ export default function Form() {
                   {/* email */}
                  <div ref={emailRef}>
                    <Field className="flex gap-1.5 flex-col w-[400px]">
-                      <FieldLabel className="text-[#122A48] text-sm">EMAIL <span className="text-[#FF0000]">*</span></FieldLabel>
+                      <FieldLabel className="text-[#122A48] text-xs">EMAIL <span className="text-[#FF0000]">*</span></FieldLabel>
                         <Input
                           name="email"
                           value={email}
@@ -521,11 +523,11 @@ export default function Form() {
                             setEmail(e.target.value)
                           }}
                           placeholder="e.g. patpobeast@rosario.gov.ph"
-                          className={`text-[#122A48] rounded-lg text-sm bg-white !font-normal h-10 bg-[#1565BC05] ${
+                          className={`text-[#122A48] rounded-lg bg-white !font-normal h-8 text-xs bg-[#1565BC05] ${
                             fieldErrors.email ? 'border-[#FF0000]' : 'border-[#727272]'
                           }`}
                         />
-                        <FieldError className="text-xs">{fieldErrors.email}</FieldError>
+                        <FieldError className="text-[11px]">{fieldErrors.email}</FieldError>
                     </Field>
                  </div>
                 </div>
@@ -537,13 +539,13 @@ export default function Form() {
               <Button
                 type="button"
                 onClick={handleCancelDialog}
-                className="cursor-pointer border border-[#C6C6C8] text-[#727272] rounded-lg bg-[#FAFCFD] hover:text-[#525050] hover:bg-[#adbac1] px-7 py-4.5">
+                className="cursor-pointer border border-[#C6C6C8] text-[#727272] rounded-lg bg-[#FAFCFD] hover:text-[#525050] hover:bg-[#adbac1] px-4 py-3 text-xs">
                   Cancel
               </Button>
               <Button
                 type="button"
                 onClick={handleConfirmationDialog}
-                className="cursor-pointer rounded-lg bg-[#1565BC] hover:bg-[#13569e] px-5 pl-4 py-4.5"> <Check/> {isEdit ? 'Save Changes' : 'Create User Account'}
+                className="cursor-pointer rounded-lg bg-[#1565BC] hover:bg-[#13569e] px-5 pl-4 py-3 text-xs"> <Check/> {isEdit ? 'Save Changes' : 'Create User Account'}
               </Button>
             </div>
 

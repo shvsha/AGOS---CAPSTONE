@@ -265,26 +265,27 @@ export default function NodeManagement() {
       <div className="hidden md:flex flex-col">
 
         {/* Header */}
-        <div className="flex justify-between w-full mb-4">
-          <div className="font-bold text-[#122A48] flex justify-center items-center text-lg">
+        <div className="flex justify-between w-full">
+          <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>Node Management</p>
           </div>
           <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search node..." width="w-60" height="h-11" />
+            <SearchFilter value={search} onChange={setSearch} placeholder="Search node..." width="w-60" height="h-9" />
+
             <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-              <SelectTrigger className="w-36 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Availability" />
               </SelectTrigger>
               <SelectContent position="popper" className="w-36 min-w-0">
-                <SelectItem className="p-2 text-[#122A48]" value="All Status">All Status</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Available">Available</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Occupied">Occupied</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Retired">Retired</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Available">Available</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Occupied">Occupied</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
               </SelectContent>
             </Select>
             <Button
               onClick={() => setNodeFormDialog({ open: true, node: null })}
-              className="p-5 py-5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+              className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
               <FaPlus color="white" /> Add Node
             </Button>
@@ -292,33 +293,33 @@ export default function NodeManagement() {
         </div>
 
         {/* Summary Cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-1">
+        <div className="flex justify-between w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />,  bg: "bg-[#CDE3DE]", count: total,     label: "Total Nodes" },
             { icon: <CheckCircle size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: available, label: "Available" },
             { icon: <RadioTower size={20} color="#1565BC" />,  bg: "bg-[#DBEAFE]", count: occupied,  label: "Occupied" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-tight">{card.count}</span>
-                <p className="text-sm">{card.label}</p>
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-123 overflow-visible">
+        <div className="flex gap-4 mt-2 h-132 overflow-visible">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-            <p className="p-3 font-bold text-[#122A48]">IoT Sensor Nodes</p>
+            <p className="p-2 text-sm font-bold text-[#122A48]">IoT Sensor Nodes</p>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
-                  <TableHead className="font-semibold text-left text-[#727272]">NODE ID</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">AVAILABILITY</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">ACTIONS</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -352,29 +353,29 @@ export default function NodeManagement() {
                 ) : (
                   paginated.map(node => (
                     <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-left h-18">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-18">{node.node_name}</TableCell>
-                      <TableCell className="text-left h-18">
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
+                      <TableCell className="text-left h-14 text-xs">
                         <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
                           node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
                           node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
                           'bg-[#DBEAFE] text-[#1565BC]'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
+                          <span className={`text-xs w-1.5 h-1.5 rounded-full ${
                             node.availability_status === 'Available' ? 'bg-[#1D8104]' :
                             node.availability_status === 'Retired'   ? 'bg-[#727272]' :
                             'bg-[#1565BC]'
                           }`} />
-                          {node.availability_status}
+                          <p className="text-xs">{node.availability_status}</p>
                         </span>
                       </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-18 relative">
+                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-14 text-xs relative">
                         {/* Available */}
                         {node.availability_status === 'Available' && (
                           <>
                             <Button
                               onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                              className="text-xs flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3"
                             >
                               <SquarePen size={16} /> Edit
                             </Button>
@@ -383,13 +384,13 @@ export default function NodeManagement() {
                               <Button
                                 id={`menu-btn-${node.node_id}`}
                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                                className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
                               >
                                 <MoreVertical size={16} />
                               </Button>
 
                               {openMenuId === node.node_id && (
-                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-48 overflow-hidden"
+                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
                                   style={{
                                     top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
                                     right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
@@ -418,7 +419,7 @@ export default function NodeManagement() {
                           <>
                             <Button
                               onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
                             >
                               <SquarePen size={16} /> Edit
                             </Button>
@@ -427,7 +428,7 @@ export default function NodeManagement() {
                               <Button
                                 id={`menu-btn-${node.node_id}`}
                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
                               >
                                 <MoreVertical size={16} />
                               </Button>

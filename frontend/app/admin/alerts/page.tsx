@@ -172,13 +172,13 @@ export default function Alerts() {
             <div className="flex gap-3">
               {/* barangay filter */}
               <Select value={barangay} onValueChange={setBarangay}>
-                <SelectTrigger className="text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent position="popper" className='w-40 min-w-0'>
-                  <SelectItem className="text-xs" value="All Barangay">All Barangay</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs" value="All Barangay">All Barangay</SelectItem>
                     {barangays.map(b => (
-                      <SelectItem className="text-xs" key={b.barangay_id} value={String(b.barangay_id)}>
+                      <SelectItem className="cursor-pointer p-2 text-xs" key={b.barangay_id} value={String(b.barangay_id)}>
                         {b.barangay_name}
                       </SelectItem>
                     ))}
@@ -187,13 +187,13 @@ export default function Alerts() {
 
               {/* date filter */}
               <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="text-xs w-35 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectTrigger className="cursor-pointer text-xs w-35 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent position="popper" className='w-35 min-w-0'>
-                  <SelectItem className="p-2 text-xs text-[#122A48]" value="Today">Today</SelectItem>
-                  <SelectItem className="p-2 text-xs text-[#122A48]" value="7Days">Last 7 days</SelectItem>
-                  <SelectItem className="p-2 text-xs text-[#122A48]" value="30Days">Last 30 days</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Today">Today</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="7Days">Last 7 days</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="30Days">Last 30 days</SelectItem>
                 </SelectContent>
               </Select>
             </div>

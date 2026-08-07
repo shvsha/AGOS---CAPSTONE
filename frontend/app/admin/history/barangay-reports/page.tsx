@@ -173,15 +173,15 @@ export default function BarangayReports() {
 
             {/* barangay filter (all barangay regardless if registered or not) */}
             <Select value={filterBarangay} onValueChange={setFilterBarangay}>
-              <SelectTrigger className="w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangays" />
               </SelectTrigger>
               <SelectContent position="popper" className="max-h-60 overflow-y-auto">
-                <SelectItem value="All" className="p-2 text-[#122A48]">All Barangays</SelectItem>
+                <SelectItem value="All" className="p-2 text-[#122A48] text-xs cursor-pointer ">All Barangays</SelectItem>
                 {[...allBarangays]
                   .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                   .map(b => (
-                    <SelectItem key={b.barangay_id} value={String(b.barangay_id)} className="p-2 text-[#122A48]">
+                    <SelectItem key={b.barangay_id} value={String(b.barangay_id)} className="text-xs cursor-pointer p-2 text-[#122A48]">
                       {b.barangay_name}
                     </SelectItem>
                   ))}
@@ -190,12 +190,12 @@ export default function BarangayReports() {
 
             {/* month/year filter */}
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="cursor-pointer w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent position="popper" className="w-40 min-w-0 !max-h-70 overflow-y-auto">
+              <SelectContent position="popper" className="cursor-pointer text-xs p-2 w-40 min-w-0 !max-h-70 overflow-y-auto">
                 {monthOptions.map(m => (
-                  <SelectItem key={m.value} className="p-2 py-1 cursor-pointer text-[#122A48]" value={m.value}>
+                  <SelectItem key={m.value} className="cursor-pointer text-xs p-2 cursor-pointer text-[#122A48]" value={m.value}>
                     {m.label}
                   </SelectItem>
                 ))}

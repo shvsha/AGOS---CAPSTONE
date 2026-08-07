@@ -333,25 +333,25 @@ export default function NodeAssignment() {
       <div className="hidden md:flex flex-col">
 
         {/* Header */}
-        <div className="flex justify-between w-full mb-4">
-          <div className="font-bold text-[#122A48] flex justify-center items-center text-lg">
+        <div className="flex justify-between w-full">
+          <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>Node Assignment</p>
           </div>
           <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search assigned node..." width="w-60" height="h-11" />
+            <SearchFilter value={search} onChange={setSearch} placeholder="Search assigned node..." width="w-60" height="h-9" />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer text-xs w-36 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className="w-36 min-w-0">
-                <SelectItem className="p-2 text-[#122A48]" value="All Status">All Status</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Active">Active</SelectItem>
+                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
             <Button
               onClick={() => setAssignFormDialog({ open: true, node: null })}
-              className="p-5 py-5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+              className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
               <MapPinPlus size={16} /> Assign Node
             </Button>
@@ -359,37 +359,37 @@ export default function NodeAssignment() {
         </div>
 
         {/* Summary Cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-1">
+        <div className="flex justify-between w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Assigned" },
             { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active,   label: "Active" },
             { icon: <CircleOff size={20} color="#D81010" />,  bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-105 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold leading-tight">{card.count}</span>
-                <p className="text-sm">{card.label}</p>
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-123">
+        <div className="flex gap-4 mt-3 h-132">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-            <p className="p-3 font-bold text-[#122A48]">Assigned Canal Nodes</p>
+            <p className="p-2 font-bold text-[#122A48] text-sm">Assigned Canal Nodes</p>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
-                  <TableHead className="font-semibold text-left text-[#727272]">NODE</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">HOTSPOT</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">INSTALLED</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272]">ACTIONS</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">INSTALLED</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -423,13 +423,13 @@ export default function NodeAssignment() {
                 ) : (
                   paginated.map(node => (
                     <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-left h-18">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-18">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-18">{node.node_name}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-18">{node.hotspot_details?.name ?? '—'}</TableCell>
-                      <TableCell className="text-left h-18">
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.hotspot_details?.name ?? '—'}</TableCell>
+                      <TableCell className="text-left h-14 text-xs">
                         <Button
-                          className="text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
+                          className="text-xs text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
                           onClick={() => setViewMapDialog({ open: true, node })}
                         >
                           <Map size={16} /> View on map
@@ -445,23 +445,23 @@ export default function NodeAssignment() {
                           {node.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-[#122A48] text-left h-18">
+                      <TableCell className="text-[#122A48] text-left h-14 text-xs">
                         {node.installed_at
                           ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
                               year: 'numeric', month: 'short', day: 'numeric'
                             })
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-18">
+                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-center h-14 text-xs">
                         <Button
                           onClick={() => setAssignFormDialog({ open: true, node })}
-                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 text-xs px-3"
                         >
                           <SquarePen size={16} /> Edit
                         </Button>
                         <Button
                           onClick={() => setUnassignDialog({ open: true, node })}
-                          className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                          className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-3.5 text-xs px-3"
                         >
                           <Unplug size={16} /> Unassign
                         </Button>
