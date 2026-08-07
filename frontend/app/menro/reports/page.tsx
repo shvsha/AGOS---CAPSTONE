@@ -124,6 +124,7 @@ export default function Reports() {
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">REPORT ID</TableHead>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">VERIFIED BY</TableHead>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
@@ -133,7 +134,7 @@ export default function Reports() {
               <TableBody>
                 {fetchError ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-35">
+                    <TableCell colSpan={4} className="text-center py-35">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load municipal reports. Please try again later.</p>
                         <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
@@ -143,7 +144,7 @@ export default function Reports() {
 
                 ) : filteredReports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center py-47">
+                    <TableCell colSpan={4} className="text-center py-47">
                       <div className="flex flex-col items-center gap-3">
                         <div className="rounded-full bg-[#E5E5E6] p-4">
                           <FileText size={36} color="#727272" />
@@ -159,6 +160,7 @@ export default function Reports() {
                 ) : (
                   paginated.map(report => (
                     <TableRow key={report.municipal_report_id} className="border-b border-[#C6C6C8] text-xs">
+                      <TableCell className="text-[#122A48] text-left h-14">{report.municipal_report_id}</TableCell>
                       <TableCell className="text-[#122A48] text-left h-14">{formatReportMonth(report.report_month)}</TableCell>
                       <TableCell className="text-[#122A48] text-left h-14">
                         {report.generated_by_details
