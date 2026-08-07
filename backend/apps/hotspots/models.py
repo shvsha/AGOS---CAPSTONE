@@ -19,7 +19,11 @@ class Hotspot(models.Model):
     )
     canal_shape = models.CharField(
         max_length=20,
-        choices=[('rectangular', 'Rectangular'), ('trapezoidal', 'Trapezoidal')],
+        choices=[
+            ('rectangular', 'Rectangular'),
+            ('trapezoidal', 'Trapezoidal'),
+            ('circular', 'Circular'),
+        ],
         default='rectangular',
         help_text="Cross-sectional shape of the canal at this location."
     )
