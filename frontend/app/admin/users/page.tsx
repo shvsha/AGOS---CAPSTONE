@@ -123,7 +123,7 @@ export default function Users() {
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 5)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 7)
 
   // summary cards
   const total    = users.length
@@ -181,19 +181,19 @@ export default function Users() {
       <div className="hidden md:flex flex-col">
 
         {/* title and filter container */}
-        <div className="flex justify-between w-full mb-4">
-          <div className="font-bold text-[#122A48] flex justify-center items-center text-lg">
+        <div className="flex justify-between w-full mb-2">
+          <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>System Users</p>
           </div>
 
           <div className="flex gap-3">
 
             {/* search filter */}
-            <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-11" />
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-9" />
 
             {/* user role filter */}
             <Select value={userRole} onValueChange={setUserRole}>
-              <SelectTrigger className="w-27 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-27 min-w-0'>
@@ -206,7 +206,7 @@ export default function Users() {
 
             {/* user status filter */}
             <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="w-27 px-3 py-5 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-30 min-w-0'>
@@ -219,7 +219,7 @@ export default function Users() {
             {/* add user */}
             <Button
               onClick={() => router.push('/admin/users/form')}
-              className="p-5 py-5.5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+              className="p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
               <FaPlus color="white" /> Add User
             </Button>
@@ -230,72 +230,35 @@ export default function Users() {
 
         {/* header total cards */}
         <div className="flex justify-between w-full text-[#122A48]">
-          {/* total users */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#CDE3DE] rounded-lg p-2">
-              <FaUsers size={20} color={"#1565BC"} />
+          {[
+            { icon: <FaUsers size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Users" },
+            { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active, label: "Active" },
+            { icon: <CircleOff size={20} color="#FF0101" />, bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
+            { icon: <ShieldCheck size={20} color="#582579" />, bg: "bg-[#DACDE3]", count: barangay, label: "Barangay Officer" },
+          ].map(card => (
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
+              </div>
             </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{total}</span>
-              <p className="text-sm text-[#122A48]">Total Users</p>
-            </div>
-          </div>
-
-          {/* total active */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#B2FBC1] rounded-lg p-2">
-              <BadgeCheck size={20} color={"#2C7B3C"} />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{active}</span>
-              <p className="text-sm text-[#122A48]">Active</p>
-            </div>
-          </div>
-
-          {/* total inactive */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#FFE5E5] rounded-lg p-2">
-              <CircleOff size={20} color={"#FF0101"} />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{inactive}</span>
-              <p className="text-sm text-[#122A48]">Inactive</p>
-            </div>
-          </div>
-
-          {/* total barangay officer */}
-          <div className="rounded-lg border-2 border-[#C6C6C8] h-20 w-75 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
-            {/* icon */}
-            <div className="bg-[#DACDE3] rounded-lg p-2">
-              <ShieldCheck size={20} color={"#582579"} />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold text-[#122A48] leading-tight">{barangay}</span>
-              <p className="text-sm text-[#122A48]">Barangay Officer</p>
-            </div>
-          </div>
+          ))}
         </div>
         
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-122">
-          <p className="text-[#122A48] font-bold mx-3 mb-2">User Accounts</p>
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-133">
+          <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">User Accounts</p>
 
           <div>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
-                  <TableHead className="text-[#727272] text-left font-semibold w-12">ID</TableHead>
-                  <TableHead className="text-[#727272] text-left font-semibold w-2/5">USER</TableHead>
-                  <TableHead className="text-[#727272] text-left font-semibold w-1/5">ROLE</TableHead>
-                  <TableHead className="text-[#727272] text-left font-semibold w-1/6">STATUS</TableHead>
-                  <TableHead className="text-[#727272] text-left font-semibold w-1/5">ACTIONS</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-12">ID</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-2/5">USER</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/5">ROLE</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/6">STATUS</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/5">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -337,30 +300,30 @@ export default function Users() {
                   ) : (
                     paginated.map(user => (
                       <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
-                        <TableCell className="text-[#122A48] text-left h-17.5 !min-w-20 ">{user.user_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs !min-w-20 ">{user.user_id}</TableCell>
 
-                        <TableCell className="text-[#122A48] h-17.5">
+                        <TableCell className="text-[#122A48] h-14 text-xs">
                           <div className="flex gap-3 items-left">
                             <div
-                              className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+                              className="rounded-full w-8 h-8 flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
                               style={{ backgroundColor: getAvatarColor(user.user_role) }}
                             >
                               {user.first_name.charAt(0)}{user.last_name.charAt(0)}
                             </div>
-                            <div className="flex flex-col text-left">
+                            <div className="flex flex-col text-left text-xs">
                               <p className="font-semibold">{user.first_name} {user.last_name}</p>
-                              <p className="underline text-[13px]">{user.email}</p>
+                              <p className="underline">{user.email}</p>
                             </div>
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-[#122A48] h-17.5">
+                        <TableCell className="text-[#122A48] h-14 text-xs">
                           <div className="mx-auto text-left">
                             {ROLE_DISPLAY[user.user_role] ?? user.user_role}
                           </div>
                         </TableCell>
                         
-                        <TableCell className="text-left h-17.5">
+                        <TableCell className="text-left h-14 text-xs">
                           <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
                             user.status === 'Active'
                               ? 'bg-[#B2FBC173] text-[#2C7B3C]'
@@ -373,10 +336,10 @@ export default function Users() {
                           </span>
                         </TableCell>
 
-                        <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-17.5">
+                        <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-14 text-xs">
                           <Button 
                             onClick={() => router.push(`/admin/users/form?id=${user.user_id}`)}
-                            className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                            className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
                           >
                             <SquarePen size={16} />
                             Edit
@@ -385,7 +348,7 @@ export default function Users() {
                           {user.status === 'Active' ? (
                             <Button 
                               onClick={() => setDeactivateDialog({ open: true, user: user})}
-                              className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
                             >
                               <UserMinus size={16} />
                               Deactivate

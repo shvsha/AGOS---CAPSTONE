@@ -155,7 +155,7 @@ export default function Barangay() {
 
   const filteredBarangay = getFilteredBarangay(barangays, search)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, 4)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, 7)
 
   // summary cards
   const total = allBarangays.length
@@ -255,19 +255,19 @@ const handleConfirmationDialog = () => {
       <div className="hidden md:flex flex-col">
 
         {/* title and filter container */}
-        <div className="flex justify-between w-full mb-4">
-          <div className="font-bold text-[#122A48] flex justify-center items-center text-lg">
+        <div className="flex justify-between w-full mb-2">
+          <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>Barangay</p>
           </div>
 
           <div className="flex gap-3">
             {/* search filter */}
-            <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-11" />
+            <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-9" />
 
             {/* register barangay */}
             <Button
               onClick={() => setBarangayFormDialog({ open: true })}
-              className="p-5 py-5.5 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+              className="p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
               <FaPlus color="white" /> Register Barangay
             </Button>
@@ -282,27 +282,27 @@ const handleConfirmationDialog = () => {
             { icon: <CheckCircle size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: registered, label: "All Registered" },
             { icon: <MapPinOff size={20} color="#FF0101" />, bg: "bg-[#FFE5E5]", count: unregistered, label: "All Unregistered" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-20 w-95 flex items-center p-6 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold text-[#122A48] leading-tight">{card.count}</span>
-                <p className="text-sm text-[#122A48]">{card.label}</p>
+                <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
+                <p className="text-xs text-[#122A48]">{card.label}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-5 pt-4 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-122">
-          <p className="text-[#122A48] font-bold mx-3 mb-2">Barangay List</p>
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-133">
+          <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">Barangay List</p>
 
           <Table>
             <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
               <TableRow>
-                <TableHead className="text-[#727272] text-left font-semibold w-16">ID</TableHead>
-                <TableHead className="text-[#727272] text-left font-semibold w-1/3">BARANGAY</TableHead>
-                <TableHead className="text-[#727272] text-left font-semibold w-1/4">LOCATION</TableHead>
-                <TableHead className="text-[#727272] text-left font-semibold w-1/4">ACTIONS</TableHead>
+                <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
+                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
+                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
+                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -345,24 +345,24 @@ const handleConfirmationDialog = () => {
               ) : (
                 paginated.map(barangay => (
                   <TableRow key={barangay.barangay_id} className="border-b border-[#C6C6C8]">
-                    <TableCell className="text-[#122A48] text-left h-18">{barangay.barangay_id}</TableCell>
+                    <TableCell className="text-[#122A48] text-left h-14 text-xs">{barangay.barangay_id}</TableCell>
 
-                    <TableCell className="text-[#122A48] text-left h-18">{barangay.barangay_name}</TableCell>
+                    <TableCell className="text-[#122A48] text-left h-14 text-xs">{barangay.barangay_name}</TableCell>
 
-                    <TableCell className="text-[#122A48] text-left h-18">
+                    <TableCell className="text-[#122A48] text-left h-14 text-xs">
                       <Button
                         onClick={() => setViewMapDialog({ open: true, barangay: barangay })}
-                        className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-4.5 px-3"
+                        className="rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-3.5 text-xs px-3"
                       >
                         <Map size={16} />
                         View on map
                       </Button>
                     </TableCell>
 
-                    <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-18">
+                    <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-14 text-xs">
                       <Button
                         onClick={() => handleUnregisterClick(barangay)}
-                        className="flex gap-2 text-[#122A48] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                        className="flex gap-2 text-[#122A48] rounded-lg bg-[#DACDE3] hover:bg-purple-200 cursor-pointer border border-[#C6C6C8] py-3.5 text-xs px-3"
                       >
                         <MapPinOff size={16} />
                         Unregister
