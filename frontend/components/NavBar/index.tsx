@@ -75,7 +75,7 @@ const navItems: Record<string, NavItem[]> = {
         { label: "Clog Events",              href: "/admin/history/clog-events",      icon: <TriangleAlert size={14} /> },
         { label: "Waste Classification",     href: "/admin/history/waste",            icon: <Package size={14} /> },
         { label: "Barangay Monthly Reports", href: "/admin/history/barangay-reports", icon: <FileBarChart size={14} /> },
-        { label: "Monthly Reports",          href: "/admin/history/monthly-reports",  icon: <CalendarDays size={14} /> },
+        { label: "Compiled Barangay Reports",          href: "/admin/history/monthly-reports",  icon: <CalendarDays size={14} /> },
       ]
     },
     {
