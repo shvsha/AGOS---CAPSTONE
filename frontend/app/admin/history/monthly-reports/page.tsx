@@ -132,12 +132,12 @@ export default function MonthlyReports() {
 
           {/* month/year filter */}
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="cursor-pointer w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+            <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent position="popper" className="w-40 min-w-0 !max-h-70 overflow-y-auto">
+            <SelectContent position="popper" className=" text-xs cursor-pointer w-40 min-w-0 !max-h-70 overflow-y-auto">
               {monthOptions.map(m => (
-                <SelectItem key={m.value} className="p-2 py-1 cursor-pointer text-[#122A48]" value={m.value}>
+                <SelectItem key={m.value} className="p-2 text-xs  cursor-pointer text-[#122A48]" value={m.value}>
                   {m.label}
                 </SelectItem>
               ))}

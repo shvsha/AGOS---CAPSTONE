@@ -193,33 +193,33 @@ export default function Users() {
 
             {/* user role filter */}
             <Select value={userRole} onValueChange={setUserRole}>
-              <SelectTrigger className="w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent position="popper" className='w-27 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All">All Users</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Users</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
               </SelectContent>
             </Select>
 
             {/* user status filter */}
             <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent position="popper" className='w-30 min-w-0'>
-                <SelectItem className="p-2 text-[#122A48]" value="All">All Status</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
+              <SelectContent position="popper" className='w-28 min-w-0'>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Status</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Active">Active</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
 
             {/* add user */}
             <Button
               onClick={() => router.push('/admin/users/form')}
-              className="p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+              className="text-xs p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
             >
               <FaPlus color="white" /> Add User
             </Button>

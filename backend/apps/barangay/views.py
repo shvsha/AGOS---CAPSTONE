@@ -143,3 +143,21 @@ class BarangayCheckView(APIView):
             })
 
         return Response({'can_unregister': True})
+
+
+class BarangayRegisterView(APIView):
+    permission_classes = [IsAdmin]
+
+    def patch(self, request, barangay_id):
+        try:
+            barangay = Barangay.objects.get(barangay_id=barangay_id)
+        except Barangay.DoesNotExist:
+            return Response({'detail': 'Barangay not found.'}, status=404)
+
+        if barangay.is_registered:
+            return Response({'detail': 'Barangay is already registered.'}, status=400)
+
+        barangay.is_registered = True
+        barangay.status = 'Active'
+        barangay.save()
+        return Response({'detail': f'{barangay.barangay_name} has been registered.'})
