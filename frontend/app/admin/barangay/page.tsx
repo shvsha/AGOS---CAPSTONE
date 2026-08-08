@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, } from "@/components/ui/dialog"
 
 // component
 import { DialogModal } from "@/components/DialogModal";
-import { BarangaySkeleton } from "@/components/Skeleton/BarangaySkeleton"
+import { BarangaySkeleton } from "@/components/Skeleton/Admin/BarangaySkeleton"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { SearchFilter } from "@/components/SearchFilter";
 

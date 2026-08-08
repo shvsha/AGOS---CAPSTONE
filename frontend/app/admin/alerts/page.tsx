@@ -25,6 +25,7 @@ import { usePolling } from "@/components/hooks/usePolling"
 import { ALERT_META, ContextRow } from "@/components/Alerts/AlertCard"
 import { ALERT_STYLE } from "@/lib/constant"
 import { SearchFilter } from "@/components/SearchFilter"
+import { AlertsSkeleton } from "@/components/Skeleton/Admin/AlertsSkeleton"
 
 
 type Alert = {
@@ -159,6 +160,8 @@ export default function Alerts() {
       setAlerts(prev => [newAlert, ...prev])
     },
   })
+
+  if (loading) return <AlertsSkeleton/>
 
    return (
      <>

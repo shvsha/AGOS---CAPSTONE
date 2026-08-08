@@ -15,7 +15,7 @@ import { useToast } from "@/components/hooks/useToast";
 import { Toast } from "@/components/Toast";
 
 // component
-import { UsersSkeleton } from "@/components/Skeleton/UsersSkeleton";
+import { UsersSkeleton } from "@/components/Skeleton/Admin/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
 import { SearchFilter } from "@/components/SearchFilter";
 

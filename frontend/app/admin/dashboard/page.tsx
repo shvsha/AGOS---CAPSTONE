@@ -15,10 +15,12 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
 import { ALERT_STYLE, WASTE_STYLE } from '@/lib/constant'
 import { usePolling } from "@/components/hooks/usePolling"
+import { DashboardSkeleton } from "@/components/Skeleton/Admin/DashboardSkeleton"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 
 const ALERT_ICONS: Record<string, JSX.Element> = {
@@ -165,55 +167,9 @@ function getDotColor(pct: number) {
 export default function Dashboard() {
   const router = useRouter()
 
-  // us
-  const [allSensorNodes, setAllSensorNodes] = useState<SensorNodes[]>([])
-  const [allClogEvents, setAllClogEvents] = useState<ClogEvents[]>([])
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
-  const [allAlerts, setAllAlerts] = useState<Alert[]>([])
-  const [allNodeHealth, setAllNodeHealth] = useState<NodeHealth[]>([])
-  const [barangayReports, setBarangayReports] = useState<BarangayReports[]>([])
-
   // alert dialog state
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
-
-  // summary cards
-  const totalSensorNodes = allSensorNodes.filter(b => b.hotspot_details?.hotspot_id).length
-  const criticalAlerts = allClogEvents.filter(b => b.severity === 'High').length
-  const registeredBarangay = allBarangays.filter(b => b.is_registered).length
-  const resolvedClog = allBarangays.filter(b => !b.is_registered).length
-
-  // health helpers
-  const activeHealth = allNodeHealth.filter(n => n.node_details.status === "Active")
-
-  const voltages = activeHealth.map(n => n.battery_voltage).filter((v): v is number => v != null)
-  const signals  = activeHealth.map(n => n.signal_strength).filter((v): v is number => v != null)
-  const continuityList = activeHealth.map(n => n.sensor_continuity).filter((v): v is boolean => v != null)
-
-  const avgVoltage   = voltages.length   ? voltages.reduce((a, b) => a + b, 0) / voltages.length   : null
-  const avgSignal    = signals.length    ? signals.reduce((a, b) => a + b, 0) / signals.length     : null
-  const passingCount = continuityList.filter(Boolean).length
-  const allPassing = continuityList.length
-    ? (passingCount / continuityList.length) >= 0.5
-    : null
-
-  const batteryPct = avgVoltage != null ? getBatteryPct(avgVoltage) : null
-  const signalPct  = avgSignal  != null ? getSignalPct(avgSignal)   : null
-
-  // waste classification state
-   const [wasteClassification, setWasteClassification] = useState<WasteClassification[]>([])
-
-   const todayWaste = wasteClassification.filter(waste => {
-    const wasteDate = new Date(waste.timestamp)
-    const today = new Date()
-    return (
-      wasteDate.getFullYear() === today.getFullYear() &&
-      wasteDate.getMonth() === today.getMonth() &&
-      wasteDate.getDate() === today.getDate()
-    )
-  })
-
-  const recentWaste = todayWaste.slice(0, 7)
 
   const now = new Date()
   const getMonthOptions = () => {
@@ -232,60 +188,118 @@ export default function Dashboard() {
   const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
 
-  // fetch of data
-  const fetchSensorNodes = async () => {
+  // fetchers — each returns its parsed data instead of only calling setState
+  const fetchSensorNodesRaw = async (): Promise<SensorNodes[]> => {
     try {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setAllSensorNodes(data.results ?? data)
-    } catch {}
+      return data.results ?? data
+    } catch { return [] }
   }
 
-  useEffect(() => {
-    fetchSensorNodes()
-  }, [])
-
-  const fetchMonthlyReports = async () => {
+  const fetchMonthlyReportsRaw = async (): Promise<BarangayReports[]> => {
     try {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setBarangayReports(data.results ?? data)
-    } catch {}
+      return data.results ?? data
+    } catch { return [] }
   }
 
-  useEffect(() => {
-    fetchMonthlyReports()
-  }, [])
-
-  const fetchAlerts = async () => {
+  const fetchAlertsRaw = async (): Promise<Alert[]> => {
     try {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts`)
       if (!res.ok) throw new Error()
-        const data = await res.json()
-      setAllAlerts(data.results ?? data)
-    } catch {}
+      const data = await res.json()
+      return data.results ?? data
+    } catch { return [] }
   }
 
-  useEffect(() => {
-    fetchAlerts()
-  }, [])
-
-  const fetchNodeHealth = async () => {
+  const fetchNodeHealthRaw = async (): Promise<NodeHealth[]> => {
     try {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/system-health/`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setAllNodeHealth(data.results ?? data)
-    } catch {}
+      return data.results ?? data
+    } catch { return [] }
   }
 
-  useEffect(() => {
-    fetchNodeHealth()
-  }, [])
+  const fetchClogEventsRaw = async (): Promise<ClogEvents[]> => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      return data.results ?? data
+    } catch { return [] }
+  }
 
-  const todayAlerts = allAlerts.filter(alert => {
+  const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      return data.results ?? data
+    } catch { return [] }
+  }
+
+  const fetchWasteClassificationRaw = async (): Promise<WasteClassification[]> => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      return data.results ?? data
+    } catch { return [] }
+  }
+
+  // cached data, all fetched together via refetchAll below (autoFetch: false)
+  const sensorNodes = usePageCache('dashboard:sensorNodes', fetchSensorNodesRaw, [] as SensorNodes[], { autoFetch: false })
+  const barangayReports = usePageCache('dashboard:barangayReports', fetchMonthlyReportsRaw, [] as BarangayReports[], { autoFetch: false })
+  const alerts = usePageCache('dashboard:alerts', fetchAlertsRaw, [] as Alert[], { autoFetch: false })
+  const nodeHealth = usePageCache('dashboard:nodeHealth', fetchNodeHealthRaw, [] as NodeHealth[], { autoFetch: false })
+  const clogEvents = usePageCache('dashboard:clogEvents', fetchClogEventsRaw, [] as ClogEvents[], { autoFetch: false })
+  const barangays = usePageCache('dashboard:barangays', fetchBarangaysRaw, [] as Barangay[], { autoFetch: false })
+  const wasteClassification = usePageCache('dashboard:wasteClassification', fetchWasteClassificationRaw, [] as WasteClassification[], { autoFetch: false })
+
+  const loading = sensorNodes.loading || barangayReports.loading || alerts.loading
+    || nodeHealth.loading || clogEvents.loading || barangays.loading || wasteClassification.loading
+
+  // summary cards
+  const totalSensorNodes = sensorNodes.data.filter(b => b.hotspot_details?.hotspot_id).length
+  const criticalAlerts = clogEvents.data.filter(b => b.severity === 'High').length
+  const registeredBarangay = barangays.data.filter(b => b.is_registered).length
+  const resolvedClog = barangays.data.filter(b => !b.is_registered).length
+
+  // health helpers
+  const activeHealth = nodeHealth.data.filter(n => n.node_details.status === "Active")
+
+  const voltages = activeHealth.map(n => n.battery_voltage).filter((v): v is number => v != null)
+  const signals  = activeHealth.map(n => n.signal_strength).filter((v): v is number => v != null)
+  const continuityList = activeHealth.map(n => n.sensor_continuity).filter((v): v is boolean => v != null)
+
+  const avgVoltage   = voltages.length   ? voltages.reduce((a, b) => a + b, 0) / voltages.length   : null
+  const avgSignal    = signals.length    ? signals.reduce((a, b) => a + b, 0) / signals.length     : null
+  const passingCount = continuityList.filter(Boolean).length
+  const allPassing = continuityList.length
+    ? (passingCount / continuityList.length) >= 0.5
+    : null
+
+  const batteryPct = avgVoltage != null ? getBatteryPct(avgVoltage) : null
+  const signalPct  = avgSignal  != null ? getSignalPct(avgSignal)   : null
+
+  const todayWaste = wasteClassification.data.filter(waste => {
+    const wasteDate = new Date(waste.timestamp)
+    const today = new Date()
+    return (
+      wasteDate.getFullYear() === today.getFullYear() &&
+      wasteDate.getMonth() === today.getMonth() &&
+      wasteDate.getDate() === today.getDate()
+    )
+  })
+
+  const recentWaste = todayWaste.slice(0, 7)
+
+  const todayAlerts = alerts.data.filter(alert => {
     const alertDate = new Date(alert.timestamp)
     const today = new Date()
     return (
@@ -295,72 +309,35 @@ export default function Dashboard() {
     )
   })
 
-  const fetchClogEvents = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllClogEvents(data.results ?? data)
-    } catch {}
-  }
-
-  useEffect(() => {
-    fetchClogEvents()
-  }, [])
-
-  const fetchBarangays = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllBarangays(data.results ?? data)
-    } catch {}
-  }
-
-  useEffect(() => {
-    fetchBarangays()
-  }, [])
-
-  const fetchWasteClassification = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setWasteClassification(data.results ?? data)
-    } catch {}
-  }
-
-  useEffect(() => {
-    fetchWasteClassification()
-  }, [])
-
-  const fetchAllDashboardData = useCallback(() => {
-    fetchSensorNodes()
-    fetchMonthlyReports()
-    fetchAlerts()
-    fetchNodeHealth()
-    fetchClogEvents()
-    fetchBarangays()
-    fetchWasteClassification()
+  const refetchAll = useCallback(() => {
+    return Promise.all([
+      sensorNodes.refetch(),
+      barangayReports.refetch(),
+      alerts.refetch(),
+      nodeHealth.refetch(),
+      clogEvents.refetch(),
+      barangays.refetch(),
+      wasteClassification.refetch(),
+    ])
   }, [])
 
   useEffect(() => {
-    fetchAllDashboardData()
+    refetchAll()
   }, [])
 
-  usePolling(fetchAllDashboardData, 30000)
+  usePolling(refetchAll, 30000)
 
   useWebSocket({
     path: "/ws/alerts/",
     onMessage: (newAlert) => {
-      setAllAlerts(prev => [newAlert, ...prev])
+      alerts.setData(prev => [newAlert, ...prev])
     },
   })
 
   useWebSocket({
     path: "/ws/sensor-readings/",
     onMessage: (reading) => {
-      setAllSensorNodes(prev => prev.map(node =>
+      sensorNodes.setData(prev => prev.map(node =>
         node.node_id === reading.node_details.node_id
           ? {
               ...node,
@@ -377,10 +354,11 @@ export default function Dashboard() {
   useWebSocket({
     path: "/ws/waste-classification/",
     onMessage: (newWaste) => {
-      setWasteClassification(prev => [newWaste, ...prev])
+      wasteClassification.setData(prev => [newWaste, ...prev])
     },
   })
 
+  if (loading) return <DashboardSkeleton />
 
   return (
     <>
@@ -419,7 +397,7 @@ export default function Dashboard() {
               </div>
               <div className="flex-1 overflow-hidden rounded-b-lg">
                 <AgosMapWrapper
-                  markers={allSensorNodes
+                  markers={sensorNodes.data
                     .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
                     .filter(n => n.availability_status === 'Occupied')
                     .map(n => ({
@@ -437,8 +415,8 @@ export default function Dashboard() {
             {/* monthly report progress */}
             <div>
               <ReportProgressBar
-                reports={barangayReports.filter(r => r.report_month.startsWith(selectedMonth))}
-                totalBarangays={allBarangays.length}
+                reports={barangayReports.data.filter(r => r.report_month.startsWith(selectedMonth))}
+                totalBarangays={barangays.data.length}
                 month={monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth}
               />
             </div>
