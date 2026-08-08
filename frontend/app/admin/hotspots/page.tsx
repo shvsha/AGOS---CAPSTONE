@@ -22,6 +22,7 @@ import { usePagination } from "@/components/hooks/usePagination"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { HotspotsSkeleton } from "@/components/Skeleton/Admin/HotspotsSkeleton"
 
 // toast
 import { useToast } from "@/components/hooks/useToast"
@@ -468,6 +469,8 @@ export default function HotspotManagement() {
   // selected barangay object for map center fallback
   const selectedBarangay = allBarangays.find(b => String(b.barangay_id) === barangay)
   const selectedBarangayName = selectedBarangay?.barangay_name
+
+  if (loading) return <HotspotsSkeleton/>
 
   return (
     <>

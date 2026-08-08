@@ -10,6 +10,7 @@ from apps.users.permissions import IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDev
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import sys
 import os
+from apps.audit_logs.utils import log_action
 
 
 class WasteClassificationListView(generics.ListCreateAPIView):
@@ -195,6 +196,13 @@ class WasteClassificationExportView(APIView):
             ]
             for c in qs
         ]
+
+        log_action(
+            user=request.user,
+            action='Exported Waste Classifications',
+            affected_table='tbl_waste_classification',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
 
         return render_to_pdf(
             report_title="Waste Classification",

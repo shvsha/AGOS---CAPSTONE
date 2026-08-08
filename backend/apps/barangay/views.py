@@ -5,6 +5,7 @@ from .models import Barangay
 from .serializers import BarangaySerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENROOrBarangay
 from apps.hotspots.models import Hotspot
+from apps.audit_logs.utils import log_action
 
 
 class BarangayListView(generics.ListCreateAPIView):
@@ -30,7 +31,15 @@ class BarangayListView(generics.ListCreateAPIView):
             barangay.is_registered = True
             barangay.status        = 'Active'
             barangay.save()
+            log_action(
+                user=request.user,
+                action='Registered Barangay',
+                affected_table='tbl_barangay',
+                new_value=f"barangay: {barangay.barangay_name}",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             serializer = self.get_serializer(barangay)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Barangay.DoesNotExist:
             return Response(
@@ -97,6 +106,13 @@ class BarangayUnregisterView(APIView):
 
         barangay.is_registered = False
         barangay.save()
+        log_action(
+            user=request.user,
+            action='Unregistered Barangay',
+            affected_table='tbl_barangay',
+            old_value=f"barangay: {barangay.barangay_name}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         return Response({'detail': f'{barangay.barangay_name} has been unregistered.'})
     
 
@@ -160,4 +176,11 @@ class BarangayRegisterView(APIView):
         barangay.is_registered = True
         barangay.status = 'Active'
         barangay.save()
+        log_action(
+            user=request.user,
+            action='Registered Barangay',
+            affected_table='tbl_barangay',
+            new_value=f"barangay: {barangay.barangay_name}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         return Response({'detail': f'{barangay.barangay_name} has been registered.'})

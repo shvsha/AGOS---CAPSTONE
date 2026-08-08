@@ -8,6 +8,7 @@ from .serializers import SensorNodeSerializer, SystemHealthLogSerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from apps.rainfall.services import get_effective_condition, AlertThreshold
+from apps.audit_logs.utils import log_action
 
 
 class SensorNodeListView(generics.ListCreateAPIView):
@@ -37,7 +38,14 @@ class SensorNodeListView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         # On create from Node Management: no hotspot or barangay yet, just node_name
-        serializer.save(availability_status='Available')
+        node = serializer.save(availability_status='Available')
+        log_action(
+            user=self.request.user,
+            action='Added Node',
+            affected_table='tbl_sensor_nodes',
+            new_value=f"node: {node.node_name}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
 
 
 class SensorNodeDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -53,10 +61,24 @@ class SensorNodeDetailView(generics.RetrieveUpdateDestroyAPIView):
         # If hotspot is being set, mark Occupied; if being cleared, mark Available
         if 'hotspot' in serializer.validated_data:
             availability_status = 'Occupied' if hotspot else 'Available'
-            serializer.save(availability_status=availability_status)
+            node = serializer.save(availability_status=availability_status)
+            log_action(
+                user=self.request.user,
+                action='Assigned Node' if hotspot else 'Unassigned Node',
+                affected_table='tbl_sensor_nodes',
+                old_value=f"hotspot: {instance.hotspot.name if instance.hotspot else '—'}",
+                new_value=f"hotspot: {hotspot.name if hotspot else '—'}",
+                ip_address=self.request.META.get('REMOTE_ADDR')
+            )
         else:
-            serializer.save()
-
+            node = serializer.save()
+            log_action(
+                user=self.request.user,
+                action='Updated Node',
+                affected_table='tbl_sensor_nodes',
+                new_value=f"node: {node.node_name}",
+                ip_address=self.request.META.get('REMOTE_ADDR')
+            )
 
 class SensorNodeByBarangayView(generics.ListAPIView):
     serializer_class = SensorNodeSerializer
@@ -111,6 +133,14 @@ class SensorNodeUnassignView(APIView):
         node.status = 'Active'
         node.save()
 
+        log_action(
+            user=request.user,
+            action='Unassigned Node',
+            affected_table='tbl_sensor_nodes',
+            old_value=f"node: {node.node_name}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
         return Response(
             {'message': f'Node {node_id} has been unassigned and is now available'},
             status=status.HTTP_200_OK
@@ -136,6 +166,14 @@ class SensorNodeRetireView(APIView):
         node.barangay = None
         node.availability_status = 'Retired'
         node.save()
+
+        log_action(
+            user=request.user,
+            action='Retired Node',
+            affected_table='tbl_sensor_nodes',
+            old_value=f"node: {node.node_name}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
 
         return Response({'message': f'Node {node_id} has been retired'}, status=status.HTTP_200_OK)
 

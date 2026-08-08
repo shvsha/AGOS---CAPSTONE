@@ -7,6 +7,7 @@ import { TablePagination } from "@/components/TablePagination"
 import { usePolling } from "@/components/hooks/usePolling"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
+import { WasteSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/WasteSkeleton"
 
 // lib
 import { exportPdf } from "@/lib/exportPDF"
@@ -169,6 +170,8 @@ export default function Waste() {
       setWasteClassification(prev => [newWaste, ...prev])
     },
   })
+
+  if (loading) return <WasteSkeleton/>
 
 
   return (

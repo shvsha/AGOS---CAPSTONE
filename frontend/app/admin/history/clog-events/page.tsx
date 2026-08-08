@@ -8,6 +8,7 @@ import { SearchFilter } from "@/components/SearchFilter"
 import { usePolling } from "@/components/hooks/usePolling"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
+import { ClogEventsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/ClogEventsSkeleton"
 
 // react
 import { useState, useEffect, useCallback } from "react"
@@ -211,6 +212,8 @@ useEffect(() => { fetchMedia() }, [selectedClog])
       setClogs(prev => [newClog, ...prev])
     },
   })
+
+  if (loading) return <ClogEventsSkeleton/>
 
 
   return (

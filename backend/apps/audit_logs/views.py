@@ -8,6 +8,7 @@ from .serializers import AuditLogSerializer
 from apps.users.permissions import IsAdmin
 from django.db.models import Q
 from django.utils import timezone
+from .utils import log_action
 
 
 class AuditLogListView(generics.ListAPIView):
@@ -70,6 +71,13 @@ class AuditLogExportView(APIView):
             ]
             for a in qs
         ]
+
+        log_action(
+            user=request.user,
+            action='Exported Audit Logs',
+            affected_table='tbl_audit_logs',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
 
         return render_to_pdf(
             report_title="Audit Logs",

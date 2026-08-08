@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 
 // components
 import { SearchFilter } from "@/components/SearchFilter"
+import { MonthlyReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/MonthlyReportsSkeleton"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -120,6 +121,7 @@ export default function MonthlyReports() {
     fetchData()
   }, [])
   
+  if (loading) return <MonthlyReportsSkeleton/>
   
   return (
     <>
@@ -229,6 +231,15 @@ export default function MonthlyReports() {
               )}
             </TableBody>
           </Table>
+
+          <div className='mt-auto'>
+            <TablePagination
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          </div>
         </div>
 
       </div>

@@ -4,6 +4,7 @@
 import { SearchFilter } from "@/components/SearchFilter"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
 import { fetchWithAuth } from "@/lib/auth"
+import { BarangayReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/BarangayReportsSkeleton"
 
 // react
 import { useState, useEffect, useMemo, useRef } from "react"
@@ -162,6 +163,8 @@ export default function BarangayReports() {
   }
 
   useEffect(() => { fetchData() }, [])
+
+  if (loading) return <BarangayReportsSkeleton/>
 
   return (
     <>
