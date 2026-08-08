@@ -17,6 +17,7 @@ import { FileDown, FileText, Eye } from "lucide-react"
 // components
 import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
+import { BarangayReportsSkeleton } from "@/components/Skeleton/Menro/BarangayReportsSkeleton"
 
 
 // types
@@ -163,7 +164,8 @@ export default function BarangayReports() {
 
     fetchData()
   }, [])
-    
+
+  if (loading) return <BarangayReportsSkeleton/>    
 
 
   return (

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 // component
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/components/hooks/usePagination";
+import { ResourcesSkeleton } from "@/components/Skeleton/Menro/ResourcesSkeleton";
 
 // lib
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
@@ -291,12 +292,15 @@ export default function Resources() {
     return acc
   }, {} as Record<number, SensorReadings>)
 
-  const fetchAllResourceData = useCallback(() => {
-    fetchSensorNode()
-    fetchReadings()
-    fetchHotspots()
-    fetchWaste()
-    fetchClogs()
+  const fetchAllResourceData = useCallback(async () => {
+    await Promise.allSettled([
+      fetchSensorNode(),
+      fetchReadings(),
+      fetchHotspots(),
+      fetchWaste(),
+      fetchClogs(),
+    ])
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -325,6 +329,8 @@ export default function Resources() {
       setAllClogs(prev => [newClog, ...prev])
     },
   })
+
+  if (loading) return <ResourcesSkeleton/>
 
 
   return (

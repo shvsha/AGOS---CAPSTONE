@@ -97,7 +97,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Waste Analytics",  href: "/menro/analytics",        icon: <ChartNoAxesCombined size={18} /> },
     { label: "Resource Optimization",        href: "/menro/resources",        icon: <Package size={18} /> },
     { label: "Canal Hotspots",        href: "/menro/hotspots",        icon: <Target size={18} /> },
-    { label: "Monthly Reports",  href: "/menro/reports",          icon: <CalendarDays size={18} /> },
+    { label: "Compiled Barnagay\nReports",  href: "/menro/reports",          icon: <CalendarDays size={18} /> },
   ],
   MENRO_Staff: [
     { label: "Reginal Map",       href: "/menro/map",        icon: <Map size={18} /> },
@@ -268,7 +268,7 @@ export default function NavBar() {
                 `}
               >
                 <span className="flex-shrink-0 w-5 flex items-center justify-center">{icon}</span>
-                <span>{label}</span>
+                <span className=" whitespace-pre-line">{label}</span>
               </Link>
             )
           })}
