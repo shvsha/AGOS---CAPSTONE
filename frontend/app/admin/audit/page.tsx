@@ -13,6 +13,7 @@ import { exportPdf } from "@/lib/exportPDF"
 import { usePolling } from "@/components/hooks/usePolling"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
+import { AuditSkeleton } from "@/components/Skeleton/Admin/AuditSkeleton"
 
 
 const affectedTableLabels: Record<string, string> = {
@@ -20,6 +21,7 @@ const affectedTableLabels: Record<string, string> = {
   tbl_barangay: 'Barangay Management',
   tbl_sensor_nodes: 'Sensor Nodes',
   tbl_sensor_readings: 'Sensor Readings',
+  tbl_hotspots: 'Canal Hotspots',
   tbl_alerts: 'Alerts',
   tbl_alert_reads: 'Alert Reads',
   tbl_waste_classification: 'Waste Classification',
@@ -51,7 +53,14 @@ function formatAuditDetails(audit: AuditLog) {
 
 type AuditLog = {
   audit_id: number
-  user: number | { user_id?: number; username?: string } | null
+  user: number | null
+  user_details: {
+    user_id: number
+    first_name: string
+    last_name: string
+    email: string
+    user_role: string
+  } | null
   action: string
   affected_table?: string | null
   old_value?: string | null
@@ -116,7 +125,7 @@ export default function Audit() {
           String(a.old_value ?? ''),
           String(a.new_value ?? ''),
           String(a.ip_address ?? ''),
-          a.user && typeof a.user === 'object' ? a.user.username ?? '' : String(a.user ?? ''),
+          a.user_details ? `${a.user_details.first_name} ${a.user_details.last_name}` : '',
         ]
           .filter(Boolean)
           .some((field) => field.toLowerCase().includes(q))
@@ -134,7 +143,7 @@ export default function Audit() {
     })
   }, [audits, search, startDate, endDate])
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 13)
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 14)
 
   const fetchAudits = async () => {
     setLoading(true)
@@ -176,24 +185,22 @@ export default function Audit() {
     return "Filter by Date"
   }, [startDate, endDate])
 
+
+  if (loading) return <AuditSkeleton/>
+
   return (
     <div className="w-full flex flex-col gap-2 max-w-full box-border">
 
       {/* Toolbar */}
-      <div className="w-full flex gap-3 items-end items-center justify-between ">
-        <SearchFilter value={search} onChange={setSearch} placeholder='Search audit logs...' width="w-180" height="h-11" />
+      <div className="w-full flex gap-2 items-end items-center justify-between ">
+        <SearchFilter value={search} onChange={setSearch} placeholder='Search audit logs...' suppressHydrationWarning width="w-150" height="h-9" />
         
         {/* Dropdown Container */}
         <div className="relative flex gap-2" ref={dropdownRef} >
-          <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
-            <FileDown size={16} className="mr-1" />
-            {exporting ? "Exporting..." : "Export PDF"}
-          </Button>
-
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className={`flex items-center justify-between w-[240px] h-11 px-3 border border-[#D0D0D0] rounded-lg bg-white text-[12px] font-normal transition-colors outline-none text-left ${
+            className={`cursor-pointer flex items-center justify-between w-[240px] h-9 px-3 border border-[#D0D0D0] rounded-lg bg-white text-[12px] font-normal transition-colors outline-none text-left ${
               startDate || endDate ? "text-[#122A48]" : "text-[#999999]"
             }`}
           >
@@ -204,16 +211,22 @@ export default function Audit() {
             <ChevronDown size={14} className="text-[#999999]" />
           </button>
 
+          <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer py-[17px]">
+            <FileDown size={16}/>
+            {exporting ? "Exporting..." : "Export PDF"}
+          </Button>
+
           {/* Expanded Dual Calendar Dropdown Card Panel */}
           {isOpen && (
-            <div className="absolute right-0 mt-1.5 p-4 bg-white border border-[#D0D0D0] rounded-lg shadow-xl z-50 flex flex-col gap-3 w-[280px]">
+            <div className="absolute right-20 top-9 mt-1.5 p-4 bg-white border border-[#D0D0D0] rounded-lg shadow-xl z-50 flex flex-col gap-3 w-[280px]">
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] font-bold text-[#727272] uppercase tracking-wide">Start Date</label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-9 border border-[#D0D0D0] rounded-md px-2 text-[12px] outline-none text-[#122A48]"
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  className="w-full h-9 border border-[#D0D0D0] rounded-md px-2 text-[12px] outline-none text-[#122A48] cursor-pointer"
                 />
               </div>
 
@@ -223,7 +236,8 @@ export default function Audit() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full h-9 border border-[#D0D0D0] rounded-md px-2 text-[12px] outline-none text-[#122A48]"
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  className="w-full h-9 border border-[#D0D0D0] rounded-md px-2 text-[12px] outline-none text-[#122A48] cursor-pointer"
                 />
               </div>
 
@@ -245,27 +259,23 @@ export default function Audit() {
       </div>
 
       {/* Audit Table Card */}
-      <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2'>
-        <p className='p-4 font-bold text-[#122A48] text-[12px]'>Audit Logs and Activities</p>
+      <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 h-149'>
+        <p className='p-2 font-bold text-[#122A48] text-sm'>Audit Logs and Activities</p>
 
         <div className="w-full overflow-x-auto">
           <Table className="w-full min-w-[700px]"> 
             <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
               <TableRow>
-                <TableHead className='font-semibold text-center text-[#727272] text-[12px] px-1 whitespace-nowrap'>TIMESTAMP</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-[12px] px-1 whitespace-nowrap'>USER</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-[12px] px-1 whitespace-nowrap'>ACTION</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-[12px] px-1 whitespace-nowrap'>MODULE</TableHead>
-                <TableHead className='font-semibold text-center text-[#727272] text-[12px] px-1 whitespace-nowrap'>DETAILS</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>TIMESTAMP</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>USER</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>ACTION</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>MODULE</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>DETAILS</TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">Loading audit logs...</TableCell>
-                </TableRow>
-              ) : fetchError ? (
+              {fetchError ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-red-600">Failed to load audit logs.</TableCell>
                 </TableRow>
@@ -284,7 +294,9 @@ export default function Audit() {
                 paginated.map((a) => (
                   <TableRow key={a.audit_id} className="border-b border-[#C6C6C8]">
                     <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{new Date(a.timestamp).toLocaleString()}</TableCell>
-                    <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{a.user && typeof a.user === 'object' ? a.user.username ?? '—' : a.user ?? '—'}</TableCell>
+                    <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">
+                      {a.user_details ? `${a.user_details.first_name} ${a.user_details.last_name}` : '—'}
+                    </TableCell>
                     <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{a.action}</TableCell>
                     <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{formatAffectedTableLabel(a.affected_table)}</TableCell>
                     <TableCell className="text-[#122A48] text-left text-[12px] max-w-xs px-4 truncate">{formatAuditDetails(a)}</TableCell>

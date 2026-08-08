@@ -21,6 +21,7 @@ import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { NodeSkeleton } from "@/components/Skeleton/Admin/NodeSkeleton"
 
 // toast
 import { useToast } from "@/components/hooks/useToast"
@@ -258,6 +259,8 @@ export default function NodeManagement() {
       addToast(err?.detail ?? 'Failed to decommission node.', 'error')
     }
   }
+
+  if (loading) return <NodeSkeleton/>
 
 
   return (

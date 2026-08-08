@@ -6,6 +6,7 @@ from .serializers import HotspotSerializer
 from apps.users.permissions import IsAdmin, IsMENRO, IsAdminOrMENRO, IsAdminOrMENROOrBarangay
 import re
 from rest_framework.views import APIView
+from apps.audit_logs.utils import log_action
 
 
 class HotspotListView(generics.ListCreateAPIView):
@@ -20,6 +21,16 @@ class HotspotListView(generics.ListCreateAPIView):
         return Hotspot.objects.select_related('barangay').filter(
             is_active=True
         ).order_by('barangay__barangay_name', 'name')
+
+    def perform_create(self, serializer):
+        hotspot = serializer.save()
+        log_action(
+            user=self.request.user,
+            action='Added Hotspot',
+            affected_table='tbl_hotspots',
+            new_value=f"hotspot: {hotspot.name} (barangay: {hotspot.barangay.barangay_name})",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
 
 
 class HotspotNextCodeView(APIView):
@@ -51,9 +62,26 @@ class HotspotDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'hotspot_id'
     permission_classes = [IsAdminOrMENRO]
 
+    def perform_update(self, serializer):
+        hotspot = serializer.save()
+        log_action(
+            user=self.request.user,
+            action='Updated Hotspot',
+            affected_table='tbl_hotspots',
+            new_value=f"hotspot: {hotspot.name}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
+
     def perform_destroy(self, instance):
         instance.is_active = False
         instance.save()
+        log_action(
+            user=self.request.user,
+            action='Removed Hotspot',
+            affected_table='tbl_hotspots',
+            old_value=f"hotspot: {instance.name}",
+            ip_address=self.request.META.get('REMOTE_ADDR')
+        )
 
 
 class HotspotByBarangayView(generics.ListAPIView):

@@ -21,6 +21,7 @@ import { usePagination } from "@/components/hooks/usePagination"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { AssignSkeleton } from "@/components/Skeleton/Admin/AssignSkeleton"
 
 // toast
 import { useToast } from "@/components/hooks/useToast"
@@ -327,6 +328,8 @@ export default function NodeAssignment() {
       addToast(err?.detail ?? 'Failed to unassign node.', 'error')
     }
   }
+
+  if (loading) return <AssignSkeleton/>
 
   return (
     <>

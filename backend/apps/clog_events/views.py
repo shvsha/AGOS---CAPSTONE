@@ -13,6 +13,7 @@ from django.utils import timezone
 from agos_backend.pdf_utils import render_to_pdf
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from apps.audit_logs.utils import log_action
 
 
 class ClogEventListView(generics.ListCreateAPIView):
@@ -166,6 +167,13 @@ class ClogEventExportView(APIView):
                 f"{reading.water_flow_rate:.5f} m/s" if reading and reading.water_flow_rate is not None else "—",
                 c.status,
             ])
+
+        log_action(
+            user=request.user,
+            action='Exported Clog Events',
+            affected_table='tbl_clog_events',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
 
         return render_to_pdf(
             report_title="Clog Events",
