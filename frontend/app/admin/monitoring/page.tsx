@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 // component
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { usePolling } from "@/components/hooks/usePolling"
+import { MonitoringSkeleton } from '@/components/Skeleton/Admin/MonitoringSkeleton'
 
 // lib
 import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
@@ -208,6 +209,8 @@ export default function Monitoring() {
       ))
     },
   })
+
+  if (loading) return <MonitoringSkeleton />
 
   return (
     <>
