@@ -15,6 +15,7 @@ import { usePagination } from "@/components/hooks/usePagination"
 import { ALERT_META, ContextRow } from "@/components/Alerts/AlertCard"
 import { ALERT_STYLE } from "@/lib/constant"
 import { SearchFilter } from "@/components/SearchFilter"
+import { AlertsSkeleton } from "@/components/Skeleton/Menro/AlertsSkeleton"
 
 // icons
 import { FaSearch } from "react-icons/fa"
@@ -149,6 +150,8 @@ export default function Alerts() {
       setAlerts(prev => [newAlert, ...prev])
     },
   })
+
+  if (loading) return <AlertsSkeleton/>
 
 return (
      <>

@@ -22,6 +22,7 @@ import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
+import { AnalyticsSkeleton } from "@/components/Skeleton/Menro/AnalyticsSkeleton";
 
 // lib
 import { exportPdf } from "@/lib/exportPDF"
@@ -207,6 +208,8 @@ export default function Analytics() {
       }
     },
   })
+
+  if (loading) return <AnalyticsSkeleton/>
 
   return (
     <>

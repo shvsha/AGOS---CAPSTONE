@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { ALERT_STYLE, WASTE_STYLE } from "@/lib/constant"
+import { MapSkeleton } from "@/components/Skeleton/Menro/MapSkeleton"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
@@ -146,6 +147,7 @@ export default function Map() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
+  const [loading, setLoading] = useState(true)
 
   // helpers
   const health = allSensorHealth.find(h => h.node_details.node_id === selectedNode?.node_id)
@@ -196,11 +198,14 @@ export default function Map() {
     } catch {}
   }
 
-  const fetchAllMapData = useCallback(() => {
-    fetchSensorNodes()
-    fetchNodeHealth()
-    fetchAlerts()
-    fetchWasteClassification()
+  const fetchAllMapData = useCallback(async () => {
+    await Promise.allSettled([
+      fetchSensorNodes(),
+      fetchNodeHealth(),
+      fetchAlerts(),
+      fetchWasteClassification(),
+    ])
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -270,6 +275,8 @@ export default function Map() {
       setAllWasteClassification(prev => [newWaste, ...prev])
     },
   })
+
+  if (loading) return <MapSkeleton/>
 
 
   return (
