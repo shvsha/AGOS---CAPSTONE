@@ -13,9 +13,9 @@ import { MapSkeleton } from "@/components/Skeleton/Menro/MapSkeleton"
 import { fetchWithAuth } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePolling } from "@/components/hooks/usePolling"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // shadcn
-import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // icons
@@ -132,14 +132,49 @@ type Dialog = {
   open: boolean
 }
 
+// fetch raw data
+const fetchSensorNodesRaw = async (): Promise<SensorNodes[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchAlertsRaw = async (): Promise<Alert[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchNodeHealthRaw = async (): Promise<NodeHealth[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/system-health/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchWasteClassificationRaw = async (): Promise<WasteClassification[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+
 export default function Map() {
   const router = useRouter()
 
   // data state
-  const [allSensorNodes, setAllSensorNodes] = useState<SensorNodes[]>([])
-  const [allSensorHealth, setAllSensorHealth] = useState<NodeHealth[]>([])
-  const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
-  const [allAlerts, setAllAlerts] = useState<Alert[]>([])
+  const nodesCache = usePageCache('menroMap:sensorNodes', fetchSensorNodesRaw, [] as SensorNodes[], { autoFetch: false })
+  const healthCache = usePageCache('menroMap:sensorHealth', fetchNodeHealthRaw, [] as NodeHealth[], { autoFetch: false })
+  const wasteCache = usePageCache('menroMap:wasteClassification', fetchWasteClassificationRaw, [] as WasteClassification[], { autoFetch: false })
+  const alertsCache = usePageCache('menroMap:alerts', fetchAlertsRaw, [] as Alert[], { autoFetch: false })
+
+  const allSensorNodes = nodesCache.data
+  const allSensorHealth = healthCache.data
+  const allWasteClassification = wasteCache.data
+  const allAlerts = alertsCache.data
   
   // dialog state
   const [selectedNode, setSelectedNode] = useState<SensorNodes | null>(null)
@@ -147,7 +182,7 @@ export default function Map() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
-  const [loading, setLoading] = useState(true)
+  const loading = nodesCache.loading || healthCache.loading || wasteCache.loading || alertsCache.loading
 
   // helpers
   const health = allSensorHealth.find(h => h.node_details.node_id === selectedNode?.node_id)
@@ -159,53 +194,14 @@ export default function Map() {
     : null
   const sensorOk = health?.sensor_continuity
 
-  // fetch sensor nodes
-  const fetchSensorNodes = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllSensorNodes(data.results ?? data)
-    } catch {}
-  }
-  
-  const fetchAlerts = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllAlerts(data.results ?? data)
-    } catch {}
-  }
-
-  // fetch node health
-  const fetchNodeHealth = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/system-health/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      const results = data.results ?? data
-      setAllSensorHealth(results)
-    } catch {}
-  }
-
-  const fetchWasteClassification = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllWasteClassification(data.results ?? data)
-    } catch {}
-  }
 
   const fetchAllMapData = useCallback(async () => {
     await Promise.allSettled([
-      fetchSensorNodes(),
-      fetchNodeHealth(),
-      fetchAlerts(),
-      fetchWasteClassification(),
+      nodesCache.refetch(),
+      healthCache.refetch(),
+      alertsCache.refetch(),
+      wasteCache.refetch(),
     ])
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -248,22 +244,16 @@ export default function Map() {
   useWebSocket({
     path: "/ws/alerts/",
     onMessage: (newAlert) => {
-      setAllAlerts(prev => [newAlert, ...prev])
+      alertsCache.setData(prev => [newAlert, ...prev])
     },
   })
 
   useWebSocket({
     path: "/ws/sensor-readings/",
     onMessage: (reading) => {
-      setAllSensorNodes(prev => prev.map(node =>
+      nodesCache.setData(prev => prev.map(node =>
         node.node_id === reading.node_details.node_id
-          ? {
-              ...node,
-              water_level: reading.water_level,
-              water_flow_rate: reading.water_flow_rate,
-              clog_pct: reading.clog_pct,
-              condition: reading.reading_status,
-            }
+          ? { ...node, water_level: reading.water_level, water_flow_rate: reading.water_flow_rate, clog_pct: reading.clog_pct, condition: reading.reading_status }
           : node
       ))
     },
@@ -272,7 +262,7 @@ export default function Map() {
   useWebSocket({
     path: "/ws/waste-classification/",
     onMessage: (newWaste) => {
-      setAllWasteClassification(prev => [newWaste, ...prev])
+      wasteCache.setData(prev => [newWaste, ...prev])
     },
   })
 

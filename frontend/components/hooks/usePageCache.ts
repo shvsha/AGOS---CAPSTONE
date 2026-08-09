@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 const caches = new Map<string, any>()
 
@@ -16,6 +16,13 @@ export function usePageCache<T>(
   const [loading, setLoading] = useState(cached === undefined)
   const [error, setError] = useState(false)
 
+  // Always keep the latest fetcher available, even though `refetch`
+  // itself stays referentially stable (keyed only by `key`).
+  const fetcherRef = useRef(fetcher)
+  useEffect(() => {
+    fetcherRef.current = fetcher
+  })
+
   const setData = useCallback((update: T | ((prev: T) => T)) => {
     setDataRaw(prev => {
       const next = typeof update === 'function' ? (update as (prev: T) => T)(prev) : update
@@ -26,7 +33,7 @@ export function usePageCache<T>(
 
   const refetch = useCallback(async () => {
     try {
-      const result = await fetcher()
+      const result = await fetcherRef.current()
       caches.set(key, result)
       setDataRaw(result)
       setError(false)

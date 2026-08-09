@@ -16,16 +16,15 @@ import { ALERT_META, ContextRow } from "@/components/Alerts/AlertCard"
 import { ALERT_STYLE } from "@/lib/constant"
 import { SearchFilter } from "@/components/SearchFilter"
 import { AlertsSkeleton } from "@/components/Skeleton/Menro/AlertsSkeleton"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // icons
-import { FaSearch } from "react-icons/fa"
 import { Siren, X } from "lucide-react"
 
 // shadcn
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 
 type Alert = {
@@ -51,84 +50,82 @@ const ALERT_TYPES = [
 ]
 
 
+// always scoped to the MENRO-allowed alert types — barangay/specific-type narrowing happens client-side
+const menroTypes = ALERT_TYPES.filter(t => t.value !== 'All Alert').map(t => t.value)
+
+const fetchAlertsForWindow = (window: string) => async (): Promise<Alert[]> => {
+  const params = new URLSearchParams()
+  params.append('alert_type', menroTypes.join(','))
+  params.append('date', window)
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/?${params.toString()}`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchAlertsTodayRaw = fetchAlertsForWindow('Today')
+const fetchAlerts7DaysRaw = fetchAlertsForWindow('7Days')
+const fetchAlerts30DaysRaw = fetchAlertsForWindow('30Days')
+
+const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
+  const token = getAccessToken()
+  const data = await api.get('/api/barangays/', token ?? undefined)
+  return data.results ?? data
+}
+
+
 export default function Alerts() {
   // filter states
   const [search, setSearch] = useState<string>('')
   const [barangay, setBarangay] = useState<string>('All Barangay')
-  const [barangays, setBarangays] = useState<Barangay[]>([])
   const [alertType, setAlertType] = useState<string>('All Alert')
   const [dateFilter, setDateFilter] = useState<string>('Today')
 
-  // notif state
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+  const alertsToday = usePageCache('menroAlerts:today', fetchAlertsTodayRaw, [] as Alert[], { autoFetch: false })
+  const alerts7Days = usePageCache('menroAlerts:7days', fetchAlerts7DaysRaw, [] as Alert[], { autoFetch: false })
+  const alerts30Days = usePageCache('menroAlerts:30days', fetchAlerts30DaysRaw, [] as Alert[], { autoFetch: false })
+  const barangaysCache = usePageCache('menroAlerts:barangays', fetchBarangaysRaw, [] as Barangay[], { autoFetch: false })
+
+  const activeAlerts =
+    dateFilter === 'Today' ? alertsToday :
+    dateFilter === '7Days' ? alerts7Days :
+    alerts30Days
+
+  const alerts = activeAlerts.data
+  const barangays = barangaysCache.data
+  const loading = activeAlerts.loading || barangaysCache.loading
+  const fetchError = activeAlerts.error
 
   // select state
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const filteredAlerts = useMemo(() => {
-    if (!search.trim()) return alerts
-    const q = search.toLowerCase()
-    return alerts.filter(a =>
-      a.alert_type.toLowerCase().includes(q) ||
-      a.node_name?.toLowerCase().includes(q) ||
-      a.barangay_name?.toLowerCase().includes(q)
-    )
-  }, [alerts, search])
-
+    const q = search.trim().toLowerCase()
+    return alerts.filter(a => {
+      if (barangay !== 'All Barangay' && a.barangay_name !== barangays.find(b => String(b.barangay_id) === barangay)?.barangay_name) return false
+      if (alertType !== 'All Alert' && a.alert_type !== alertType) return false
+      if (q && !(
+        a.alert_type.toLowerCase().includes(q) ||
+        a.node_name?.toLowerCase().includes(q) ||
+        a.barangay_name?.toLowerCase().includes(q)
+      )) return false
+      return true
+    })
+  }, [alerts, search, barangay, alertType, barangays])
   const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, 9)
 
-  const fetchAlerts = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const params = new URLSearchParams()
-      if (barangay !== 'All Barangay') params.append('barangay', barangay)
-      if (alertType !== 'All Alert') {
-        params.append('alert_type', alertType)
-      } else {
-        const menroTypes = ALERT_TYPES.filter(t => t.value !== 'All Alert').map(t => t.value)
-        params.append('alert_type', menroTypes.join(','))
-      }
-      if (dateFilter) params.append('date', dateFilter)
-
-      const query = params.toString()
-
-      const alertsRes = await fetchWithAuth(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/alerts/${query ? `?${query}` : ''}`
-      )
-      if (!alertsRes.ok) throw new Error()
-      const alertsData = await alertsRes.json()
-
-      setAlerts(alertsData.results ?? alertsData)
-      setCurrentPage(1)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  useEffect(() => {
+    activeAlerts.refetch()
+  }, [dateFilter])
 
   useEffect(() => {
-    fetchAlerts()
-  }, [barangay, alertType, dateFilter])
-
-    useEffect(() => {
-    const fetchBarangays = async () => {
-      try {
-        const token = getAccessToken()
-        const data = await api.get('/api/barangays/', token ?? undefined)
-        setBarangays(data.results ?? data)
-      } catch {}
-    }
-    fetchBarangays()
+    barangaysCache.refetch()
   }, [])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search])
+  }, [search, barangay, alertType, dateFilter])
 
   const handleRowClick = async (alert: Alert) => {
     setSelectedAlert(alert)
@@ -138,7 +135,7 @@ export default function Alerts() {
     try {
       const token = getAccessToken()
       await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {}, token ?? undefined)
-      setAlerts(prev => prev.map(a =>
+      activeAlerts.setData(prev => prev.map(a =>
         a.alert_id === alert.alert_id ? { ...a, is_read: true } : a
       ))
     } catch {}
@@ -147,7 +144,7 @@ export default function Alerts() {
   useWebSocket({
     path: "/ws/alerts/",
     onMessage: (newAlert) => {
-      setAlerts(prev => [newAlert, ...prev])
+      activeAlerts.setData(prev => [newAlert, ...prev])
     },
   })
 
@@ -232,7 +229,7 @@ return (
                     <TableCell colSpan={5} className="text-center py-40">
                       <div className="flex flex-col gap-3 p-3 flex-1 justify-center items-center">
                         <p className="text-[#D81010] font-semibold text-sm">Failed to load alerts. Please try again later.</p>
-                        <Button onClick={fetchAlerts} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                        <Button onClick={() => activeAlerts.refetch()} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                       </div>
                     </TableCell>
                   </TableRow>
