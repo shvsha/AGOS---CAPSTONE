@@ -21,7 +21,7 @@ export function ClogEventsSkeleton() {
         <div className="flex gap-3 w-full">
           <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-9 w-60">
             <FaSearch size={14} className="text-[#C6C6C8]" />
-            <input disabled placeholder="Search clog event..." className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] outline-none w-full" />
+            <input disabled suppressHydrationWarning placeholder="Search clog event..." className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] outline-none w-full" />
           </div>
 
           <Select value={barangay} onValueChange={setBarangay}>

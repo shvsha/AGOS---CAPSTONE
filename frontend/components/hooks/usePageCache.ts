@@ -14,6 +14,7 @@ export function usePageCache<T>(
   const cached = caches.get(key) as T | undefined
   const [data, setDataRaw] = useState<T>(cached ?? initial)
   const [loading, setLoading] = useState(cached === undefined)
+  const [error, setError] = useState(false)
 
   const setData = useCallback((update: T | ((prev: T) => T)) => {
     setDataRaw(prev => {
@@ -28,7 +29,10 @@ export function usePageCache<T>(
       const result = await fetcher()
       caches.set(key, result)
       setDataRaw(result)
+      setError(false)
       return result
+    } catch {
+      setError(true)
     } finally {
       setLoading(false)
     }
@@ -38,5 +42,5 @@ export function usePageCache<T>(
     if (autoFetch) refetch()
   }, [])
 
-  return { data, setData, loading, refetch }
+  return { data, setData, loading, error, refetch }
 }
