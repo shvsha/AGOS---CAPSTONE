@@ -26,7 +26,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { fetchWithAuth } from "@/lib/auth"
 
 // lib
-import { getDuration } from "@/lib/utils"
+import { usePageCache } from "@/components/hooks/usePageCache"
 import { exportPdf } from "@/lib/exportPDF"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 
@@ -79,6 +79,22 @@ const CATEGORY_LABELS: Record<string, string> = {
   After_Clearing: 'After',
 }
 
+// fetch raw data
+const fetchClogsRaw = async (): Promise<Clogs[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchBarangaysRaw = async () => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+
 export default function ClogEvents() {
   // filter states
   const [search, setSearch] = useState<string>('')
@@ -86,10 +102,13 @@ export default function ClogEvents() {
   const [severity, setSeverity] = useState<string>('All Severity')
 
   // table state
-  const [clogs, setClogs] = useState<Clogs[]>([])
-  const [allBarangays, setAllBarangays] = useState<{ barangay_id: number; barangay_name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const clogsCache = usePageCache('clogEvents:clogs', fetchClogsRaw, [] as Clogs[], { autoFetch: false })
+  const barangaysCache = usePageCache('clogEvents:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
+
+  const clogs = clogsCache.data
+  const allBarangays = barangaysCache.data
+  const loading = clogsCache.loading || barangaysCache.loading
+  const fetchError = clogsCache.error
 
   // selected clog state
   const [selectedClog, setSelectedClog] = useState<Clogs | null>(null)
@@ -116,47 +135,6 @@ export default function ClogEvents() {
   // summary cards
   const total = clogs.length
   const cleared = clogs.filter(n => n.status === 'Cleared').length
-  const avg_time = 0
-  const month_complete = 0
-
-  const fetchClogs = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const params = new URLSearchParams()
-      if (severity !== 'All Severity') params.append('severity', severity)
-
-      const query = params.toString()
-
-      const clogRes = await fetchWithAuth(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/${query ? `?${query}` : ''}`
-      )
-      if (!clogRes.ok) throw new Error()
-      const clogData = await clogRes.json()
-
-      setClogs(clogData.results ?? clogData)
-      setCurrentPage(1)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchClogs()
-  }, [severity])
-
-  const fetchBarangays = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllBarangays(data.results ?? data)
-    } catch {}
-  }
-
-  useEffect(() => { fetchBarangays() }, [])
 
   const fetchMedia = async () => {
     if (!selectedClog) {
@@ -173,19 +151,22 @@ export default function ClogEvents() {
     }
   }
 
-useEffect(() => { fetchMedia() }, [selectedClog])
+  useEffect(() => { fetchMedia() }, [selectedClog])
 
-  const fetchClogEventsData = useCallback(() => {
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      clogsCache.refetch(),
+      barangaysCache.refetch(),
+    ])
     fetchMedia()
-    fetchClogs()
-    fetchBarangays()
+    setCurrentPage(1)
   }, [])
 
   useEffect(() => {
-    fetchClogEventsData()
+    refetchAll()
   }, [])
 
-  usePolling(fetchClogEventsData, 30000)
+  usePolling(refetchAll, 30000)
 
   const handleExport = async () => {
     setExporting(true)
@@ -209,7 +190,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
   useWebSocket({
     path: "/ws/clog-events/",
     onMessage: (newClog) => {
-      setClogs(prev => [newClog, ...prev])
+      clogsCache.setData(prev => [newClog, ...prev])
     },
   })
 
@@ -307,7 +288,7 @@ useEffect(() => { fetchMedia() }, [selectedClog])
                       <TableCell colSpan={8} className="text-center py-38">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
                           <p className="text-[#D81010] font-semibold text-base">Failed to clog events. Please try again later.</p>
-                          <Button onClick={fetchClogs} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                          <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                         </div>
                       </TableCell>
                     </TableRow>

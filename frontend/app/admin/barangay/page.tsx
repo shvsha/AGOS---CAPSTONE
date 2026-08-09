@@ -32,6 +32,8 @@ import { TablePagination } from "@/components/TablePagination";
 import { DIALOG_COLOR } from "@/lib/constant";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import { usePageCache } from "@/components/hooks/usePageCache";
+
 
 type Barangay = {
   barangay_id: number
@@ -71,12 +73,25 @@ const openInGoogleMaps = (latitude: number, longitude: number) => {
   );
 };
 
+// fetch raw data
+const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
+  const token = getAccessToken()
+  const all = await api.get('/api/barangays/all/', token ?? undefined)
+  return (all.results ?? all).filter((b: Barangay) => b.barangay_name !== 'Admin')
+}
+
 
 export default function Barangay() {
   // us
-  const [barangays, setBarangays] = useState<Barangay[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+  const barangaysCache = usePageCache('barangay:barangays', fetchBarangaysRaw, [] as Barangay[], { autoFetch: false })
+
+  useEffect(() => {
+    barangaysCache.refetch()
+  }, [])
+
+  const barangays = barangaysCache.data
+  const loading = barangaysCache.loading
+  const fetchError = barangaysCache.error
 
   // filter states
   const [search, setSearch] = useState<string>('')
@@ -108,36 +123,14 @@ export default function Barangay() {
     issues: [],
   })
 
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
-
-  const fetchBarangay = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const token = getAccessToken()
-      const all = await api.get('/api/barangays/all/', token ?? undefined)
-      const filtered = (all.results ?? all).filter((b: Barangay) => b.barangay_name !== 'Admin')
-      setBarangays(filtered)
-      setAllBarangays(filtered)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchBarangay()
-  }, [])
-
   const filteredBarangay = getFilteredBarangay(barangays, search, statusFilter)
 
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, 7)
 
   // summary cards
-  const total = allBarangays.length
-  const registered = allBarangays.filter(b => b.is_registered).length
-  const unregistered = allBarangays.filter(b => !b.is_registered).length
+  const total = barangays.length
+  const registered = barangays.filter(b => b.is_registered).length
+  const unregistered = barangays.filter(b => !b.is_registered).length
 
   // handlers
   const handleRegisterClick = (b: Barangay) => {
@@ -165,10 +158,7 @@ export default function Barangay() {
     try {
       const token = getAccessToken()
       await api.patch(`/api/barangays/${b.barangay_id}/unregister/`, {}, token ?? undefined)
-      setBarangays(prev => prev.map(x =>
-        x.barangay_id === b.barangay_id ? { ...x, is_registered: false } : x
-      ))
-      setAllBarangays(prev => prev.map(x =>
+      barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: false } : x
       ))
       addToast(`${b.barangay_name} has been unregistered.`, 'success')
@@ -184,10 +174,7 @@ export default function Barangay() {
     try {
       const token = getAccessToken()
       await api.patch(`/api/barangays/${b.barangay_id}/register/`, {}, token ?? undefined)
-      setBarangays(prev => prev.map(x =>
-        x.barangay_id === b.barangay_id ? { ...x, is_registered: true } : x
-      ))
-      setAllBarangays(prev => prev.map(x =>
+      barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: true } : x
       ))
       addToast(`${b.barangay_name} has been registered.`, 'success')
@@ -264,7 +251,7 @@ export default function Barangay() {
                   <TableCell colSpan={5} className="text-center py-15">
                     <div className="flex flex-col justify-center items-center gap-3 py-20">
                       <p className="text-[#D81010] font-semibold text-base">Failed to load barangay. Please try again later.</p>
-                      <Button onClick={fetchBarangay} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                      <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -21,6 +21,7 @@ import { MonitoringSkeleton } from '@/components/Skeleton/Admin/MonitoringSkelet
 import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { usePageCache } from '@/components/hooks/usePageCache'
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -80,6 +81,21 @@ const ALERT_ICONS: Record<string, JSX.Element> = {
   Sensor_Failure:     <RadioTower size={18} />,
 }
 
+const fetchNodesRaw = async (): Promise<Nodes[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchAlertsRaw = async (): Promise<Alert[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+
 function getFilteredNode(nodes: Nodes[], condition: string, search: string) {
   const q = search.toLowerCase()
   return nodes
@@ -106,10 +122,11 @@ export default function Monitoring() {
   const [dateTime, setDateTime]   = useState<Date | null>(null)
 
   // table state
-  const [nodes, setNodes] = useState<Nodes[]>([])
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const nodes = usePageCache('monitoring:nodes', fetchNodesRaw, [] as Nodes[], { autoFetch: false })
+  const alerts = usePageCache('monitoring:alerts', fetchAlertsRaw, [] as Alert[], { autoFetch: false })
+
+  const loading = nodes.loading || alerts.loading
+  const fetchError = nodes.error || alerts.error
 
   // filter state
   const [search, setSearch] = useState('')
@@ -119,11 +136,11 @@ export default function Monitoring() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
-  const filtered = getFilteredNode(nodes, condition, search)
+  const filtered = getFilteredNode(nodes.data, condition, search)
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 5)
 
   // summary cards
-  const occupiedNodes = nodes
+  const occupiedNodes = nodes.data
     .filter(n => n.hotspot_details != null)
     .filter(n => n.availability_status === 'Occupied')
 
@@ -139,34 +156,7 @@ export default function Monitoring() {
     return () => clearInterval(interval)
   }, [])
 
-  // fetch nodes + alerts
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setFetchError(false)
-
-      const [nodesRes, alertsRes] = await Promise.all([
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`),
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/`),
-      ])
-
-      if (!nodesRes.ok || !alertsRes.ok) throw new Error()
-
-      const nodesData  = await nodesRes.json()
-      const alertsData = await alertsRes.json()
-
-      setNodes(nodesData.results ?? nodesData)
-      setAlerts(alertsData.results ?? alertsData)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchData() }, [])
-
-  const todayAlerts = alerts.filter(alert => {
+  const todayAlerts = alerts.data.filter(alert => {
     const alertDate = new Date(alert.timestamp)
     const today = new Date()
     return (
@@ -176,35 +166,32 @@ export default function Monitoring() {
     )
   })
 
-  const fetchAllMonitoringData = useCallback(() => {
-    fetchData()
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      nodes.refetch(),
+      alerts.refetch(),
+    ])
   }, [])
 
   useEffect(() => {
-    fetchAllMonitoringData()
+    refetchAll()
   }, [])
 
-  usePolling(fetchAllMonitoringData, 30000)
+  usePolling(refetchAll, 30000)
 
   useWebSocket({
     path: "/ws/alerts/",
     onMessage: (newAlert) => {
-      setAlerts(prev => [newAlert, ...prev])
+      alerts.setData(prev => [newAlert, ...prev])
     },
   })
 
   useWebSocket({
     path: "/ws/sensor-readings/",
     onMessage: (reading) => {
-      setNodes(prev => prev.map(node =>
+      nodes.setData(prev => prev.map(node =>
         node.node_id === reading.node_details.node_id
-          ? {
-              ...node,
-              water_level: reading.water_level,
-              water_flow_rate: reading.water_flow_rate,
-              clog_pct: reading.clog_pct,
-              condition: reading.reading_status,
-            }
+          ? { ...node, water_level: reading.water_level, water_flow_rate: reading.water_flow_rate, clog_pct: reading.clog_pct, condition: reading.reading_status }
           : node
       ))
     },
@@ -295,7 +282,7 @@ export default function Monitoring() {
                       <div className="flex flex-col items-center gap-3">
                         <p className="text-[#D81010] font-semibold">Failed to load node devices. Please try again later.</p>
                         <Button
-                          onClick={() => window.location.reload()}
+                          onClick={refetchAll}
                           className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
                         >
                           Retry
@@ -422,7 +409,7 @@ export default function Monitoring() {
                   <hr />
                   <div className='flex justify-between mt-2 font-semibold text-[#122A48]'>
                     <p>Total</p>
-                    <span>{nodes.length}</span>
+                    <span>{nodes.data.length}</span>
                   </div>
                 </div>
 
@@ -480,7 +467,7 @@ export default function Monitoring() {
           </DialogTitle>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
-              markers={nodes
+              markers={nodes.data
                 .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
                 .map(n => ({
                   latitude:  n.hotspot_details!.latitude,

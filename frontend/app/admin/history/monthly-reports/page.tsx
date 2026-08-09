@@ -19,10 +19,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 
 // lib
 import { fetchWithAuth } from "@/lib/auth";
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // icons
 import { FileText, Recycle, Leaf, Blocks, Eye, FileDown } from "lucide-react";
 
+// fetch raw data
+const fetchMunicipalReportsRaw = async (): Promise<MunicipalReport[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/municipal-reports/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
 
 // types
 type ReportUser = {
@@ -58,9 +66,16 @@ export default function MonthlyReports() {
   const router = useRouter()
   
   const [exporting, setExporting] = useState(false)
-  const [municipalReports, setMunicipalReports] = useState<MunicipalReport[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+
+  const reportsCache = usePageCache('monthlyReports:municipalReports', fetchMunicipalReportsRaw, [] as MunicipalReport[], { autoFetch:  false })
+
+  useEffect(() => {
+    reportsCache.refetch()
+  }, [])
+
+  const municipalReports = reportsCache.data
+  const loading = reportsCache.loading
+  const fetchError = reportsCache.error
   
   // filter states
   const [search, setSearch] = useState<string>('')
@@ -99,27 +114,6 @@ export default function MonthlyReports() {
   const totalRecyclable = municipalReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
   const totalBiodegredable = municipalReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
   const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + r.total_special_waste_kg, 0)
-
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setFetchError(false)
-
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/municipal-reports/`)
-      if (!res.ok) throw new Error("Failed to fetch data")
-
-      const data = await res.json()
-      setMunicipalReports(data.results ?? data)
-    } catch (error) {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
   
   if (loading) return <MonthlyReportsSkeleton/>
   
@@ -183,7 +177,7 @@ export default function MonthlyReports() {
                   <TableCell colSpan={4} className="text-center py-25">
                     <div className="flex flex-col justify-center items-center gap-3 py-20">
                       <p className="text-[#D81010] font-semibold text-base">Failed to load compiled barangay reports. Please try again later.</p>
-                      <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                      <Button onClick={() => reportsCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                     </div>
                   </TableCell>
                 </TableRow>

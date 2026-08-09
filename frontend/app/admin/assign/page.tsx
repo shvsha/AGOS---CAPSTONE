@@ -4,7 +4,7 @@
 import { RadioTower, BadgeCheck, CircleOff, Map, SquarePen, MapPinPlus, MapPinPen, MapPin, Navigation, Check, X, Unplug } from "lucide-react"
 
 // react
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,8 @@ import { Toast } from "@/components/Toast"
 import { DIALOG_COLOR } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
+import { usePageCache } from "@/components/hooks/usePageCache"
+
 
 type SensorNode = {
   node_id: number
@@ -68,23 +70,54 @@ type DialogState = {
   node?: SensorNode | null
 }
 
+// fetch raw data
+const fetchAssignedNodesRaw = async (): Promise<SensorNode[]> => {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/?availability_status=Occupied`
+  )
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchAllHotspotsRaw = async (): Promise<Hotspot[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+
 export default function NodeAssignment() {
-  const [assignedNodes, setAssignedNodes] = useState<SensorNode[]>([])
+  const assignedNodesCache = usePageCache('assign:assignedNodes', fetchAssignedNodesRaw, [] as SensorNode[], { autoFetch: false })
+  const assignedNodes = assignedNodesCache.data
+
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All Status')
-  const [fetchError, setFetchError] = useState(false)
-  const [loading, setLoading] = useState(true)
 
   // form state
   const [availableNodes, setAvailableNodes] = useState<AvailableNode[]>([])
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
-  const [allHotspots, setAllHotspots] = useState<Hotspot[]>([])
+  const barangaysCache = usePageCache('assign:barangays', fetchBarangaysRaw, [] as Barangay[], { autoFetch: false })
+  const allBarangays = barangaysCache.data
+  const allHotspotsCache = usePageCache('assign:allHotspots', fetchAllHotspotsRaw, [] as Hotspot[], { autoFetch: false })
+  const allHotspots = allHotspotsCache.data
+
   const [hotspots, setHotspots] = useState<Hotspot[]>([])
   const [selectedNode, setSelectedNode] = useState('')
   const [barangay, setBarangay] = useState('')
   const [hotspot, setHotspot] = useState('')
   const [installedAt, setInstalledAt] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const fetchError = assignedNodesCache.error || barangaysCache.error || allHotspotsCache.error
+  const loading = assignedNodesCache.loading || barangaysCache.loading || allHotspotsCache.loading
 
   const { toasts, addToast, removeToast } = useToast()
 
@@ -139,24 +172,6 @@ export default function NodeAssignment() {
     : allHotspotMarkers
 
   
-  // fetch
-  const fetchAssignedNodes = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const res = await fetchWithAuth(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/?availability_status=Occupied`
-      )
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAssignedNodes(data.results ?? data)
-      setCurrentPage(1)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const fetchAvailableNodes = async () => {
     try {
@@ -169,30 +184,17 @@ export default function NodeAssignment() {
     } catch {}
   }
 
-  useEffect(() => { fetchAssignedNodes() }, [statusFilter])
-
-  useEffect(() => {
-    const fetchBarangays = async () => {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setAllBarangays(data.results ?? data)
-      } catch {}
-    }
-    fetchBarangays()
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      assignedNodesCache.refetch(),
+      barangaysCache.refetch(),
+      allHotspotsCache.refetch(),
+    ])
+    setCurrentPage(1)
   }, [])
 
   useEffect(() => {
-    const fetchAllHotspots = async () => {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setAllHotspots(data.results ?? data)
-      } catch {}
-    }
-    fetchAllHotspots()
+    refetchAll()
   }, [])
 
   // Fetch available nodes when form opens for create
@@ -300,13 +302,13 @@ export default function NodeAssignment() {
     try {
       if (isEdit) {
         const updated = await api.patch(`/api/sensor-nodes/${assignFormDialog.node!.node_id}/`, payload)
-        setAssignedNodes(prev => prev.map(n =>
+        assignedNodesCache.setData(prev => prev.map(n =>
           n.node_id === assignFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
         addToast(`${assignFormDialog.node!.node_name} assignment updated.`, 'success')
       } else {
         const updated = await api.patch(`/api/sensor-nodes/${selectedNode}/`, payload)
-        setAssignedNodes(prev => [updated, ...prev])
+        assignedNodesCache.setData(prev => [updated, ...prev])
         addToast('Node has been assigned successfully.', 'success')
       }
       setAssignFormDialog({ open: false, node: null })
@@ -322,7 +324,7 @@ export default function NodeAssignment() {
     setUnassignDialog({ open: false, node: null })
     try {
       await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
-      setAssignedNodes(prev => prev.filter(n => n.node_id !== node.node_id))
+      assignedNodesCache.setData(prev => prev.filter(n => n.node_id !== node.node_id))
       addToast(`${node.node_name} has been unassigned.`, 'success')
     } catch (err: any) {
       addToast(err?.detail ?? 'Failed to unassign node.', 'error')
@@ -401,7 +403,7 @@ export default function NodeAssignment() {
                     <TableCell colSpan={8} className="text-center py-15">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load assignments. Please try again.</p>
-                        <Button onClick={fetchAssignedNodes} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -32,6 +32,7 @@ import { Toast } from "@/components/Toast"
 import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -111,14 +112,40 @@ async function fetchBarangayBoundary(barangayName: string): Promise<any | null> 
   return feature ?? null
 }
 
+// fetch raw data
+const fetchHotspotsRaw = async (): Promise<Hotspot[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchNodesRaw = async (): Promise<SensorNode[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
 
 export default function HotspotManagement() {
   // data
-  const [hotspots, setHotspots] = useState<Hotspot[]>([])
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
-  const [allNodes, setAllNodes] = useState<SensorNode[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const hotspotsCache = usePageCache('hotspots:hotspots', fetchHotspotsRaw, [] as Hotspot[], { autoFetch: false })
+  const barangaysCache = usePageCache('hotspots:barangays', fetchBarangaysRaw, [] as Barangay[], { autoFetch: false })
+  const nodesCache = usePageCache('hotspots:nodes', fetchNodesRaw, [] as SensorNode[], { autoFetch: false })
+
+  const hotspots = hotspotsCache.data
+  const allBarangays = barangaysCache.data
+  const allNodes = nodesCache.data
+  const loading = hotspotsCache.loading || barangaysCache.loading || nodesCache.loading
+  const fetchError = hotspotsCache.error || barangaysCache.error || nodesCache.error
   const [hotspotCode, setHotspotCode] = useState("")
 
   // filters
@@ -210,31 +237,17 @@ export default function HotspotManagement() {
   const occupied = hotspots.filter(h => h.is_occupied).length
   const available = hotspots.filter(h => !h.is_occupied).length
 
-  // fetch data
-  const fetchData = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const [hotspotRes, barangayRes, nodeRes] = await Promise.all([
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`),
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/`),
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`),
-      ])
-      if (!hotspotRes.ok || !barangayRes.ok || !nodeRes.ok) throw new Error()
-      const [hotspotData, barangayData, nodeData] = await Promise.all([
-        hotspotRes.json(), barangayRes.json(), nodeRes.json()
-      ])
-      setHotspots(hotspotData.results ?? hotspotData)
-      setAllBarangays(barangayData.results ?? barangayData)
-      setAllNodes(nodeData.results ?? nodeData)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      hotspotsCache.refetch(),
+      barangaysCache.refetch(),
+      nodesCache.refetch(),
+    ])
+  }, [])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    refetchAll()
+  }, [])
 
   useEffect(() => {
     if (formDialog.open) {
@@ -422,11 +435,11 @@ export default function HotspotManagement() {
     try {
       if (isEdit) {
         const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
-        setHotspots(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
+        hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
         addToast(`${updated.name} has been updated.`, "success")   // was: ${hotspotName}
       } else {
         const created = await api.post("/api/hotspots/", payload)
-        setHotspots(prev => [created, ...prev])
+        hotspotsCache.setData(prev => [created, ...prev])
         addToast(`${created.name} has been added.`, "success")
       }
       setFormDialog({ open: false, hotspot: null })
@@ -459,7 +472,7 @@ export default function HotspotManagement() {
     setDeleteDialog({ open: false, hotspot: null })
     try {
       await api.delete(`/api/hotspots/${h.hotspot_id}/`)
-      setHotspots(prev => prev.filter(x => x.hotspot_id !== h.hotspot_id))
+      hotspotsCache.setData(prev => prev.filter(x => x.hotspot_id !== h.hotspot_id))
       addToast(`${h.name} has been remove.`, "success")
     } catch (err: any) {
       addToast(err?.detail ?? "Failed to remove hotspot.", "error")
@@ -537,7 +550,7 @@ export default function HotspotManagement() {
                     <TableCell colSpan={4} className="text-center py-15">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load hotspots. Please try again later.</p>
-                        <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                       </div>
                     </TableCell>
                   </TableRow>

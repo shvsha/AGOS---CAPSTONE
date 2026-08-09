@@ -12,6 +12,7 @@ import { WasteSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/Waste
 // lib
 import { exportPdf } from "@/lib/exportPDF"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // react
 import { useEffect, useState, useCallback } from "react"
@@ -49,6 +50,28 @@ type WasteClassification = {
   special_waste_pct: number
 }
 
+// fetch raw data
+const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchBarangaysRaw = async () => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchSensorNodesRaw = async () => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
 
 export default function Waste() {
   // filter states
@@ -58,11 +81,15 @@ export default function Waste() {
   const [sensorNode, setSensorNode] = useState<string>('All Nodes')
 
   // waste classification state
-  const [wasteClassification, setWasteClassification] = useState<WasteClassification[]>([])
-  const [allBarangays, setAllBarangays] = useState<{ barangay_id: number; barangay_name: string }[]>([])
-  const [allSensorNodes, setAllSensorNodes] = useState<{ node_id: number; node_name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const wasteCache = usePageCache('waste:classifications', fetchWasteRaw, [] as WasteClassification[], { autoFetch: false })
+  const barangaysCache = usePageCache('waste:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
+  const sensorNodesCache = usePageCache('waste:sensorNodes', fetchSensorNodesRaw, [] as { node_id: number; node_name: string }[], { autoFetch: false })
+
+  const wasteClassification = wasteCache.data
+  const allBarangays = barangaysCache.data
+  const allSensorNodes = sensorNodesCache.data
+  const loading = wasteCache.loading || barangaysCache.loading || sensorNodesCache.loading
+  const fetchError = wasteCache.error
 
   const [selectedWaste, setSelectedWaste] = useState<WasteClassification | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -90,59 +117,20 @@ export default function Waste() {
     const recyclable = wasteClassification.filter(n => n.dominant_waste_type === 'Recyclable').length
     const residual_others = wasteClassification.filter(n => n.dominant_waste_type === 'Residual' || n.dominant_waste_type === 'Special Waste').length
 
-    // fetch waste classifications
-    const fetchWaste = async () => {
-      setLoading(true)
-      setFetchError(false)
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        console.log('waste data:', JSON.stringify(data.results ?? data, null, 2))
-        setWasteClassification(data.results ?? data)
-      } catch {
-        setFetchError(true)
-      } finally {
-        setLoading(false)
-      }
-    }
 
-    useEffect(() => {
-      fetchWaste()
-    }, [])
-
-  const fetchBarangays = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllBarangays(data.results ?? data)
-    } catch {}
-  }
-
-  const fetchSensorNodes = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllSensorNodes(data.results ?? data)
-    } catch {}
-  }
-
-  useEffect(() => { fetchBarangays() }, [])
-  useEffect(() => { fetchSensorNodes() }, [])
-
-  const fetchWasteClassificationData = useCallback(() => {
-    fetchWaste()
-    fetchBarangays()
-    fetchSensorNodes()
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      wasteCache.refetch(),
+      barangaysCache.refetch(),
+      sensorNodesCache.refetch(),
+    ])
   }, [])
 
   useEffect(() => {
-    fetchWasteClassificationData()
+    refetchAll()
   }, [])
 
-  usePolling(fetchWasteClassificationData, 30000)
+  usePolling(refetchAll, 30000)
 
   const handleExport = async () => {
     setExporting(true)
@@ -167,7 +155,7 @@ export default function Waste() {
   useWebSocket({
     path: "/ws/waste-classification/",
     onMessage: (newWaste) => {
-      setWasteClassification(prev => [newWaste, ...prev])
+      wasteCache.setData(prev => [newWaste, ...prev])
     },
   })
 
@@ -283,7 +271,7 @@ export default function Waste() {
                       <TableCell colSpan={7} className="text-center py-15">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
                           <p className="text-[#D81010] font-semibold text-base">Failed to load waste classifications. Please try again later.</p>
-                          <Button onClick={fetchWaste} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                          <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                         </div>
                       </TableCell>
                     </TableRow>

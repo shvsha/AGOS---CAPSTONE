@@ -28,6 +28,7 @@ import { DIALOG_COLOR } from "@/lib/constant";
 import { ROLE_DISPLAY } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import { usePageCache } from "@/components/hooks/usePageCache";
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -68,6 +69,14 @@ function getFilteredUsers(users: User[], role: string, status: string, search: s
     .sort((a, b) => b.user_id - a.user_id)
 }
 
+// fetch raw data
+const fetchUsersRaw = async (): Promise<User[]> => {
+    const token = getAccessToken()
+  const data = await api.get('/api/users/', token ?? undefined)
+  return (data.results as User[]).filter(u => u.user_role !== 'Admin')
+}
+
+
 export default function Users() {
   const router = useRouter()
 
@@ -85,10 +94,16 @@ export default function Users() {
   // toast
   const {toasts, addToast, removeToast } = useToast()
 
+  const usersCache = usePageCache('users:users', fetchUsersRaw, [] as User[], { autoFetch: false })
+
+  useEffect(() => {
+    usersCache.refetch()
+  }, [])
+
   // table states
-  const [users, setUsers]     = useState<User[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+  const users = usersCache.data
+  const loading = usersCache.loading
+  const fetchError = usersCache.error
 
   // dialog states
   const [reactivateDialog, setReactivateDialog] = useState<DialogState>({
@@ -99,27 +114,6 @@ export default function Users() {
     open: false,
     user: null,
   })
-
-  const fetchUsers = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const token = getAccessToken()
-      const [data] = await Promise.all([
-        api.get('/api/users/', token ?? undefined),
-        new Promise(resolve => setTimeout(resolve, 800)) // minimum 800ms
-      ])
-      setUsers((data.results as User[]).filter(u => u.user_role !== 'Admin'))
-    } catch (err) {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchUsers()
-  }, [])
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
 
@@ -140,7 +134,7 @@ export default function Users() {
       const token = getAccessToken()
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' }, token ?? undefined)
       addToast(`${user.first_name} ${user.last_name} has been activated.`)
-      setUsers(prev =>
+      usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
             ? { ...u, status: "Active" }
@@ -161,7 +155,7 @@ export default function Users() {
       const token = getAccessToken()
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' }, token ?? undefined)
       addToast(`${user.first_name} ${user.last_name} has been deactivated.`)
-      setUsers(prev =>
+      usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
             ? { ...u, status: "Inactive" }
@@ -269,7 +263,7 @@ export default function Users() {
                     <TableCell colSpan={5} className="text-center py-15">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load users. Please try again later.</p>
-                        <Button onClick={fetchUsers} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                        <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -488,7 +482,7 @@ export default function Users() {
           {fetchError ? (
             <div className="flex flex-col justify-center items-center text-center gap-3 py-25">
               <p className="text-[#D81010] font-semibold text-xs">Failed to load users. <br/> Please try again later.</p>
-              <Button onClick={fetchUsers} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
             </div>
   
           /* empty */

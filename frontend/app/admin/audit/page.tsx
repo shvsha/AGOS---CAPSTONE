@@ -14,6 +14,7 @@ import { usePolling } from "@/components/hooks/usePolling"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { AuditSkeleton } from "@/components/Skeleton/Admin/AuditSkeleton"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 
 const affectedTableLabels: Record<string, string> = {
@@ -25,7 +26,7 @@ const affectedTableLabels: Record<string, string> = {
   tbl_alerts: 'Alerts',
   tbl_alert_reads: 'Alert Reads',
   tbl_waste_classification: 'Waste Classification',
-  tbl_clog_events: 'CLOG Events',
+  tbl_clog_events: 'Clog Events',
   tbl_barangay_monthly_report: 'Barangay Monthly Reports',
   tbl_municipal_monthly_report: 'Municipal Monthly Reports',
   tbl_report_media: 'Report Media',
@@ -69,8 +70,22 @@ type AuditLog = {
   timestamp: string
 }
 
+// fetch raw data
+const fetchAuditsRaw = async (): Promise<AuditLog[]> => {
+  const res = await api.get('/api/audit-logs/')
+  const data = res.results ?? res
+  return Array.isArray(data) ? data : []
+}
+
+
 export default function Audit() {
-  const [audits, setAudits] = useState<AuditLog[]>([])
+  const auditsCache = usePageCache('audit:audits', fetchAuditsRaw, [] as AuditLog[], { autoFetch: false })
+
+  useEffect(() => {
+    auditsCache.refetch()
+  }, [])
+
+  const audits = auditsCache.data
   const [search, setSearch] = useState<string>('')
   
   // Date State
@@ -78,8 +93,8 @@ export default function Audit() {
   const [endDate, setEndDate] = useState<string>('')
   const [isOpen, setIsOpen] = useState<boolean>(false)
   
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+  const loading = auditsCache.loading
+  const fetchError = auditsCache.error
 
   const [exporting, setExporting] = useState(false)
   
@@ -145,37 +160,11 @@ export default function Audit() {
 
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 14)
 
-  const fetchAudits = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const res = await api.get('/api/audit-logs/')
-      const data = res.results ?? res
-      setAudits(Array.isArray(data) ? data : [])
-    } catch (err) {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchAudits()
-  }, [])
-
   useEffect(() => {
     setCurrentPage(1)
   }, [search, startDate, endDate, setCurrentPage])
 
-  const fetchAuditLogsData = useCallback(() => {
-    fetchAudits()
-  }, [])
-
-  useEffect(() => {
-    fetchAuditLogsData()
-  }, [])
-
-  usePolling(fetchAuditLogsData, 30000)
+  usePolling(async () => { await auditsCache.refetch() }, 30000)
 
   // Generate dynamic button label text 
   const dateLabel = useMemo(() => {
@@ -193,7 +182,7 @@ export default function Audit() {
 
       {/* Toolbar */}
       <div className="w-full flex gap-2 items-end items-center justify-between ">
-        <SearchFilter value={search} onChange={setSearch} placeholder='Search audit logs...' suppressHydrationWarning width="w-150" height="h-9" />
+        <SearchFilter value={search} onChange={setSearch} placeholder='Search audit logs...' width="w-150" height="h-9" />
         
         {/* Dropdown Container */}
         <div className="relative flex gap-2" ref={dropdownRef} >
@@ -277,7 +266,17 @@ export default function Audit() {
             <TableBody>
               {fetchError ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-red-600">Failed to load audit logs.</TableCell>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <div className="flex flex-col items-center gap-3">
+                      <p className="text-[#D81010] font-semibold">Failed to load audit logs.</p>
+                      <Button
+                        onClick={() => auditsCache.refetch()}
+                        className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ) : filteredAudits.length === 0 ? (
                 <TableRow>

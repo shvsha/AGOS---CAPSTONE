@@ -5,7 +5,7 @@ import { FaPlus } from "react-icons/fa"
 import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff } from "lucide-react"
 
 // react
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,7 @@ import { usePagination } from "@/components/hooks/usePagination"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { NodeSkeleton } from "@/components/Skeleton/Admin/NodeSkeleton"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // toast
 import { useToast } from "@/components/hooks/useToast"
@@ -61,14 +62,35 @@ type SensorReading = {
 }
 
 
+
+
 export default function NodeManagement() {
-  const [sensorNodes, setSensorNodes] = useState<SensorNode[]>([])
+  // fetch raw data
+  const fetchNodesRaw = async (): Promise<SensorNode[]> => {
+    const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    return data.results ?? data
+  }
+
+  const nodesCache = usePageCache('node:sensorNodes', fetchNodesRaw, [] as SensorNode[], { autoFetch: false })
+
+  const refetchAll = useCallback(async () => {
+    await nodesCache.refetch()
+    setCurrentPage(1)
+  }, [])
+
+  useEffect(() => {
+    refetchAll()
+  }, [])
+
+  const sensorNodes = nodesCache.data
   const [nodeCode, setNodeCode] = useState('')
   const [search, setSearch] = useState('')
   const [availabilityFilter, setAvailabilityFilter] = useState('All Status')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const loading = nodesCache.loading
+  const fetchError = nodesCache.error
 
   // readings state
   const [readingsDialog, setReadingsDialog] = useState<DialogState>({ open: false, node: null })
@@ -104,23 +126,6 @@ export default function NodeManagement() {
   const available = sensorNodes.filter(n => n.availability_status === 'Available').length
   const occupied  = sensorNodes.filter(n => n.availability_status === 'Occupied').length
 
-  const fetchNodes = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setSensorNodes(data.results ?? data)
-      setCurrentPage(1)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchNodes() }, [])
 
   useEffect(() => {
     if (nodeFormDialog.node) {
@@ -209,13 +214,13 @@ export default function NodeManagement() {
     try {
       if (isEdit) {
         const updated = await api.patch(`/api/sensor-nodes/${nodeFormDialog.node!.node_id}/`, payload)
-        setSensorNodes(prev => prev.map(n =>
+        nodesCache.setData(prev => prev.map(n =>
           n.node_id === nodeFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
         addToast(`${updated.node_name} has been updated.`, 'success') 
       } else {
         const created = await api.post('/api/sensor-nodes/', payload)
-        setSensorNodes(prev => [created, ...prev])
+        nodesCache.setData(prev => [created, ...prev])
         addToast(`${created.node_name} has been added.`, 'success')
       }
       setNodeFormDialog({ open: false, node: null })
@@ -234,7 +239,7 @@ export default function NodeManagement() {
     setUnassignDialog({ open: false, node: null })
     try {
       await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
-      setSensorNodes(prev => prev.map(n =>
+      nodesCache.setData(prev => prev.map(n =>
         n.node_id === node.node_id
           ? { ...n, availability_status: 'Available', status: 'Active' }
           : n
@@ -249,7 +254,7 @@ export default function NodeManagement() {
     setDecommissionDialog({ open: false, node: null })
     try {
       await api.patch(`/api/sensor-nodes/${node.node_id}/`, { availability_status: 'Retired' })
-      setSensorNodes(prev => prev.map(n =>
+      nodesCache.setData(prev => prev.map(n =>
         n.node_id === node.node_id
           ? { ...n, availability_status: 'Retired' }
           : n
@@ -331,7 +336,7 @@ export default function NodeManagement() {
                     <TableCell colSpan={4} className="text-center py-15">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load nodes. Please try again.</p>
-                        <Button onClick={fetchNodes} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                       </div>
                     </TableCell>
                   </TableRow>

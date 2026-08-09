@@ -5,9 +5,10 @@ import { SearchFilter } from "@/components/SearchFilter"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
 import { fetchWithAuth } from "@/lib/auth"
 import { BarangayReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/BarangayReportsSkeleton"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 // react
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useCallback} from "react"
 import { useRouter } from "next/navigation"
 
 // icons
@@ -81,6 +82,22 @@ type BarangayReports = {
   media: ReportMedia[]
 }
 
+// fetch raw data
+const fetchAllBarangaysRaw = async (): Promise<Barangay[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchBarangayReportsRaw = async (): Promise<BarangayReports[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/?status=Reviewed`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+
 const formatReportMonth = (date: string) =>
   new Date(date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
 
@@ -90,7 +107,8 @@ export default function BarangayReports() {
   // filter states
   const [search, setSearch] = useState<string>('')
   const [filterBarangay, setFilterBarangay] = useState<string>('All')
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
+  const barangaysCache = usePageCache('barangayReports:barangays', fetchAllBarangaysRaw, [] as Barangay[], { autoFetch: false })
+  const allBarangays = barangaysCache.data
 
   // Month/Year filter state
   const now = new Date()
@@ -111,9 +129,10 @@ export default function BarangayReports() {
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
 
   // data states
-  const [barangayReports, setBarangayReports] = useState<BarangayReports[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const reportsCache = usePageCache('barangayReports:reports', fetchBarangayReportsRaw, [] as BarangayReports[], { autoFetch: false })
+  const barangayReports = reportsCache.data
+  const loading = barangaysCache.loading || reportsCache.loading
+  const fetchError = barangaysCache.error || reportsCache.error
 
   function getFilteredBarangayReports(
     barangay_reports: BarangayReports[],
@@ -141,28 +160,17 @@ export default function BarangayReports() {
   const totalBiodegredable = barangayReports.reduce((sum, r) => sum + r.biodegradable_kg, 0)
   const totalResidualOthers = barangayReports.reduce((sum, r) => sum + r.residual_waste_kg + r.special_waste_kg, 0)
 
-  // fetch data
-  const fetchData = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      const [barangaysRes, reportsRes] = await Promise.all([
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`),
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/?status=Reviewed`),
-      ])
-      if (!barangaysRes.ok || !reportsRes.ok) throw new Error()
-      const barangays = await barangaysRes.json()
-      const reports = await reportsRes.json()
-      setAllBarangays(barangays.results ?? barangays)
-      setBarangayReports(reports.results ?? reports)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      barangaysCache.refetch(),
+      reportsCache.refetch(),
+    ])
+  }, [])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    refetchAll()
+  }, [])
+
 
   if (loading) return <BarangayReportsSkeleton/>
 
@@ -272,7 +280,7 @@ export default function BarangayReports() {
                   <TableCell colSpan={5} className="text-center py-25">
                     <div className="flex flex-col justify-center items-center gap-3 py-20">
                       <p className="text-[#D81010] font-semibold text-base">Failed to load barangay reports. Please try again later.</p>
-                      <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                      <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                     </div>
                   </TableCell>
                 </TableRow>
