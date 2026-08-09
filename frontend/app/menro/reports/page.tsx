@@ -18,6 +18,8 @@ import { FileDown, FileText, Eye } from "lucide-react"
 import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
 import { ReportsSkeleton } from "@/components/Skeleton/Menro/ReportsSkeleton"
+import { usePageCache } from "@/components/hooks/usePageCache"
+
 
 // types
 type ReportUser = {
@@ -39,13 +41,25 @@ type MunicipalReport = {
 const formatReportMonth = (date: string) =>
   new Date(date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
 
+
+// fetch raw data
+const fetchMunicipalReportsRaw = async (): Promise<MunicipalReport[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/municipal-reports/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+
 export default function Reports() {
   const router = useRouter()
+  
+  const reportsCache = usePageCache('menroReports:municipalReports', fetchMunicipalReportsRaw, [] as MunicipalReport[], { autoFetch: false })
 
   const [exporting, setExporting] = useState(false)
-  const [municipalReports, setMunicipalReports] = useState<MunicipalReport[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+  const municipalReports = reportsCache.data
+  const loading = reportsCache.loading
+  const fetchError = reportsCache.error
 
   const getMonthOptions = () => {
     const months = []
@@ -71,28 +85,13 @@ export default function Reports() {
 
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredReports, 6)
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setFetchError(false)
-
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/municipal-reports/`)
-      if (!res.ok) throw new Error("Failed to fetch data")
-
-      const data = await res.json()
-      setMunicipalReports(data.results ?? data)
-    } catch (error) {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
     const role = getUserRole()
-    if (role === "MENRO_Staff") router.replace("/menro/barangay-reports")
-
-    fetchData()
+    if (role === "MENRO_Staff") {
+      router.replace("/menro/barangay-reports")
+      return
+    }
+    reportsCache.refetch()
   }, [])
 
   if (loading) return <ReportsSkeleton/>
@@ -141,7 +140,7 @@ export default function Reports() {
                     <TableCell colSpan={4} className="text-center py-35">
                       <div className="flex flex-col justify-center items-center gap-3 py-20">
                         <p className="text-[#D81010] font-semibold text-base">Failed to load municipal reports. Please try again later.</p>
-                        <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                        <Button onClick={() => reportsCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                       </div>
                     </TableCell>
                   </TableRow>

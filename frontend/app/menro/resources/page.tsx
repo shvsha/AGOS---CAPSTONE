@@ -21,6 +21,7 @@ import { ResourcesSkeleton } from "@/components/Skeleton/Menro/ResourcesSkeleton
 // lib
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePolling } from "@/components/hooks/usePolling"
+import { usePageCache } from "@/components/hooks/usePageCache";
 
 
 type Hotspots = {
@@ -152,18 +153,59 @@ const getClogRankLevel = (clogPct: number | null) => {
   return { label: "LOW", color: "bg-[#2C7B3C]", action: "MONITOR CLOSELY" }
 }
 
+// fetch raw data
+const fetchSensorNodeRaw = async (): Promise<SensorNode[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchReadingsRaw = async (): Promise<SensorReadings[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchHotspotsRaw = async (): Promise<Hotspots[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchClogsRaw = async (): Promise<Clogs[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
 
 
 export default function Resources() {
   // fetch data states
-  const [allSensorNodes, setAllSensorNodes] = useState<SensorNode[]>([])
-  const [allReadings, setAllReadings] = useState<SensorReadings[]>([])
-  const [allHotspots, setAllHotspots] = useState<Hotspots[]>([])
-  const [allWasteClassification, setAllWasteClassification] = useState<WasteClassification[]>([])
-  const [allClogs, setAllClogs] = useState<Clogs[]>([])
+  const sensorNodesCache = usePageCache('menroResources:sensorNodes', fetchSensorNodeRaw, [] as SensorNode[], { autoFetch: false })
+  const readingsCache = usePageCache('menroResources:readings', fetchReadingsRaw, [] as SensorReadings[], { autoFetch: false })
+  const hotspotsCache = usePageCache('menroResources:hotspots', fetchHotspotsRaw, [] as Hotspots[], { autoFetch: false })
+  const wasteCache = usePageCache('menroResources:waste', fetchWasteRaw, [] as WasteClassification[], { autoFetch: false })
+  const clogsCache = usePageCache('menroResources:clogs', fetchClogsRaw, [] as Clogs[], { autoFetch: false })
 
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const allSensorNodes = sensorNodesCache.data
+  const allReadings = readingsCache.data
+  const allHotspots = hotspotsCache.data
+  const allWasteClassification = wasteCache.data
+  const allClogs = clogsCache.data
+
+  const loading = sensorNodesCache.loading || readingsCache.loading || hotspotsCache.loading || wasteCache.loading || clogsCache.loading
+  const fetchError = sensorNodesCache.error || readingsCache.error || hotspotsCache.error || wasteCache.error || clogsCache.error
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
 
@@ -227,51 +269,6 @@ export default function Resources() {
     }
   })
 
-  // fetch of data
-  const fetchSensorNode = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllSensorNodes(data.results ?? data)
-    } catch {}
-  }
-
-  const fetchReadings = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/`)
-      if (!res.ok) throw new Error()
-        const data = await res.json()
-      setAllReadings(data.results ?? data)
-    } catch {}
-  }
-
-  const fetchHotspots = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllHotspots(data.results ?? data)
-    } catch {}
-  }
-
-  const fetchWaste = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllWasteClassification(data.results ?? data)
-    } catch {}
-  }
-
-  const fetchClogs = async () => {
-    try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setAllClogs(data.results ?? data)
-    } catch {}
-  }
 
   // summary cards
   const totalSensorNodes = allSensorNodes.length
@@ -294,13 +291,12 @@ export default function Resources() {
 
   const fetchAllResourceData = useCallback(async () => {
     await Promise.allSettled([
-      fetchSensorNode(),
-      fetchReadings(),
-      fetchHotspots(),
-      fetchWaste(),
-      fetchClogs(),
+      sensorNodesCache.refetch(),
+      readingsCache.refetch(),
+      hotspotsCache.refetch(),
+      wasteCache.refetch(),
+      clogsCache.refetch(),
     ])
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -312,21 +308,21 @@ export default function Resources() {
   useWebSocket({
     path: "/ws/waste-classification/",
     onMessage: (newWaste) => {
-      setAllWasteClassification(prev => [newWaste, ...prev])
+      wasteCache.setData(prev => [newWaste, ...prev])
     },
   })
 
   useWebSocket({
     path: "/ws/sensor-readings/",
     onMessage: (reading) => {
-      setAllReadings(prev => [reading, ...prev])
+      readingsCache.setData(prev => [reading, ...prev])
     },
   })
 
   useWebSocket({
     path: "/ws/clog-events/",
     onMessage: (newClog) => {
-      setAllClogs(prev => [newClog, ...prev])
+      clogsCache.setData(prev => [newClog, ...prev])
     },
   })
 
@@ -458,7 +454,7 @@ export default function Resources() {
                           </p>
 
                           <Button
-                            onClick={fetchWaste}
+                            onClick={fetchAllResourceData}
                             className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
                           >
                             Retry
@@ -668,7 +664,7 @@ export default function Resources() {
                           </p>
 
                           <Button
-                            onClick={fetchWaste}
+                            onClick={fetchAllResourceData}
                             className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
                           >
                             Retry

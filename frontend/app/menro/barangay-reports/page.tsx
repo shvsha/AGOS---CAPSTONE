@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 
 // lib
@@ -18,6 +18,7 @@ import { FileDown, FileText, Eye } from "lucide-react"
 import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
 import { BarangayReportsSkeleton } from "@/components/Skeleton/Menro/BarangayReportsSkeleton"
+import { usePageCache } from "@/components/hooks/usePageCache"
 
 
 // types
@@ -83,17 +84,35 @@ const formatReportMonth = (date: string) => {
   })
 }
 
+// fetch raw data
+const fetchAllBarangaysRaw = async (): Promise<Barangay[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchBarangayReportsRaw = async (): Promise<BarangayMonthlyReport[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
 
 export default function BarangayReports() {
   const router = useRouter()
 
+  const barangaysCache = usePageCache('menroBarangayReports:barangays', fetchAllBarangaysRaw, [] as Barangay[], { autoFetch: false })
+  const reportsCache = usePageCache('menroBarangayReports:reports', fetchBarangayReportsRaw, [] as BarangayMonthlyReport[], { autoFetch: false })
+
   // us
   const [exporting, setExporting] = useState(false)
 
-  const [barangayReports, setBarangayReports] = useState<BarangayMonthlyReport[]>([])
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [fetchError, setFetchError] = useState<boolean>(false)
+  const barangayReports = reportsCache.data
+  const allBarangays = barangaysCache.data
+  const loading = barangaysCache.loading || reportsCache.loading
+  const fetchError = barangaysCache.error || reportsCache.error
 
   const getMonthOptions = () => {
     const months = []
@@ -132,37 +151,20 @@ export default function BarangayReports() {
 
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredReports, 6)
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setFetchError(false)
-
-      const [barangaysRes, reportsRes] = await Promise.all([
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`),
-        fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`),
-      ])
-
-      if (!barangaysRes.ok || !reportsRes.ok) {
-        throw new Error("Failed to fetch data")
-      }
-      const barangays = await barangaysRes.json()
-      const reports = await reportsRes.json()
-
-      setAllBarangays(barangays.results ?? barangays)
-      setBarangayReports(reports.results ?? reports)
-
-    } catch (error) {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const refetchAll = useCallback(async () => {
+    await Promise.allSettled([
+      barangaysCache.refetch(),
+      reportsCache.refetch(),
+    ])
+  }, [])
 
   useEffect(() => {
     const role = getUserRole()
-    if (role === "MENRO") router.replace("/menro/reports")
-
-    fetchData()
+    if (role === "MENRO") {
+      router.replace("/menro/reports")
+      return
+    }
+    refetchAll()
   }, [])
 
   if (loading) return <BarangayReportsSkeleton/>    
@@ -267,7 +269,7 @@ export default function BarangayReports() {
                       <TableCell colSpan={5} className="text-center py-35">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
                           <p className="text-[#D81010] font-semibold text-base">Failed to load barangay reports. Please try again later.</p>
-                          <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                          <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                         </div>
                       </TableCell>
                     </TableRow>

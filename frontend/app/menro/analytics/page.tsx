@@ -28,6 +28,7 @@ import { AnalyticsSkeleton } from "@/components/Skeleton/Menro/AnalyticsSkeleton
 import { exportPdf } from "@/lib/exportPDF"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePolling } from "@/components/hooks/usePolling"
+import { usePageCache } from "@/components/hooks/usePageCache";
 
 
 type WasteClassification = {
@@ -51,14 +52,56 @@ type WasteClassification = {
   special_waste_pct: number
 }
 
+// fetch raw data
+const fetchBarangaysRaw = async () => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
+const fetchSensorNodesRaw = async () => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
 
 export default function Analytics() {
   // waste classification state
-  const [wasteClassification, setWasteClassification] = useState<WasteClassification[]>([])
-  const [allBarangays, setAllBarangays] = useState<{ barangay_id: number; barangay_name: string }[]>([])
-  const [allSensorNodes, setAllSensorNodes] = useState<{ node_id: number; node_name: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
+  const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
+    let url: string | null =
+      `${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?month=${selectedMonth}&page_size=100`
+    let all: WasteClassification[] = []
+
+    while (url) {
+      const res = await fetchWithAuth(url)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+
+      if (Array.isArray(data)) {
+        all = data
+        url = null
+      } else {
+        all = all.concat(data.results ?? [])
+        url = data.next
+      }
+    }
+
+    return all
+  }
+
+  const barangaysCache = usePageCache('menroAnalytics:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
+  const sensorNodesCache = usePageCache('menroAnalytics:sensorNodes', fetchSensorNodesRaw, [] as { node_id: number; node_name: string }[], { autoFetch: false })
+  const wasteCache = usePageCache('menroAnalytics:waste', fetchWasteRaw, [] as WasteClassification[], { autoFetch: false })
+
+  const wasteClassification = wasteCache.data
+  const allBarangays = barangaysCache.data
+  const allSensorNodes = sensorNodesCache.data
+  const loading = wasteCache.loading || barangaysCache.loading || sensorNodesCache.loading
+  const fetchError = wasteCache.error
+
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
@@ -120,60 +163,6 @@ export default function Analytics() {
     { name: "Special Waste", value: totalSpecialWaste, color: "#E87C7C" },
   ]
 
-  const fetchWaste = async () => {
-    setLoading(true)
-    setFetchError(false)
-    try {
-      let url: string | null =
-        `${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?month=${selectedMonth}&page_size=100`
-      let all: WasteClassification[] = []
-
-      while (url) {
-        const res = await fetchWithAuth(url)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-
-        if (Array.isArray(data)) {
-          all = data
-          url = null
-        } else {
-          all = all.concat(data.results ?? [])
-          url = data.next
-        }
-      }
-
-      setWasteClassification(all)
-    } catch {
-      setFetchError(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    const fetchBarangays = async () => {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setAllBarangays(data.results ?? data)
-      } catch {}
-    }
-    fetchBarangays()
-  }, [])
-
-  useEffect(() => {
-    const fetchSensorNodes = async () => {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setAllSensorNodes(data.results ?? data)
-      } catch {}
-    }
-    fetchSensorNodes()
-  }, [])
-
   const handleExport = async () => {
     setExporting(true)
     try {
@@ -189,22 +178,23 @@ export default function Analytics() {
     }
   }
 
-  const fetchAnalyticsData = useCallback(() => {
-    fetchWaste()
+  useEffect(() => {
+    wasteCache.refetch()
   }, [selectedMonth])
 
   useEffect(() => {
-    fetchAnalyticsData()
-  }, [fetchAnalyticsData])
+    barangaysCache.refetch()
+    sensorNodesCache.refetch()
+  }, [])
 
-  usePolling(fetchAnalyticsData, 30000)
+  usePolling(async () => { await wasteCache.refetch() }, 30000) 
 
-  useWebSocket({
+useWebSocket({
     path: "/ws/waste-classification/",
     onMessage: (newWaste) => {
       const wasteMonth = newWaste.timestamp.slice(0, 7) // "YYYY-MM"
       if (wasteMonth === selectedMonth) {
-        setWasteClassification(prev => [newWaste, ...prev])
+        wasteCache.setData(prev => [newWaste, ...prev])
       }
     },
   })
@@ -377,7 +367,7 @@ export default function Analytics() {
                       <TableCell colSpan={10} className="text-center py-15">
                         <div className="flex flex-col justify-center items-center gap-3 py-20">
                           <p className="text-[#D81010] font-semibold text-base">Failed to load waste classifications. Please try again later.</p>
-                          <Button onClick={fetchWaste} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                          <Button onClick={() => wasteCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
                         </div>
                       </TableCell>
                     </TableRow>
