@@ -42,6 +42,7 @@ function AuthGate() {
       <Stack.Screen name="change-password" options={{ headerShown: false }} />
       <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
       <Stack.Screen name="clog-details" options={{ headerShown: false }} />
+      <Stack.Screen name="user-manual" options={{ headerShown: false }} />
     </Stack>
   );
 }

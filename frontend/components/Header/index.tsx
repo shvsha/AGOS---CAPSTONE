@@ -50,7 +50,7 @@ const pageTitles: Record<string, string> = {
   "/admin/health": "Sensor Nodes Health",
   "/admin/audit": "System Audit Logs",
   "/admin/settings": "Settings",
-  "/admin/manual": "User Manual",
+  "/admin/manual": "Admin User Manual",
   "/menro/map": "Regional Map Monitoring",
   "/menro/alerts": "Alerts",
   "/menro/analytics": "Waste Analytics",
@@ -59,6 +59,7 @@ const pageTitles: Record<string, string> = {
   "/menro/barangay-reports": "Barangay Reports",
   "/menro/barangay-reports/view-barangay-report": "Barangay Reports",
   "/menro/reports": "Monthly Reports",
+  "/menro/manual": "MENRO User Manual",
 }
 
 // notification route per role

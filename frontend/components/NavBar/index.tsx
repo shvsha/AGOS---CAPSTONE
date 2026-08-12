@@ -98,6 +98,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Resource Optimization",        href: "/menro/resources",        icon: <Package size={18} /> },
     { label: "Canal Hotspots",        href: "/menro/hotspots",        icon: <Target size={18} /> },
     { label: "Compiled Barnagay\nReports",  href: "/menro/reports",          icon: <CalendarDays size={18} /> },
+    { label: "User Manual",    href: "/menro/manual",  icon: <Book size={14} /> },
   ],
   MENRO_Staff: [
     { label: "Reginal Map",       href: "/menro/map",        icon: <Map size={18} /> },
@@ -106,6 +107,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Resource Optimization", href: "/menro/resources", icon: <Package size={18} /> },
     { label: "Canal Hotspots",    href: "/menro/hotspots",   icon: <Target size={18} /> },
     { label: "Barangay Reports", href: "/menro/barangay-reports", icon: <FileBarChart size={18} /> },
+    { label: "User Manual",    href: "/menro/manual",  icon: <Book size={14} /> },
   ],
 }
 
