@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store'
 
-export const BASE_URL = 'http://192.168.1.6:8000' // change this base sa wifi... do ipconfig in terminal
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.6:8000'
 
 // token storage
 export async function getAccessToken() {

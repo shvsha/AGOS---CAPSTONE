@@ -12,7 +12,7 @@ import { useRainfallCondition } from '@/hooks/useRainfallCondition'
 import { SensorNodeApi } from '@/types/map'
 import AlertBellButton from '@/components/alerts/AlertBellButton'
 
-const BASE_URL = 'http://192.168.1.6:8000'
+import { BASE_URL } from '@/lib/api'
 
 // Rosario, La Union
 const FALLBACK_CENTER = { lat: 16.23031273833657, lng: 120.48632076236241 }

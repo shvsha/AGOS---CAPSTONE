@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../../lib/AuthContext'
+import { useRouter } from 'expo-router'
 
 interface Props {
   visible: boolean
@@ -17,6 +18,7 @@ function CredentialRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function ProfileSheet({ visible, onClose }: Props) {
+  const router = useRouter()
   const { user, logout } = useAuth()
   if (!user) return null
 
@@ -29,9 +31,6 @@ export default function ProfileSheet({ visible, onClose }: Props) {
     ])
   }
 
-  const handleUserManual = () => {
-    Alert.alert('Coming soon', 'The user manual will be available in a future update.')
-  }
 
   return (
     <Modal transparent visible={visible} animationType="slide">
@@ -70,7 +69,7 @@ export default function ProfileSheet({ visible, onClose }: Props) {
           {/* Actions */}
           <Pressable
             className="w-full border border-slate-300 rounded-lg py-3.5 items-center mt-5 flex-row justify-center gap-2"
-            onPress={handleUserManual}
+            onPress={() => router.push('/user-manual')}
           >
             <Ionicons name="book-outline" size={16} color="#334155" />
             <Text className="text-slate-700 text-[14px] font-semibold">User Manual</Text>

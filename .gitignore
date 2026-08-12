@@ -49,6 +49,10 @@ Thumbs.db
 
 .vscode/
 
+test_flow.py
+test_classify.py
+upload_test.py
+
 # Mobile (Expo/React Native)
 mobile/node_modules/
 mobile/.expo/
@@ -58,6 +62,7 @@ mobile/*.p8
 mobile/*.p12
 mobile/*.key
 mobile/*.mobileprovision
+mobile/.env
 
 # requirements for ML
 backend/requirements-ml.txt
