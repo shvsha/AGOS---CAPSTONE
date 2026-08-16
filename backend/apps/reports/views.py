@@ -9,6 +9,8 @@ from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminO
 from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
 from .services import sync_municipal_report
+from django.shortcuts import get_object_or_404
+from agos_backend.pdf_utils import render_custom_pdf, get_logo_data_uri
 
 
 class BarangayMonthlyReportListView(generics.ListCreateAPIView):
@@ -54,6 +56,38 @@ class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
         report = serializer.save()
         if report.status == 'Reviewed':
             sync_municipal_report(report.report_month, generated_by=self.request.user)
+
+
+class BarangayMonthlyReportExportView(APIView):
+    """
+    GET /api/barangay-reports/<id>/export/
+    Exports a single barangay's monthly MRF report as PDF.
+    Same access rule as the detail view: Admin/MENRO any report,
+    Barangay only their own.
+    """
+    permission_classes = [CanAccessOwnBarangayReport]
+
+    def get(self, request, monthly_report_id):
+        report = get_object_or_404(BarangayMonthlyReport, monthly_report_id=monthly_report_id)
+        self.check_object_permissions(request, report)
+
+        barangay_name = report.barangay.barangay_name
+        month_year = report.report_month.strftime("%B %Y")
+
+        context = {
+            "logo_data_uri": get_logo_data_uri(),
+            "barangay_name": barangay_name,
+            "month_year": month_year,
+            "report": report,
+        }
+
+        filename = f"{barangay_name}-MRF-{report.report_month.strftime('%b-%Y')}.pdf"
+
+        return render_custom_pdf(
+            "exports/barangay_monthly_report.html",
+            context,
+            filename=filename,
+        )
 
 
 class MyBarangayReportView(APIView):

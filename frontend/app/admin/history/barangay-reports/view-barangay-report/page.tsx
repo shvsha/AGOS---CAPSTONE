@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 // icons
-import { ArrowLeft, FileText, Image as ImageIcon } from "lucide-react"
+import { ArrowLeft, FileText, Image as ImageIcon, FileDown } from "lucide-react"
 
 // logo
 import RosLogo from '@/public/ROS-logo.jpg'
@@ -16,9 +16,13 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 
 // components
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
 
 // lib
 import { fetchWithAuth } from "@/lib/auth"
+import { exportPdf } from "@/lib/exportPDF"
+
 
 type ReportMedia = {
   media: number
@@ -222,6 +226,9 @@ export default function ViewBarangayReportAdmin() {
   const searchParams = useSearchParams()
   const id = searchParams.get("id")
 
+  const [exporting, setExporting] = useState(false)
+  const { toasts, addToast, removeToast } = useToast()
+
   const [report, setReport] = useState<BarangayMonthlyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
@@ -252,6 +259,22 @@ export default function ViewBarangayReportAdmin() {
   const beforePhotos = report?.media.filter(m => m.media_category === "Before_Clearing") ?? []
   const afterPhotos = report?.media.filter(m => m.media_category === "After_Clearing") ?? []
 
+  const handleExport = async () => {
+    if (!report) return
+    setExporting(true)
+    try {
+      await exportPdf(
+        `/api/barangay-reports/${report.monthly_report_id}/export/`,
+        {},
+        "barangay-mrf-report.pdf"
+      )
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="hidden md:flex flex-col items-center justify-center h-150">
@@ -270,53 +293,65 @@ export default function ViewBarangayReportAdmin() {
   }
 
   return (
-    <div className="hidden md:flex flex-col">
+    <>
+      <div className="hidden md:flex flex-col">
 
-      {/* Header bar — no verify action, admin is read-only here */}
-      <div className="flex justify-between items-center bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg px-4 py-3 mb-4 sticky top-0 z-10">
-        <div className="flex items-center gap-1">
-          <button onClick={() => router.push("/admin/history/barangay-reports")} className="cursor-pointer p-2 rounded-lg hover:bg-[#e8eef1]">
-            <ArrowLeft size={18} className="text-[#122A48]" />
-          </button>
-          <div className="flex gap-3 items-center">
-            <p className="font-bold text-[#122A48] text-sm">
-              {report.barangay_details?.barangay_name} — {formatMonthYear(report.report_month)}
-            </p>
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-              report.status === "Reviewed" ? "bg-[#B2FBC173] text-[#2C7B3C]" : "bg-[#DBEAFE] text-[#1565BC]"
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${report.status === "Reviewed" ? "bg-[#2C7B3C]" : "bg-[#1565BC]"}`} />
-              {report.status}
-            </span>
+        {/* Header bar — no verify action, admin is read-only here */}
+        <div className="flex justify-between items-center bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg px-4 py-3 mb-4 sticky top-0 z-10">
+          <div className="flex items-center gap-1">
+            <button onClick={() => router.push("/admin/history/barangay-reports")} className="cursor-pointer p-2 rounded-lg hover:bg-[#e8eef1]">
+              <ArrowLeft size={18} className="text-[#122A48]" />
+            </button>
+            <div className="flex gap-3 items-center">
+              <p className="font-bold text-[#122A48] text-sm">
+                {report.barangay_details?.barangay_name} — {formatMonthYear(report.report_month)}
+              </p>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                report.status === "Reviewed" ? "bg-[#B2FBC173] text-[#2C7B3C]" : "bg-[#DBEAFE] text-[#1565BC]"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${report.status === "Reviewed" ? "bg-[#2C7B3C]" : "bg-[#1565BC]"}`} />
+                {report.status}
+              </span>
+            </div>
           </div>
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
+          >
+            <FileDown size={16} className="mr-1" />
+            {exporting ? "Exporting..." : "Export PDF"}
+          </Button>
         </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab("details")}
+            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
+              activeTab === "details" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
+            }`}
+          >
+            <FileText size={14} /> Report Details
+          </button>
+          <button
+            onClick={() => setActiveTab("narrative")}
+            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
+              activeTab === "narrative" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
+            }`}
+          >
+            <ImageIcon size={14} /> Narrative & Photos
+          </button>
+        </div>
+
+        {activeTab === "details" ? (
+          <MRFTable report={report} />
+        ) : (
+          <NarrativePhotos report={report} beforePhotos={beforePhotos} afterPhotos={afterPhotos} />
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setActiveTab("details")}
-          className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
-            activeTab === "details" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
-          }`}
-        >
-          <FileText size={14} /> Report Details
-        </button>
-        <button
-          onClick={() => setActiveTab("narrative")}
-          className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border ${
-            activeTab === "narrative" ? "bg-[#1565BC] text-white border-[#1565BC]" : "bg-white text-[#727272] border-[#C6C6C8] hover:bg-gray-50"
-          }`}
-        >
-          <ImageIcon size={14} /> Narrative & Photos
-        </button>
-      </div>
-
-      {activeTab === "details" ? (
-        <MRFTable report={report} />
-      ) : (
-        <NarrativePhotos report={report} beforePhotos={beforePhotos} afterPhotos={afterPhotos} />
-      )}
-    </div>
+      <Toast toasts={toasts} onRemove={removeToast} />
+    </>
   )
 }

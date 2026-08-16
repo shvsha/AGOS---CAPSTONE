@@ -8,7 +8,7 @@ import RosLogo from '@/public/ROS-logo.jpg'
 import Image from "next/image"
 
 // icons
-import { ArrowLeft, CheckCircle2, FileText, Image as ImageIcon } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileText, Image as ImageIcon, FileDown } from "lucide-react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,8 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { api } from "@/lib/api"
 import { getUser } from "@/lib/auth"
 import { DIALOG_COLOR } from "@/lib/constant"
+import { exportPdf } from "@/lib/exportPDF"
+
 
 type ReportMedia = {
   media: number
@@ -233,6 +235,7 @@ export default function ViewBarangayReport() {
   const [activeTab, setActiveTab] = useState<"details" | "narrative">("details")
   const [verifyDialog, setVerifyDialog] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const { toasts, addToast, removeToast } = useToast()
 
@@ -278,6 +281,22 @@ export default function ViewBarangayReport() {
   const beforePhotos = report?.media.filter(m => m.media_category === "Before_Clearing") ?? []
   const afterPhotos = report?.media.filter(m => m.media_category === "After_Clearing") ?? []
 
+  const handleExport = async () => {
+    if (!report) return
+    setExporting(true)
+    try {
+      await exportPdf(
+        `/api/barangay-reports/${report.monthly_report_id}/export/`,
+        {},
+        "barangay-mrf-report.pdf"
+      )
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="hidden md:flex flex-col items-center justify-center h-150">
@@ -318,16 +337,26 @@ export default function ViewBarangayReport() {
             </div>
           </div>
 
-          {report.status === "Pending" && (
+          <div className="flex items-center gap-2">
             <Button
-              onClick={() => setVerifyDialog(true)}
-              disabled={verifying}
-              className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
+              onClick={handleExport}
+              disabled={exporting}
+              className="cursor-pointer bg-[#727272] hover:bg-[#5c5c5c] text-white"
             >
-              <CheckCircle2 size={16} className="mr-1" />
-              {verifying ? "Verifying..." : "Verify Report"}
+              <FileDown size={16} className="mr-1" />
+              {exporting ? "Exporting..." : "Export PDF"}
             </Button>
-          )}
+            {report.status === "Pending" && (
+              <Button
+                onClick={() => setVerifyDialog(true)}
+                disabled={verifying}
+                className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
+              >
+                <CheckCircle2 size={16} className="mr-1" />
+                {verifying ? "Verifying..." : "Verify Report"}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}

@@ -1,9 +1,10 @@
 from django.urls import path
-from .views import ( BarangayMonthlyReportListView, BarangayMonthlyReportDetailView, ReportMediaListView, ReportMediaUploadView, ReportMediaDetailView, ReportMediaByClogEventView, MunicipalMonthlyReportListView, MunicipalMonthlyReportDetailView, MyBarangayReportView )
+from .views import ( BarangayMonthlyReportListView, BarangayMonthlyReportDetailView, BarangayMonthlyReportExportView, ReportMediaListView, ReportMediaUploadView, ReportMediaDetailView, ReportMediaByClogEventView, MunicipalMonthlyReportListView, MunicipalMonthlyReportDetailView, MyBarangayReportView )
 
 urlpatterns = [
     path('barangay-reports/', BarangayMonthlyReportListView.as_view()),
     path('barangay-reports/<int:monthly_report_id>/', BarangayMonthlyReportDetailView.as_view()),
+    path('barangay-reports/<int:monthly_report_id>/export/', BarangayMonthlyReportExportView.as_view()),
     path('report-media/', ReportMediaListView.as_view()),
     path('report-media/upload/', ReportMediaUploadView.as_view()),
     path('report-media/<int:media>/', ReportMediaDetailView.as_view()),
