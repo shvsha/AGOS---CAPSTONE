@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation"
 // components
 import { SearchFilter } from "@/components/SearchFilter"
 import { MonthlyReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/MonthlyReportsSkeleton"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -20,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "
 // lib
 import { fetchWithAuth } from "@/lib/auth";
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { exportPdf } from "@/lib/exportPDF"
 
 // icons
 import { FileText, Recycle, Leaf, Blocks, Eye, FileDown } from "lucide-react";
@@ -65,7 +68,8 @@ const formatReportMonth = (date: string) =>
 export default function MonthlyReports() {
   const router = useRouter()
   
-  const [exporting, setExporting] = useState(false)
+  const [exportingId, setExportingId] = useState<number | null>(null)
+  const { toasts, addToast, removeToast } = useToast()  
 
   const reportsCache = usePageCache('monthlyReports:municipalReports', fetchMunicipalReportsRaw, [] as MunicipalReport[], { autoFetch:  false })
 
@@ -114,6 +118,17 @@ export default function MonthlyReports() {
   const totalRecyclable = municipalReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
   const totalBiodegredable = municipalReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
   const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + r.total_special_waste_kg, 0)
+
+  const handleExport = async (reportId: number) => {
+    setExportingId(reportId)
+    try {
+      await exportPdf(`/api/municipal-reports/${reportId}/export/`, {}, "municipal-mrf-report.pdf")
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExportingId(null)
+    }
+  }
   
   if (loading) return <MonthlyReportsSkeleton/>
   
@@ -214,9 +229,13 @@ export default function MonthlyReports() {
                           View
                         </Button>
 
-                        <Button disabled={exporting} className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+                        <Button
+                          onClick={() => handleExport(report.municipal_report_id)}
+                          disabled={exportingId === report.municipal_report_id}
+                          className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
+                        >
                           <FileDown size={16} className="mr-1" />
-                          {exporting ? "Exporting..." : "Export PDF"}
+                          {exportingId === report.municipal_report_id ? "Exporting..." : "Export PDF"}
                         </Button>
                       </TableCell>
                   </TableRow>
@@ -237,6 +256,7 @@ export default function MonthlyReports() {
         </div>
 
       </div>
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

@@ -11,6 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .services import sync_municipal_report
 from django.shortcuts import get_object_or_404
 from agos_backend.pdf_utils import render_custom_pdf, get_logo_data_uri
+from apps.barangay.models import Barangay
 
 
 class BarangayMonthlyReportListView(generics.ListCreateAPIView):
@@ -214,3 +215,57 @@ class MunicipalMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = MunicipalMonthlyReportSerializer
     lookup_field = 'municipal_report_id'
     permission_classes = [IsAdminOrMENROOfficer ]
+
+
+class MunicipalMonthlyReportExportView(APIView):
+    """
+    GET /api/municipal-reports/<id>/export/
+    Exports the compiled municipal MRF report as PDF — one row per
+    barangay (blank cells where no reviewed report exists for the
+    month) plus the municipal report's own TOTAL row.
+    Admin/MENRO only, same as the detail view.
+    """
+    permission_classes = [IsAdminOrMENROOfficer]
+
+    def get(self, request, municipal_report_id):
+        report = get_object_or_404(MunicipalMonthlyReport, municipal_report_id=municipal_report_id)
+
+        all_barangays = Barangay.objects.all().order_by('barangay_name')
+        barangay_reports = BarangayMonthlyReport.objects.filter(
+            report_month=report.report_month,
+            status='Reviewed',
+        ).select_related('barangay')
+
+        reports_by_barangay = {br.barangay_id: br for br in barangay_reports}
+
+        barangay_rows = []
+        for b in all_barangays:
+            br = reports_by_barangay.get(b.barangay_id)
+            barangay_rows.append({
+                "barangay_name": b.barangay_name,
+                "bote_kg": br.bote_kg if br else "",
+                "bakal_kg": br.bakal_kg if br else "",
+                "papel_kg": br.papel_kg if br else "",
+                "plastic_kg": br.plastic_kg if br else "",
+                "karton_kg": br.karton_kg if br else "",
+                "amount_sold": br.amount_sold if br else None,
+                "biodegradable_kg": br.biodegradable_kg if br else "",
+                "residual_waste_kg": br.residual_waste_kg if br else "",
+                "special_waste_kg": br.special_waste_kg if br else "",
+            })
+
+        context = {
+            "logo_data_uri": get_logo_data_uri(),
+            "month_year": report.report_month.strftime("%B %Y"),
+            "month_label": report.report_month.strftime("%B").upper(),
+            "barangay_rows": barangay_rows,
+            "report": report,
+        }
+
+        filename = f"Municipal-MRF-{report.report_month.strftime('%b-%Y')}.pdf"
+
+        return render_custom_pdf(
+            "exports/municipal_monthly_report.html",
+            context,
+            filename=filename,
+        )

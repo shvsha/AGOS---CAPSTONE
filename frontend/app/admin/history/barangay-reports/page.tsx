@@ -3,9 +3,10 @@
 // components
 import { SearchFilter } from "@/components/SearchFilter"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
-import { fetchWithAuth } from "@/lib/auth"
 import { BarangayReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/BarangayReportsSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
 
 // react
 import { useState, useEffect, useCallback} from "react"
@@ -22,6 +23,11 @@ import { TablePagination } from "@/components/TablePagination";
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
+
+// lib
+import { fetchWithAuth } from "@/lib/auth"
+import { exportPdf } from "@/lib/exportPDF"
+
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -110,6 +116,9 @@ export default function BarangayReports() {
   const barangaysCache = usePageCache('barangayReports:barangays', fetchAllBarangaysRaw, [] as Barangay[], { autoFetch: false })
   const allBarangays = barangaysCache.data
 
+  const [exportingId, setExportingId] = useState<number | null>(null)
+  const { toasts, addToast, removeToast } = useToast()
+
   // Month/Year filter state
   const now = new Date()
   const getMonthOptions = () => {
@@ -170,6 +179,17 @@ export default function BarangayReports() {
   useEffect(() => {
     refetchAll()
   }, [])
+
+  const handleExport = async (reportId: number) => {
+    setExportingId(reportId)
+    try {
+      await exportPdf(`/api/barangay-reports/${reportId}/export/`, {}, "barangay-mrf-report.pdf")
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExportingId(null)
+    }
+  }
 
 
   if (loading) return <BarangayReportsSkeleton/>
@@ -330,9 +350,13 @@ export default function BarangayReports() {
                         <Eye size={16} className="mr-1" />
                         View
                       </Button>
-                      <Button className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+                      <Button
+                        onClick={() => handleExport(reports.monthly_report_id)}
+                        disabled={exportingId === reports.monthly_report_id}
+                        className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
+                      >
                         <FileDown size={16} className="mr-1" />
-                        Export PDF
+                        {exportingId === reports.monthly_report_id ? "Exporting..." : "Export PDF"}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -351,6 +375,8 @@ export default function BarangayReports() {
           </div>
         </div>
       </div>
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

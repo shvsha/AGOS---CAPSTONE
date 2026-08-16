@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 // lib
 import { getUserRole, fetchWithAuth } from "@/lib/auth"
+import { exportPdf } from "@/lib/exportPDF"
 
 // shadcn
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
@@ -19,6 +20,8 @@ import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
 import { ReportsSkeleton } from "@/components/Skeleton/Menro/ReportsSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
 
 
 // types
@@ -56,7 +59,9 @@ export default function Reports() {
   
   const reportsCache = usePageCache('menroReports:municipalReports', fetchMunicipalReportsRaw, [] as MunicipalReport[], { autoFetch: false })
 
-  const [exporting, setExporting] = useState(false)
+  const [exportingId, setExportingId] = useState<number | null>(null)
+    const { toasts, addToast, removeToast } = useToast()
+
   const municipalReports = reportsCache.data
   const loading = reportsCache.loading
   const fetchError = reportsCache.error
@@ -93,6 +98,17 @@ export default function Reports() {
     }
     reportsCache.refetch()
   }, [])
+
+  const handleExport = async (reportId: number) => {
+    setExportingId(reportId)
+    try {
+      await exportPdf(`/api/municipal-reports/${reportId}/export/`, {}, "municipal-mrf-report.pdf")
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExportingId(null)
+    }
+  }
 
   if (loading) return <ReportsSkeleton/>
 
@@ -179,9 +195,13 @@ export default function Reports() {
                           View
                         </Button>
 
-                        <Button disabled={exporting} className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+                        <Button
+                          onClick={() => handleExport(report.municipal_report_id)}
+                          disabled={exportingId === report.municipal_report_id}
+                          className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
+                        >
                           <FileDown size={16} className="mr-1" />
-                          {exporting ? "Exporting..." : "Export PDF"}
+                          {exportingId === report.municipal_report_id ? "Exporting..." : "Export PDF"}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -202,6 +222,7 @@ export default function Reports() {
         </div>
 
       </div>
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

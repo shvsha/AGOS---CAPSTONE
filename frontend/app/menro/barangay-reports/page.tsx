@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 // lib
 import { getUserRole, fetchWithAuth } from "@/lib/auth"
+import { exportPdf } from "@/lib/exportPDF"
 
 // shadcn
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
@@ -19,6 +20,8 @@ import { TablePagination } from "@/components/TablePagination"
 import { usePagination } from "@/components/hooks/usePagination"
 import { BarangayReportsSkeleton } from "@/components/Skeleton/Menro/BarangayReportsSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
 
 
 // types
@@ -107,7 +110,8 @@ export default function BarangayReports() {
   const reportsCache = usePageCache('menroBarangayReports:reports', fetchBarangayReportsRaw, [] as BarangayMonthlyReport[], { autoFetch: false })
 
   // us
-  const [exporting, setExporting] = useState(false)
+  const [exportingId, setExportingId] = useState<number | null>(null)
+  const { toasts, addToast, removeToast } = useToast()
 
   const barangayReports = reportsCache.data
   const allBarangays = barangaysCache.data
@@ -166,6 +170,17 @@ export default function BarangayReports() {
     }
     refetchAll()
   }, [])
+
+  const handleExport = async (reportId: number) => {
+    setExportingId(reportId)
+    try {
+      await exportPdf(`/api/barangay-reports/${reportId}/export/`, {}, "barangay-mrf-report.pdf")
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExportingId(null)
+    }
+  }
 
   if (loading) return <BarangayReportsSkeleton/>    
 
@@ -322,9 +337,13 @@ export default function BarangayReports() {
                             View
                           </Button>
 
-                          <Button disabled={exporting} className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+                          <Button
+                            onClick={() => handleExport(reports.monthly_report_id)}
+                            disabled={exportingId === reports.monthly_report_id}
+                            className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
+                          >
                             <FileDown size={16} className="mr-1" />
-                            {exporting ? "Exporting..." : "Export PDF"}
+                            {exportingId === reports.monthly_report_id ? "Exporting..." : "Export PDF"}
                           </Button>
                           
                         </TableCell>
@@ -350,6 +369,8 @@ export default function BarangayReports() {
         </div>
 
       </div>
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

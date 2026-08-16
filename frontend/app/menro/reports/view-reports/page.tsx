@@ -8,7 +8,7 @@ import RosLogo from '@/public/ROS-logo.jpg'
 import Image from "next/image"
 
 // icons
-import { ArrowLeft, FileText } from "lucide-react"
+import { ArrowLeft, FileText, FileDown } from "lucide-react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -16,9 +16,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 
 // components
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { Toast } from "@/components/Toast"
+import { useToast } from "@/components/hooks/useToast"
 
 // lib
 import { api } from "@/lib/api"
+import { exportPdf } from "@/lib/exportPDF"
 
 type Barangay = {
   barangay_id: number
@@ -207,6 +210,25 @@ export default function ViewMunicipalReport() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
 
+  const [exporting, setExporting] = useState(false)
+  const { toasts, addToast, removeToast } = useToast()
+
+  const handleExport = async () => {
+    if (!report) return
+    setExporting(true)
+    try {
+      await exportPdf(
+        `/api/municipal-reports/${report.municipal_report_id}/export/`,
+        {},
+        "municipal-mrf-report.pdf"
+      )
+    } catch {
+      addToast("Failed to export report.", "error")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const fetchData = async () => {
     if (!id) {
       setFetchError(true)
@@ -259,22 +281,33 @@ export default function ViewMunicipalReport() {
   }
 
   return (
-    <div className="hidden md:flex flex-col">
+    <>
+      <div className="hidden md:flex flex-col">
 
-      {/* Sticky action bar */}
-      <div className="flex justify-between items-center bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg px-4 py-3 mb-4 sticky top-0 z-10">
-        <div className="flex items-center gap-1">
-          <button onClick={() => router.push("/menro/reports")} className="cursor-pointer p-2 rounded-lg hover:bg-[#e8eef1]">
-            <ArrowLeft size={18} className="text-[#122A48]" />
-          </button>
-          <p className="font-bold text-[#122A48] text-sm">
-            Municipal Report — {formatMonthYear(report.report_month)}
-          </p>
+        {/* Sticky action bar */}
+        <div className="flex justify-between items-center bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg px-4 py-3 mb-4 sticky top-0 z-10">
+          <div className="flex items-center gap-1">
+            <button onClick={() => router.push("/menro/reports")} className="cursor-pointer p-2 rounded-lg hover:bg-[#e8eef1]">
+              <ArrowLeft size={18} className="text-[#122A48]" />
+            </button>
+            <p className="font-bold text-[#122A48] text-sm">
+              Municipal Report — {formatMonthYear(report.report_month)}
+            </p>
+          </div>
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
+          >
+            <FileDown size={16} className="mr-1" />
+            {exporting ? "Exporting..." : "Export PDF"}
+          </Button>
         </div>
+
+        <MunicipalMRFTable report={report} allBarangays={allBarangays} reportedByBarangay={reportedByBarangay} />
+
       </div>
-
-      <MunicipalMRFTable report={report} allBarangays={allBarangays} reportedByBarangay={reportedByBarangay} />
-
-    </div>
+      <Toast toasts={toasts} onRemove={removeToast} />
+    </>
   )
 }
