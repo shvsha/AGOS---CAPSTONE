@@ -11,6 +11,8 @@ import AlertBellButton from "@/components/alerts/AlertBellButton";
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Shadow } from "react-native-shadow-2";
 
+import { exportPdf } from "@/lib/exportPdf";
+
 function MetricCard({ label, value }: { label: string; value: number }) {
   return (
     <View
@@ -75,6 +77,8 @@ export default function ReportsListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
+  const [exportingId, setExportingId] = useState<number | null>(null);
+
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
@@ -122,6 +126,20 @@ export default function ReportsListScreen() {
         pathname: "/view-report",
         params: { id: String(report.monthly_report_id) },
       } as any);
+    }
+  };
+
+  const handleExport = async (report: BarangayMonthlyReport) => {
+    setExportingId(report.monthly_report_id);
+    try {
+      await exportPdf(
+        `/api/barangay-reports/${report.monthly_report_id}/export/`,
+        `${report.barangay_details?.barangay_name ?? "barangay"}-MRF-${report.report_month}.pdf`
+      );
+    } catch {
+      Alert.alert("Export failed", "Could not generate the PDF. Please try again.");
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -242,12 +260,20 @@ export default function ReportsListScreen() {
                   <TouchableOpacity
                     onPress={(e) => {
                       e.stopPropagation();
-                      Alert.alert("Export", "Exporting report to PDF...");
+                      handleExport(report);
                     }}
+                    disabled={exportingId === report.monthly_report_id}
                     className="flex-1 flex-row items-center justify-center gap-1 rounded-md border border-[#cbd5e1] py-1.5"
+                    style={exportingId === report.monthly_report_id ? { opacity: 0.6 } : undefined}
                   >
-                    <MaterialCommunityIcons name="tray-arrow-up" size={14} color="#475569" />
-                    <Text className="text-xs font-medium text-[#475569]">Export</Text>
+                    {exportingId === report.monthly_report_id ? (
+                      <ActivityIndicator size="small" color="#475569" />
+                    ) : (
+                      <MaterialCommunityIcons name="tray-arrow-up" size={14} color="#475569" />
+                    )}
+                    <Text className="text-xs font-medium text-[#475569]">
+                      {exportingId === report.monthly_report_id ? "Exporting..." : "Export"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>

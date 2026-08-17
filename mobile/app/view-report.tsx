@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { api } from "@/lib/api";
 import { BarangayMonthlyReport } from "@/types/reports";
+import { exportPdf } from "@/lib/exportPdf";
 
 
 function RecyclablesCard({ report }: { report: BarangayMonthlyReport }) {
@@ -111,6 +112,8 @@ export default function ViewReportScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
+  const [isExporting, setIsExporting] = useState(false);
+
   useEffect(() => {
     if (!params.id) {
       setIsLoading(false);
@@ -123,6 +126,21 @@ export default function ViewReportScreen() {
       .catch(() => setLoadError(true))
       .finally(() => setIsLoading(false));
   }, [params.id]);
+
+  const handleExport = async () => {
+    if (!report) return;
+    setIsExporting(true);
+    try {
+      await exportPdf(
+        `/api/barangay-reports/${report.monthly_report_id}/export/`,
+        `${report.barangay_details?.barangay_name ?? "barangay"}-MRF-${report.report_month}.pdf`
+      );
+    } catch {
+      Alert.alert("Export failed", "Could not generate the PDF. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -278,13 +296,21 @@ export default function ViewReportScreen() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                onPress={() => Alert.alert("Export", "Exporting report to PDF...")}
-                className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3"
-              >
-                <MaterialCommunityIcons name="tray-arrow-up" size={18} color="white" />
-                <Text className="text-[13px] font-semibold text-white">Export to PDF</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleExport}
+                  disabled={isExporting}
+                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3"
+                  style={isExporting ? { opacity: 0.6 } : undefined}
+                >
+                  {isExporting ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <MaterialCommunityIcons name="tray-arrow-up" size={18} color="white" />
+                  )}
+                  <Text className="text-[13px] font-semibold text-white">
+                    {isExporting ? "Exporting..." : "Export to PDF"}
+                  </Text>
+                </TouchableOpacity>
             </View>
           </View>
         </View>
