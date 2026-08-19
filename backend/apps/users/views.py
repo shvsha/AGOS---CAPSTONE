@@ -11,10 +11,12 @@ from apps.audit_logs.utils import log_action
 import json
 from django.conf import settings
 from django.utils import timezone
+from .throttles import LoginRateThrottle, OTPRateThrottle
 
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         email = request.data.get('email')
@@ -156,6 +158,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class ForgotPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [OTPRateThrottle]
 
     def post(self, request):
         email = request.data.get('email')
@@ -185,6 +188,7 @@ class ForgotPasswordView(APIView):
 
 class VerifyOTPView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [OTPRateThrottle]
 
     def post(self, request):
         email = request.data.get('email')
@@ -329,12 +333,8 @@ class ChangePasswordView(APIView):
     
 
 class MobileLoginView(APIView):
-    """
-    Login endpoint for the AGOS mobile app (Barangay personnel only).
-    Returns tokens in the JSON body instead of cookies — Expo stores
-    them itself via expo-secure-store.
-    """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         email = request.data.get('email')
