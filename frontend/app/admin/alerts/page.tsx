@@ -10,10 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // react
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo } from "react"
 
 // auth
-import { getAccessToken } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
@@ -79,8 +78,7 @@ const ALERT_TYPES = [
   }
 
   const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
-    const token = getAccessToken()
-    const data = await api.get('/api/barangays/', token ?? undefined)
+    const data = await api.get('/api/barangays/')
     return data.results ?? data
   }
 
@@ -149,8 +147,7 @@ export default function Alerts() {
 
     if (alert.is_read) return
     try {
-      const token = getAccessToken()
-      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {}, token ?? undefined)
+      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {})
       activeAlerts.setData(prev => prev.map(a =>
         a.alert_id === alert.alert_id ? { ...a, is_read: true } : a
       ))

@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // api + auth
 import { api } from "@/lib/api"
-import { getAccessToken, clearAuth } from "@/lib/auth";
+import { clearAuth  } from "@/lib/auth";
 
 type DialogState = {
   open: boolean;
@@ -94,8 +94,7 @@ export default function Form() {
   useEffect(() => {
     const loadBarangays = async () => {
       try {
-        const token = getAccessToken()
-        const data = await api.get('/api/barangays/', token ?? undefined)
+        const data = await api.get('/api/barangays/')
         setBarangays(data.results ?? data)
       } catch {
         addToast('Failed to load barangays.', 'error')
@@ -109,8 +108,7 @@ export default function Form() {
 
     const loadUser = async () => {
       try {
-        const token = getAccessToken()
-        const data = await api.get(`/api/users/${id}/`, token ?? undefined)
+        const data = await api.get('/api/barangays/')
         setFname(data.first_name)
         setLname(data.last_name)
         setRole(data.user_role)
@@ -183,7 +181,6 @@ export default function Form() {
     setLoadingDialog({ open: true })
 
     try {
-      const token = getAccessToken()
       const payload = {
         first_name: fname,
         last_name: lname,
@@ -194,9 +191,9 @@ export default function Form() {
       }
 
       if (isEdit) {
-        await api.patch(`/api/users/${id}/`, payload, token ?? undefined)
+        await api.patch(`/api/users/${id}/`, payload)
       } else {
-        await api.post('/api/users/', payload, token ?? undefined)
+        await api.post('/api/users/', payload)
       }
 
       setLoadingDialog({ open: false })

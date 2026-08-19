@@ -27,7 +27,6 @@ import { TablePagination } from "@/components/TablePagination";
 import { DIALOG_COLOR } from "@/lib/constant";
 import { ROLE_DISPLAY } from "@/lib/utils";
 import { api } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
 import { usePageCache } from "@/components/hooks/usePageCache";
 
 // shadcn
@@ -71,8 +70,7 @@ function getFilteredUsers(users: User[], role: string, status: string, search: s
 
 // fetch raw data
 const fetchUsersRaw = async (): Promise<User[]> => {
-    const token = getAccessToken()
-  const data = await api.get('/api/users/', token ?? undefined)
+  const data = await api.get('/api/users/')
   return (data.results as User[]).filter(u => u.user_role !== 'Admin')
 }
 
@@ -131,8 +129,7 @@ export default function Users() {
     if (!user) return
     setReactivateDialog({open: false, user: null})
     try {
-      const token = getAccessToken()
-      await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' }, token ?? undefined)
+      await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' })
       addToast(`${user.first_name} ${user.last_name} has been activated.`)
       usersCache.setData(prev =>
         prev.map(u =>
@@ -152,8 +149,7 @@ export default function Users() {
     if (!user) return
     setDeactivateDialog({open: false, user: null})
     try {
-      const token = getAccessToken()
-      await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' }, token ?? undefined)
+      await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' })
       addToast(`${user.first_name} ${user.last_name} has been deactivated.`)
       usersCache.setData(prev =>
         prev.map(u =>

@@ -12,6 +12,7 @@ import json
 from django.conf import settings
 from django.utils import timezone
 
+
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -287,9 +288,16 @@ class TokenRefreshView(APIView):
         try:
             token = RefreshToken(refresh_token)
             new_access = str(token.access_token)
-            return Response({'access': new_access})
         except Exception:
             return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        is_secure = not settings.DEBUG
+        response = Response({'access': new_access})
+        response.set_cookie(
+            key='access_token', value=new_access, max_age=7*24*60*60,
+            httponly=True, secure=is_secure, samesite='Lax', path='/',
+        )
+        return response
 
 
 class ChangePasswordView(APIView):

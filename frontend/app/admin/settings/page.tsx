@@ -8,7 +8,6 @@ import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert, Bell } fr
 
 // lib
 import { api } from "@/lib/api"
-import { getAccessToken } from "@/lib/auth"
 import { resolveSoundUrl} from '@/lib/soundUtils'
 
 //d shadcn components
@@ -161,10 +160,8 @@ export default function Page() {
   async function handleManualBackup() {
     setBackingUp(true)
     try {
-      const token = getAccessToken()
       const res = await fetch(`${BASE_URL}/api/backup/manual/`, {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
       })
 
@@ -207,13 +204,11 @@ export default function Page() {
     if (!selectedFile) return
     setRestoring(true)
     try {
-      const token = getAccessToken()
       const formData = new FormData()
       formData.append("backup_file", selectedFile)
 
       const res = await fetch(`${BASE_URL}/api/backup/restore/`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
         body: formData,
       })
@@ -261,12 +256,11 @@ export default function Page() {
     if (!file) return
     setUploadingSound(true)
     try {
-      const token = getAccessToken()
       const formData = new FormData()
       formData.append("sound_file", file)
       const res = await fetch(`${BASE_URL}/api/alert-sounds/upload/`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
         body: formData,
       })
       const result = await res.json()

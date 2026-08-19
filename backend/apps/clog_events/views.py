@@ -70,6 +70,12 @@ class UpdateClogStatusView(APIView):
             new_status = request.data.get('status')
             user = request.user
 
+            if user.user_role == 'Barangay' and event.barangay_id != user.barangay_id:
+                return Response(
+                    {'error': 'You do not have permission to update this event'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             # Role-based status restrictions
             if user.user_role == 'Barangay' and new_status not in ['Responded', 'Cleared']:
                 return Response(

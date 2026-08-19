@@ -1,3 +1,6 @@
+import os
+from rest_framework.exceptions import ValidationError
+from .validators import validate_upload, convert_heic_to_jpeg
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -129,7 +132,6 @@ class ReportMediaUploadView(APIView):
 
     def post(self, request):
         file = request.FILES.get('file')
-        media_type = request.data.get('media_type')
         media_category = request.data.get('media_category', 'Sensor_Detection')
         clog_event_id = request.data.get('clog_event_id')
         monthly_report_id = request.data.get('monthly_report_id')
@@ -140,18 +142,17 @@ class ReportMediaUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not media_type:
-            if file.content_type.startswith('image'):
-                media_type = 'Image'
-            elif file.content_type.startswith('video'):
-                media_type = 'Video'
-            else:
-                return Response(
-                    {'error': 'Invalid file type'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        try:
+            validate_upload(file, 'Image')
+        except ValidationError as e:
+            detail = e.detail[0] if hasattr(e, 'detail') else str(e)
+            return Response({'error': str(detail)}, status=status.HTTP_400_BAD_REQUEST)
 
-        media = ReportMedia(file_path=file, media_type=media_type, media_category=media_category, uploaded_by=request.user)
+        ext = os.path.splitext(file.name)[1].lower()
+        if ext in {'.heic', '.heif'}:
+            file = convert_heic_to_jpeg(file)
+
+        media = ReportMedia(file_path=file, media_type='Image', media_category=media_category, uploaded_by=request.user)
 
         if clog_event_id:
             from apps.clog_events.models import ClogEvent

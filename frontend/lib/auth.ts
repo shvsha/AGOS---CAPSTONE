@@ -1,20 +1,8 @@
 "use client"
 
-export const getAccessToken = (): string | null => {
-  return localStorage.getItem("access_token")
-}
-
-export const getRefreshToken = (): string | null => {
-  return localStorage.getItem("refresh_token")
-}
-
 export const getUser = () => {
   const user = localStorage.getItem("user")
   return user ? JSON.parse(user) : null
-}
-
-export const setTokens = (access: string, refresh: string) => {
-  localStorage.setItem("access_token", access)
 }
 
 export const setUser = (user: object) => {
@@ -22,9 +10,8 @@ export const setUser = (user: object) => {
 }
 
 export const clearAuth = () => {
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("refresh_token")
   localStorage.removeItem("user")
+  document.cookie = "user=; path=/; max-age=0; samesite=Lax"
 }
 
 export const logout = async () => {
@@ -40,7 +27,7 @@ export const logout = async () => {
 }
 
 export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem("access_token")
+  return !!localStorage.getItem("user")
 }
 
 export const getUserRole = (): string | null => {
@@ -48,20 +35,13 @@ export const getUserRole = (): string | null => {
   return user ? user.user_role : null
 }
 
-export const getAuthHeaders = (): HeadersInit => {
-  const token = getAccessToken()
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
 export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getAccessToken()
-
   const res = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
   })
 
@@ -75,15 +55,13 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
 
       if (!refreshRes.ok) throw new Error('Session expired.')
 
-      const data = await refreshRes.json()
-      localStorage.setItem('access_token', data.access)
-
+      // refreshRes already set a fresh access_token cookie — just retry
       return fetch(url, {
         ...options,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
-          Authorization: `Bearer ${data.access}`,
         },
       })
     } catch (err) {

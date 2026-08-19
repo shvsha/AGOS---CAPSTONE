@@ -1,4 +1,5 @@
 import asyncio
+from http.cookies import SimpleCookie
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
@@ -14,19 +15,42 @@ def get_user_from_token(token):
     return User.objects.get(pk=user_id)
 
 
+def _get_cookie_token(scope):
+    """Pull access_token out of the raw Cookie header on the WS handshake, if present."""
+    headers = dict(scope.get('headers') or [])
+    raw_cookie = headers.get(b'cookie')
+    if not raw_cookie:
+        return None
+    cookie = SimpleCookie()
+    cookie.load(raw_cookie.decode('utf-8'))
+    morsel = cookie.get('access_token')
+    return morsel.value if morsel else None
+
+
 class AuthenticatedJsonConsumer(AsyncJsonWebsocketConsumer):
     """
-    Requires a {"type": "auth", "token": "..."} message as the first
-    message after connecting — nothing else is processed until that
-    succeeds. Keeps the JWT out of the URL/logs entirely.
-    Subclasses implement after_auth() / after_message() / after_disconnect()
-    instead of connect() / receive() / disconnect() directly.
+    Authenticates via the httpOnly access_token cookie automatically at
+    connect time (web browser clients). Falls back to an explicit
+    {"type": "auth", "token": "..."} message for clients with no cookie
+    to rely on (the mobile app, which stores its token in SecureStore).
     """
 
     async def connect(self):
         self.user = None
         self.authenticated = False
         await self.accept()
+
+        cookie_token = _get_cookie_token(self.scope)
+        if cookie_token:
+            try:
+                self.user = await get_user_from_token(cookie_token)
+                self.authenticated = True
+                await self.send_json({"type": "auth_success"})
+                await self.after_auth()
+                return
+            except Exception:
+                pass  # fall through, client may still send a token via the auth message
+
         self._auth_timeout_task = asyncio.create_task(self._enforce_auth_timeout())
 
     async def _enforce_auth_timeout(self):
@@ -45,7 +69,8 @@ class AuthenticatedJsonConsumer(AsyncJsonWebsocketConsumer):
             try:
                 self.user = await get_user_from_token(token)
                 self.authenticated = True
-                self._auth_timeout_task.cancel()
+                if hasattr(self, "_auth_timeout_task"):
+                    self._auth_timeout_task.cancel()
                 await self.send_json({"type": "auth_success"})
                 await self.after_auth()
             except Exception:
@@ -60,7 +85,6 @@ class AuthenticatedJsonConsumer(AsyncJsonWebsocketConsumer):
             self._auth_timeout_task.cancel()
         await self.after_disconnect(code)
 
-    # hooks for subclasses to override
     async def after_auth(self):
         pass
 

@@ -6,7 +6,6 @@ import { X } from "lucide-react"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
-import { getAccessToken } from "@/lib/auth"
 import { ALERT_STYLE } from "@/lib/constant"
 
 
@@ -257,8 +256,7 @@ export function AlertCard({ alert, onRead }: AlertCardProps) {
 
     if (isRead) return
     try {
-      const token = getAccessToken()
-      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {}, token ?? undefined)
+      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {})
       setIsRead(true)
       onRead?.(alert.alert_id)
     } catch {

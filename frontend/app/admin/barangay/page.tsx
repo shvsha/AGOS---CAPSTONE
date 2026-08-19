@@ -31,7 +31,6 @@ import { TablePagination } from "@/components/TablePagination";
 // lib
 import { DIALOG_COLOR } from "@/lib/constant";
 import { api } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
 import { usePageCache } from "@/components/hooks/usePageCache";
 
 
@@ -75,8 +74,7 @@ const openInGoogleMaps = (latitude: number, longitude: number) => {
 
 // fetch raw data
 const fetchBarangaysRaw = async (): Promise<Barangay[]> => {
-  const token = getAccessToken()
-  const all = await api.get('/api/barangays/all/', token ?? undefined)
+  const all = await api.get('/api/barangays/all/')
   return (all.results ?? all).filter((b: Barangay) => b.barangay_name !== 'Admin')
 }
 
@@ -139,8 +137,7 @@ export default function Barangay() {
 
   const handleUnregisterClick = async (b: Barangay) => {
     try {
-      const token = getAccessToken()
-      const result = await api.get(`/api/barangays/${b.barangay_id}/check/`, token ?? undefined)
+      const result = await api.get(`/api/barangays/${b.barangay_id}/check/`)
       if (!result.can_unregister) {
         setBlockedDialog({ open: true, message: result.detail, issues: result.issues ?? [] })
       } else {
@@ -156,8 +153,7 @@ export default function Barangay() {
     if (!b) return
     setUnregisterDialog({ open: false, barangay: null })
     try {
-      const token = getAccessToken()
-      await api.patch(`/api/barangays/${b.barangay_id}/unregister/`, {}, token ?? undefined)
+      await api.patch(`/api/barangays/${b.barangay_id}/unregister/`, {})
       barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: false } : x
       ))
@@ -172,8 +168,7 @@ export default function Barangay() {
     if (!b) return
     setRegisterDialog({ open: false, barangay: null })
     try {
-      const token = getAccessToken()
-      await api.patch(`/api/barangays/${b.barangay_id}/register/`, {}, token ?? undefined)
+      await api.patch(`/api/barangays/${b.barangay_id}/register/`, {})
       barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: true } : x
       ))
@@ -380,7 +375,7 @@ export default function Barangay() {
           {fetchError ? (
             <div className="flex flex-col justify-center items-center text-center gap-3 py-25">
               <p className="text-[#D81010] font-semibold text-xs">Failed to load barangay. <br /> Please try again later.</p>
-              <Button onClick={fetchBarangay} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
             </div>
 
             // empty
@@ -432,7 +427,7 @@ export default function Barangay() {
                           <MapPinPlus size={16} /> Register
                         </Button>
                       )}
-</div>
+                    </div>
                   </div>
                 </div>
               ))}

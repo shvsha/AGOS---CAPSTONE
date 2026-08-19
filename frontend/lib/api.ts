@@ -1,9 +1,8 @@
-import { getAccessToken, getRefreshToken, setTokens, clearAuth, logout } from '@/lib/auth'
+import { logout } from '@/lib/auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
-// silent refresh
-async function refreshAccessToken(): Promise<string | null> {
+async function refreshAccessToken(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
       method: 'POST',
@@ -14,26 +13,18 @@ async function refreshAccessToken(): Promise<string | null> {
     if (!res.ok) {
       await logout()
       window.location.href = '/login'
-      return null
+      return false
     }
-
-    const data = await res.json()
-    localStorage.setItem('access_token', data.access)
-    return data.access
+    return true
   } catch {
     await logout()
     window.location.href = '/login'
-    return null
+    return false
   }
 }
 
-// build headers
-function buildHeaders(token?: string): HeadersInit {
-  const t = token ?? getAccessToken()
-  return {
-    'Content-Type': 'application/json',
-    ...(t && { Authorization: `Bearer ${t}` }),
-  }
+function buildHeaders(): HeadersInit {
+  return { 'Content-Type': 'application/json' }
 }
 
 // fetch with auto retry on 401
@@ -41,27 +32,19 @@ async function fetchWithRefresh(url: string, options: RequestInit): Promise<Resp
   let res = await fetch(url, options)
 
   if (res.status === 401) {
-    const newToken = await refreshAccessToken()
-    if (!newToken) throw { detail: 'Session expired.' }
-
-    // retry with new token
-    res = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${newToken}`,
-      },
-    })
+    const refreshed = await refreshAccessToken()
+    if (!refreshed) throw { detail: 'Session expired.' }
+    res = await fetch(url, options)
   }
 
   return res
 }
 
 export const api = {
-  post: async (endpoint: string, data?: unknown, token?: string) => {
+  post: async (endpoint: string, data?: unknown) => {
     const res = await fetchWithRefresh(`${BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: buildHeaders(token),
+      headers: buildHeaders(),
       credentials: 'include',
       body: JSON.stringify(data),
     })
@@ -70,10 +53,10 @@ export const api = {
     return result
   },
 
-  get: async (endpoint: string, token?: string) => {
+  get: async (endpoint: string) => {
     const res = await fetchWithRefresh(`${BASE_URL}${endpoint}`, {
       method: 'GET',
-      headers: buildHeaders(token),
+      headers: buildHeaders(),
       credentials: 'include',
     })
     const result = await res.json()
@@ -81,10 +64,10 @@ export const api = {
     return result
   },
 
-  put: async (endpoint: string, data?: unknown, token?: string) => {
+  put: async (endpoint: string, data?: unknown) => {
     const res = await fetchWithRefresh(`${BASE_URL}${endpoint}`, {
       method: 'PUT',
-      headers: buildHeaders(token),
+      headers: buildHeaders(),
       credentials: 'include',
       body: JSON.stringify(data),
     })
@@ -93,10 +76,10 @@ export const api = {
     return result
   },
 
-  patch: async (endpoint: string, data?: unknown, token?: string) => {
+  patch: async (endpoint: string, data?: unknown) => {
     const res = await fetchWithRefresh(`${BASE_URL}${endpoint}`, {
       method: 'PATCH',
-      headers: buildHeaders(token),
+      headers: buildHeaders(),
       credentials: 'include',
       body: JSON.stringify(data),
     })
@@ -105,10 +88,10 @@ export const api = {
     return result
   },
 
-  delete: async (endpoint: string, token?: string) => {
+  delete: async (endpoint: string) => {
     const res = await fetchWithRefresh(`${BASE_URL}${endpoint}`, {
       method: 'DELETE',
-      headers: buildHeaders(token),
+      headers: buildHeaders(),
       credentials: 'include',
     })
     if (!res.ok) {

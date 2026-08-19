@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from "react"
-import { getAccessToken } from "@/lib/auth"
 
 type UseWebSocketOptions = {
   path: string
@@ -24,11 +23,6 @@ export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOp
     const ws = new WebSocket(`${wsBase}${path}`)
     wsRef.current = ws
 
-    ws.onopen = () => {
-      const token = getAccessToken()
-      ws.send(JSON.stringify({ type: "auth", token }))
-    }
-
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
 
@@ -37,7 +31,7 @@ export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOp
         return
       }
       if (data.type === "auth_success") {
-        reconnectDelayRef.current = BASE_RECONNECT_DELAY_MS  // connection is healthy again, reset backoff
+        reconnectDelayRef.current = BASE_RECONNECT_DELAY_MS
         return
       }
 

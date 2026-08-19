@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation"
 
 // lib
 import { api, publicApi } from "@/lib/api"
-import { setTokens, setUser, clearAuth } from "@/lib/auth"
+import { setUser, clearAuth } from "@/lib/auth"
 import { formatCooldown, getErrorMessage } from "@/lib/utils"
 
 const RESEND_COOLDOWNS = [0, 60, 180, 3600]
@@ -83,9 +83,8 @@ export default function Login() {
 
   // check if already logged in
   useEffect(() => {
-    const token = localStorage.getItem("access_token")
     const user = localStorage.getItem("user")
-    if (token && user) {
+    if (user) {
       const parsed = JSON.parse(user)
       if (parsed.must_change_password) {
         router.replace("/change-password")
@@ -93,7 +92,7 @@ export default function Login() {
       }
       if (parsed.user_role === "Admin") router.replace("/admin/dashboard")
       else if (parsed.user_role === "MENRO") router.replace("/menro/map")
-      else if (parsed.user_role === "MENRO_Staff") router.replace("/menro/map") 
+      else if (parsed.user_role === "MENRO_Staff") router.replace("/menro/map")
       else if (parsed.user_role === "Barangay") clearAuth()
     }
   }, [])
@@ -119,7 +118,6 @@ export default function Login() {
     setIsLoadingLogin(true)
     try {
       const data = await publicApi.post("/api/auth/login/", { email, password })
-      setTokens(data.access)
       setUser(data.user)
 
       if (data.user.must_change_password) {
