@@ -108,7 +108,7 @@ export default function Form() {
 
     const loadUser = async () => {
       try {
-        const data = await api.get('/api/barangays/')
+        const data = await api.get(`/api/users/${id}/`)
         setFname(data.first_name)
         setLname(data.last_name)
         setRole(data.user_role)
@@ -279,7 +279,7 @@ export default function Form() {
           {/* profile container */}
           <div className="flex flex-col justify-center bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg p-1 w-110 h-90 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
             <div className={`bg-[#2C7B3C] rounded-full w-18 h-18 mx-auto flex items-center justify-center text-white font-bold ${isEdit ? 'text-[33px]' : 'text-[30px] '}`}>
-              {isEdit ? `${fname.charAt(0)}${lname.charAt(0)}` : '?'}
+              {isEdit ? `${fname?.charAt(0) ?? ''}${lname?.charAt(0) ?? ''}` : '?'}
             </div>
 
             <p className="text-center text-[#122A48] mt-2 font-bold text-sm">{isEdit ? `${fname} ${lname}` : 'Full Name'}</p>
