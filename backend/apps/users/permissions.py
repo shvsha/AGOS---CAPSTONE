@@ -4,38 +4,42 @@ from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.hashers import check_password
 from django.conf import settings
 
-class IsAdmin(BasePermission):
+class _RolePermission(BasePermission):
+    message = "Your account is not active. Please contact your administrator."
+    allowed_roles: list = []
+
     def has_permission(self, request, view):
+        user = request.user
         return (
-            request.user.is_authenticated 
-            and request.user.user_role == 'Admin'
-            and request.user.status == 'Active'
+            user.is_authenticated
+            and getattr(user, 'status', None) == 'Active'
+            and user.user_role in self.allowed_roles
         )
 
 
-class IsMENRO(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role == 'MENRO'
+class IsAdmin(_RolePermission):
+    allowed_roles = ['Admin']
 
 
-class IsBarangay(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role == 'Barangay'
+class IsMENRO(_RolePermission):
+    allowed_roles = ['MENRO']
 
 
-class IsAdminOrMENRO(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO', 'MENRO_Staff']
+class IsBarangay(_RolePermission):
+    allowed_roles = ['Barangay']
 
 
-class IsAdminOrMENROOrBarangay(BasePermission):
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO', 'MENRO_Staff', 'Barangay']
-    
-class IsAdminOrMENROOfficer(BasePermission):
+class IsAdminOrMENRO(_RolePermission):
+    allowed_roles = ['Admin', 'MENRO', 'MENRO_Staff']
+
+
+class IsAdminOrMENROOrBarangay(_RolePermission):
+    allowed_roles = ['Admin', 'MENRO', 'MENRO_Staff', 'Barangay']
+
+
+class IsAdminOrMENROOfficer(_RolePermission):
     """Officer only — excludes MENRO Staff. Used for barangay/municipal reports."""
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO']
+    allowed_roles = ['Admin', 'MENRO']
     
 
 # for iot

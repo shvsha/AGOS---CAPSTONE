@@ -1,4 +1,4 @@
-import { logout } from '@/lib/auth'
+import { logout, ACCOUNT_INACTIVE_MESSAGE } from '@/lib/auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
@@ -35,6 +35,19 @@ async function fetchWithRefresh(url: string, options: RequestInit): Promise<Resp
     const refreshed = await refreshAccessToken()
     if (!refreshed) throw { detail: 'Session expired.' }
     res = await fetch(url, options)
+  }
+
+  if (res.status === 403) {
+    const clone = res.clone()
+    try {
+      const body = await clone.json()
+      if (body?.detail === ACCOUNT_INACTIVE_MESSAGE) {
+        await logout()
+        window.location.href = '/login?reason=inactive'
+      }
+    } catch {
+      
+    }
   }
 
   return res

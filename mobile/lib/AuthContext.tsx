@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { api, setTokens, clearAuth, getAccessToken, getRefreshToken } from './api'
 import { User } from '../types/user'
+import { setForceLogoutListener } from './authEvents'
 
 type AuthContextType = {
   user: User | null
@@ -39,6 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     bootstrap()
+  }, [])
+
+  useEffect(() => {
+    setForceLogoutListener(() => {
+      clearAuth()
+      setUser(null)
+    })
+    return () => setForceLogoutListener(null)
   }, [])
 
   const login = async (email: string, password: string) => {

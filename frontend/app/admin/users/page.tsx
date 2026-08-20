@@ -346,7 +346,7 @@ export default function Users() {
                           ) : (
                             <Button
                               onClick={() => setReactivateDialog({ open: true, user: user })}
-                              className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
                             >
                               <UserPlus size={16} />
                               Activate

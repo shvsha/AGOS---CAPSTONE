@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store'
+import { triggerForceLogout } from './authEvents'
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.6:8000'
+export const ACCOUNT_INACTIVE_MESSAGE = 'Your account is not active. Please contact your administrator.'
 
 // token storage
 export async function getAccessToken() {
@@ -50,7 +52,7 @@ async function buildHeaders(token?: string): Promise<HeadersInit> {
   }
 }
 
-// fetch with auto retry on 401
+// fetch with auto retry
 async function fetchWithRefresh(url: string, options: RequestInit): Promise<Response> {
   let res = await fetch(url, options)
 
@@ -62,6 +64,19 @@ async function fetchWithRefresh(url: string, options: RequestInit): Promise<Resp
       ...options,
       headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
     })
+  }
+
+  if (res.status === 403) {
+    const clone = res.clone()
+    try {
+      const body = await clone.json()
+      if (body?.detail === ACCOUNT_INACTIVE_MESSAGE) {
+        await clearAuth()
+        triggerForceLogout()
+      }
+    } catch {
+      // not JSON, or didn't match — a normal 403, let it bubble up as-is
+    }
   }
 
   return res

@@ -1,5 +1,7 @@
 "use client"
 
+export const ACCOUNT_INACTIVE_MESSAGE = 'Your account is not active. Please contact your administrator.'
+
 export const getUser = () => {
   const user = localStorage.getItem("user")
   return user ? JSON.parse(user) : null
@@ -68,6 +70,19 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
       await logout()
       window.location.href = '/login'
       throw err
+    }
+  }
+
+  if (res.status === 403) {
+    const clone = res.clone()
+    try {
+      const body = await clone.json()
+      if (body?.detail === ACCOUNT_INACTIVE_MESSAGE) {
+        await logout()
+        window.location.href = '/login?reason=inactive'
+      }
+    } catch {
+      
     }
   }
 
