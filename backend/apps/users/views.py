@@ -14,6 +14,12 @@ from django.utils import timezone
 from .throttles import LoginRateThrottle, OTPRateThrottle
 import time
 import threading
+from axes.models import AccessAttempt
+
+def is_locked_out(email, ip):
+    return AccessAttempt.objects.filter(
+        username=email, ip_address=ip, failures_since_start__gte=settings.AXES_FAILURE_LIMIT
+    ).exists()
 
 
 class LoginView(APIView):
@@ -28,6 +34,13 @@ class LoginView(APIView):
             return Response(
                 {'error': 'Email and password are required'},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ip = request.META.get('REMOTE_ADDR')
+        if is_locked_out(email, ip):
+            return Response(
+                {'error': 'Too many failed attempts. Please try again later or contact your administrator.'},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         user = authenticate(request, email=email, password=password)

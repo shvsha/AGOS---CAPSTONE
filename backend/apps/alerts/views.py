@@ -54,6 +54,11 @@ class AlertMarkReadView(APIView):
         except Alert.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        user = request.user
+        if user.user_role == 'Barangay':
+            if not alert.node or alert.node.barangay_id != user.barangay_id:
+                return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
         AlertRead.objects.get_or_create(alert=alert, user=request.user)
         return Response({'detail': 'Marked as read.'})
 

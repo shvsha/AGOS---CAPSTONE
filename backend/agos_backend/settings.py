@@ -34,8 +34,14 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG') == 'True'
 
-ALLOWED_HOSTS = ['*', '192.168.1.6', '10.160.177.173', '192.168.1.4','10.151.227.172', 'checking-municipal-glass-theaters.trycloudflare.com'
-                 ]
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '').split(',') if h.strip()]
 
 ASGI_APPLICATION = 'agos_backend.asgi.application'
 
@@ -61,6 +67,7 @@ INSTALLED_APPS = [
     # 'django.contrib.gis',
     'django_apscheduler',
     'django_filters',
+    'axes',
 
     'rest_framework',
     'corsheaders',
@@ -96,7 +103,30 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+def get_axes_username(request, credentials):
+    """
+    Unify both login entry points under one lockout key:
+    - Our custom API LoginView passes credentials={'email': ...}
+    - Django's admin login form posts a field literally named 'username'
+      (hardcoded into Django's admin template, regardless of USERNAME_FIELD)
+    """
+    return credentials.get('email') or credentials.get('username')
+
+AXES_FAILURE_LIMIT = 10
+AXES_COOLOFF_TIME = 1  # hours
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
+AXES_USERNAME_CALLABLE = get_axes_username
+AXES_IPWARE_PROXY_COUNT = 1
+AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_FORWARDED_FOR']
+AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -194,6 +224,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'agos_backend.exception_handlers.custom_exception_handler',
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
