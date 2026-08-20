@@ -5,6 +5,29 @@ import tempfile
 from datetime import datetime
 from django.conf import settings
 
+MAX_BACKUP_UNCOMPRESSED_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
+MAX_BACKUP_ENTRY_COUNT = 20_000
+MAX_COMPRESSION_RATIO = 100
+
+
+def _validate_backup_zip(zf):
+    total_uncompressed = 0
+    entry_count = 0
+
+    for info in zf.infolist():
+        entry_count += 1
+        if entry_count > MAX_BACKUP_ENTRY_COUNT:
+            raise ValueError("Backup archive has too many entries.")
+
+        total_uncompressed += info.file_size
+        if total_uncompressed > MAX_BACKUP_UNCOMPRESSED_SIZE:
+            raise ValueError("Backup archive is too large when decompressed.")
+
+        if info.compress_size > 0:
+            ratio = info.file_size / info.compress_size
+            if ratio > MAX_COMPRESSION_RATIO and info.file_size > 10 * 1024 * 1024:
+                raise ValueError("Backup archive contains a suspiciously compressed file.")
+
 
 def create_backup_archive(output_dir):
     """
@@ -95,6 +118,7 @@ def restore_backup_archive(zip_path):
             names = zf.namelist()
             if 'database.sql' not in names:
                 raise ValueError("Invalid backup file: database.sql not found in archive.")
+            _validate_backup_zip(zf)
             zf.extractall(tmp_dir)
 
         dump_path = os.path.join(tmp_dir, 'database.sql')

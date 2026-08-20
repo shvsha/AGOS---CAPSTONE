@@ -40,6 +40,7 @@ class SensorNode(models.Model):
     )
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Active')
     installed_at = models.DateTimeField(default=timezone.now)
+    device_key_hash = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         db_table = 'tbl_sensor_nodes'

@@ -17,16 +17,10 @@ class WasteClassificationListView(generics.ListCreateAPIView):
     serializer_class = WasteClassificationSerializer
     pagination_class = None
 
-    # def get_permissions(self):
-    #     if self.request.method == 'GET':
-    #         return [IsAdminOrMENROOrBarangay()]
-    #     return [IsIoTDevice()]
-
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAdminOrMENROOrBarangay()]
-        # Allow both IoT device AND Admin (for testing)
-        return [IsIoTDevice() if self.request.auth is None else IsAdminOrMENROOrBarangay()]
+        return [(IsIoTDevice | IsAdminOrMENROOrBarangay)()]
 
     def get_queryset(self):
         from datetime import datetime
@@ -71,10 +65,16 @@ class ClassifyWasteView(APIView):
     permission_classes = [IsIoTDevice | IsAdminOrMENROOrBarangay]
 
     def post(self, request):
+        from apps.sensor_nodes.models import SensorNode
+
         image_file = request.FILES.get('image')
-        node_id    = request.data.get('node_id')
         reading_id = request.data.get('reading_id')
         estimated_volume = request.data.get('estimated_volume', 0.0)
+
+        if isinstance(request.auth, SensorNode):
+            node_id = request.auth.node_id
+        else:
+            node_id = request.data.get('node_id')
 
         if not image_file:
             return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -102,7 +102,6 @@ class ClassifyWasteView(APIView):
                 )
 
             # Save to database
-            from apps.sensor_nodes.models import SensorNode
             from apps.sensor_readings.models import SensorReading
 
             node    = SensorNode.objects.get(node_id=node_id)

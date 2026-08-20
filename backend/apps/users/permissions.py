@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth.hashers import check_password
 from django.conf import settings
 
 class IsAdmin(BasePermission):
@@ -36,33 +37,63 @@ class IsAdminOrMENROOfficer(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.user_role in ['Admin', 'MENRO']
     
+
 # for iot
 class IoTDeviceAuthentication(BaseAuthentication):
     """
-    Custom authentication for IoT devices using API key.
-    Bypasses JWT authentication entirely for IoT requests.
+    Per-device authentication for IoT nodes. Expects a header like:
+        X-API-Key: {node_id}.{secret}
+
+    The node_id prefix isn't secret — it just lets us look up the
+    exact SensorNode in one query. The part after the dot is checked
+    against that node's stored hash. On success, the authenticated
+    SensorNode is attached as request.auth, so views can trust
+    request.auth.node_id instead of anything the client claims in the
+    request body.
     """
     def authenticate(self, request):
+        from apps.sensor_nodes.models import SensorNode
+
         api_key = request.headers.get('X-API-Key')
-        
+
         if not api_key:
             return None
-        
-        if api_key != settings.IOT_API_KEY:
+
+        if '.' not in api_key:
             raise AuthenticationFailed('Invalid API key')
-        
-        # Return None as user since IoT device has no user account
-        # but mark as authenticated via a dummy object
-        return (IoTUser(), None)
+
+        node_id_str, secret = api_key.split('.', 1)
+        if not node_id_str.isdigit():
+            raise AuthenticationFailed('Invalid API key')
+
+        try:
+            node = SensorNode.objects.get(node_id=int(node_id_str))
+        except SensorNode.DoesNotExist:
+            raise AuthenticationFailed('Invalid API key')
+
+        if not node.device_key_hash or not check_password(secret, node.device_key_hash):
+            raise AuthenticationFailed('Invalid API key')
+
+        if node.status != 'Active':
+            raise AuthenticationFailed('Device is not active')
+
+        return (IoTUser(node), node)
 
 
 class IoTUser:
-    """Dummy user object for IoT device authentication"""
+    """Represents an authenticated IoT device, tied to a specific SensorNode."""
     is_authenticated = True
     user_role = 'IoT'
-    
+
+    def __init__(self, node):
+        self.node = node
+
+    @property
+    def pk(self):
+        return self.node.node_id
+
     def __str__(self):
-        return 'IoT Device'
+        return f'IoT Device (node {self.node.node_id})'
 
 
 class IsIoTDevice(BasePermission):

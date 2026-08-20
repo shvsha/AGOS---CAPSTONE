@@ -23,6 +23,12 @@ class SensorReadingListView(generics.ListCreateAPIView):
             return [IsAdminOrMENRO()]
         return [IsIoTDevice()]
 
+    def perform_create(self, serializer):
+        if isinstance(self.request.auth, SensorNode):
+            serializer.save(node=self.request.auth)
+        else:
+            serializer.save()
+
 
 class SensorReadingByNodeView(generics.ListAPIView):
     serializer_class = SensorReadingSerializer
@@ -211,7 +217,16 @@ class SensorReadingWithFlowView(APIView):
     permission_classes = [IsIoTDevice | IsAdminOrMENRO]
 
     def post(self, request):
-        node_id        = request.data.get('node')
+        if isinstance(request.auth, SensorNode):
+            # Authenticated as a specific device — always use its own
+            # node, ignoring whatever the client claims in the body.
+            # This is what actually stops one device from posting data
+            # as another node.
+            node_id = request.auth.node_id
+        else:
+            # Authenticated as human staff (Admin/MENRO) via JWT —
+            # allow specifying which node to submit/test for.
+            node_id = request.data.get('node')
         water_level    = request.data.get('water_level')
         reading_status = request.data.get('reading_status', 'Normal')
 

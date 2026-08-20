@@ -12,6 +12,8 @@ import json
 from django.conf import settings
 from django.utils import timezone
 from .throttles import LoginRateThrottle, OTPRateThrottle
+import time
+import threading
 
 
 class LoginView(APIView):
@@ -160,28 +162,34 @@ class ForgotPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [OTPRateThrottle]
 
+    MIN_RESPONSE_SECONDS = 0.3
+
     def post(self, request):
+        start = time.monotonic()
         email = request.data.get('email')
         if not email:
             return Response(
                 {'email': 'Email is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             user = User.objects.get(email=email)
+            otp = generate_otp()
+            store_otp(email, otp)
+            threading.Thread(
+                target=send_otp_email, args=(email, otp), daemon=True
+            ).start()
         except User.DoesNotExist:
-            return Response(
-                {'email': 'No account found with this email'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        otp = generate_otp()
-        store_otp(email, otp)
-        send_otp_email(email, otp)
-        
+            pass
+
+        elapsed = time.monotonic() - start
+        remaining = self.MIN_RESPONSE_SECONDS - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
+
         return Response(
-            {'message': 'OTP sent to your email'},
+            {'message': 'If an account exists with this email, an OTP has been sent.'},
             status=status.HTTP_200_OK
         )
 

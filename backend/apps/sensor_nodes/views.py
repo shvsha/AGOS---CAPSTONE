@@ -9,6 +9,8 @@ from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBara
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from apps.rainfall.services import get_effective_condition, AlertThreshold
 from apps.audit_logs.utils import log_action
+import secrets
+from django.contrib.auth.hashers import make_password
 
 
 class SensorNodeListView(generics.ListCreateAPIView):
@@ -178,6 +180,40 @@ class SensorNodeRetireView(APIView):
         return Response({'message': f'Node {node_id} has been retired'}, status=status.HTTP_200_OK)
 
 
+class SensorNodeGenerateKeyView(APIView):
+    """
+    Generates a new device credential for a node. The plaintext key is
+    returned ONLY in this response — it's never stored or recoverable
+    again, only the hash. Calling this again for the same node
+    invalidates whatever key it had before.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, node_id):
+        try:
+            node = SensorNode.objects.get(node_id=node_id)
+        except SensorNode.DoesNotExist:
+            return Response({'error': 'Node not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        secret = secrets.token_urlsafe(32)
+        node.device_key_hash = make_password(secret)
+        node.save()
+
+        log_action(
+            user=request.user,
+            action='Generated Device Key',
+            affected_table='tbl_sensor_nodes',
+            new_value=f"node: {node.node_name or node.node_id}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({
+            'node_id': node.node_id,
+            'device_key': f"{node.node_id}.{secret}",
+            'warning': 'This key will not be shown again. Copy it into the device firmware now.',
+        }, status=status.HTTP_200_OK)
+
+
 class SensorNodeConfigView(APIView):
     """
     Lightweight config endpoint for IoT devices.
@@ -244,6 +280,12 @@ class SystemHealthLogListView(generics.ListCreateAPIView):
         if self.request.method == 'GET':
             return [IsAdminOrMENRO()]
         return [IsIoTDevice()]
+
+    def perform_create(self, serializer):
+        if isinstance(self.request.auth, SensorNode):
+            serializer.save(node=self.request.auth)
+        else:
+            serializer.save()
 
 
 class SystemHealthLogByNodeView(generics.ListAPIView):

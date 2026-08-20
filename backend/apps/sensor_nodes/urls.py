@@ -1,11 +1,12 @@
 from django.urls import path
-from .views import ( SensorNodeListView, SensorNodeDetailView, SensorNodeByBarangayView, SystemHealthLogListView, SystemHealthLogByNodeView, SensorNodeUnassignView, SensorNodeRetireView, SensorNodeConfigView, SensorNodeNextCodeView )
+from .views import ( SensorNodeListView, SensorNodeDetailView, SensorNodeByBarangayView, SystemHealthLogListView, SystemHealthLogByNodeView, SensorNodeUnassignView, SensorNodeRetireView, SensorNodeConfigView, SensorNodeNextCodeView, SensorNodeGenerateKeyView )
 
 urlpatterns = [
     path('sensor-nodes/', SensorNodeListView.as_view(), name='sensor-node-list'),
     path('sensor-nodes/next-code/', SensorNodeNextCodeView.as_view(), name='sensor-node-next-code'),
     path('sensor-nodes/<int:node_id>/', SensorNodeDetailView.as_view(), name='sensor-node-detail'),
     path('sensor-nodes/<int:node_id>/config/', SensorNodeConfigView.as_view(), name='sensor-node-config'),
+    path('sensor-nodes/<int:node_id>/generate-key/', SensorNodeGenerateKeyView.as_view(), name='sensor-node-generate-key'),
     path('sensor-nodes/barangay/<int:barangay_id>/', SensorNodeByBarangayView.as_view(), name='sensor-node-by-barangay'),
     path('sensor-nodes/<int:node_id>/unassign/', SensorNodeUnassignView.as_view(), name='sensor-node-unassign'),
     path('sensor-nodes/<int:node_id>/retire/', SensorNodeRetireView.as_view(), name='sensor-node-retire'),
