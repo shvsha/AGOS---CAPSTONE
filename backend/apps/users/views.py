@@ -66,8 +66,6 @@ class LoginView(APIView):
             is_secure = not settings.DEBUG
 
             response = Response({
-                'access': access_token,
-                'refresh': refresh_token,
                 'user': user_data
             })
 
