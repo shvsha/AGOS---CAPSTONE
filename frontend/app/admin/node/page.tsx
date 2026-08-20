@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Copy } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback } from "react"
@@ -109,6 +109,11 @@ export default function NodeManagement() {
   const [decommissionDialog, setDecommissionDialog] = useState<DialogState>({ open: false, node: null })
   const [decommissionGuardDialog, setDecommissionGuardDialog] = useState<DialogState>({ open: false, node: null })
 
+  const [keyModal, setKeyModal] = useState<{ open: boolean; deviceKey: string; nodeName: string; fromAdd: boolean }>({ open: false, deviceKey: '', nodeName: '', fromAdd: false })
+  const [regenerateConfirmDialog, setRegenerateConfirmDialog] = useState<DialogState>({ open: false })
+  const [generatingKey, setGeneratingKey] = useState(false)
+  const [copied, setCopied] = useState(false)
+
   const isEdit = !!nodeFormDialog.node
 
   const filtered = sensorNodes
@@ -205,6 +210,32 @@ export default function NodeManagement() {
     resetForm()
   }
 
+  const generateKeyForNode = async (node: { node_id: number; node_name: string }, fromAdd: boolean = false) => {
+    setGeneratingKey(true)
+    try {
+      const result = await api.post(`/api/sensor-nodes/${node.node_id}/generate-key/`, {})
+      setKeyModal({ open: true, deviceKey: result.device_key, nodeName: node.node_name, fromAdd })
+    } catch (err: any) {
+      addToast(err?.detail ?? err?.error ?? 'Failed to generate device key.', 'error')
+      if (fromAdd) {
+        setNodeFormDialog({ open: false, node: null })
+        resetForm()
+      }
+    } finally {
+      setGeneratingKey(false)
+    }
+  }
+
+  const handleKeyModalDone = () => {
+    const wasFromAdd = keyModal.fromAdd
+    setKeyModal({ open: false, deviceKey: '', nodeName: '', fromAdd: false })
+    setCopied(false)
+    if (wasFromAdd) {
+      setNodeFormDialog({ open: false, node: null })
+      resetForm()
+    }
+  }
+
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
     setLoadingDialog({ open: true })
@@ -222,6 +253,7 @@ export default function NodeManagement() {
         const created = await api.post('/api/sensor-nodes/', payload)
         nodesCache.setData(prev => [created, ...prev])
         addToast(`${created.node_name} has been added.`, 'success')
+        await generateKeyForNode(created, true)
       }
       setNodeFormDialog({ open: false, node: null })
       resetForm()
@@ -558,6 +590,17 @@ export default function NodeManagement() {
                       />
                     </div>
                     <FieldError className="text-xs">{fieldErrors.nodeCode}</FieldError>
+                    {isEdit && (
+                      <Button
+                        type="button"
+                        onClick={() => setRegenerateConfirmDialog({ open: true })}
+                        disabled={generatingKey}
+                        className="cursor-pointer hover:bg-[#e3ecf0] bg-[#FAFCFD] border border-[#C6C6C8] text-[11px] md:text-xs rounded-lg px-3 py-2 mt-1 text-[#1565BC] w-fit"
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                        {generatingKey ? 'Generating...' : 'Generate New Key'}
+                      </Button>
+                    )}
                   </Field>
                 </div>
               </div>
@@ -699,6 +742,59 @@ export default function NodeManagement() {
         iconColor={DIALOG_COLOR.blue}
         title={isEdit ? "Saving Changes" : "Adding Node"}
         description={<> Processing details. Please wait. </>}
+      />
+
+      {/* Regenerate key confirm dialog */}
+      <DialogModal
+        open={regenerateConfirmDialog.open}
+        onClose={() => setRegenerateConfirmDialog({ open: false })}
+        onConfirm={() => {
+          setRegenerateConfirmDialog({ open: false })
+          generateKeyForNode(nodeFormDialog.node!)
+        }}
+        color={DIALOG_COLOR.lightyellow}
+        icon={KeyRound}
+        iconColor={DIALOG_COLOR.yellow}
+        title="Generate New Key"
+        description={<> This will invalidate <strong>{nodeFormDialog.node?.node_name}</strong>'s current device key. The physical device will need to be reflashed before it can connect again. Continue? </>}
+        cancelLabel="Cancel"
+        confirmLabel="Generate Key"
+      />
+
+      {/* Device key reveal modal */}
+      <DialogModal
+        open={keyModal.open}
+        color={DIALOG_COLOR.lightgreen}
+        icon={KeyRound}
+        iconColor={DIALOG_COLOR.green}
+        title="Device Key Generated"
+        description={
+          <span className="flex flex-col gap-2">
+            <span className="block">
+              Copy this key into <strong>{keyModal.nodeName}</strong>&apos;s firmware now — it will not be shown again.
+            </span>
+            <span className="flex items-center gap-2 rounded-lg border border-[#C6C6C8] bg-[#1565BC05] px-3 py-2">
+              <code className="flex-1 text-[11px] sm:text-xs break-all font-mono text-[#122A48]">
+                {keyModal.deviceKey}
+              </code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(keyModal.deviceKey)
+                  setCopied(true)
+                }}
+                className="flex-shrink-0 cursor-pointer text-[#1565BC] hover:text-[#12569f]"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </span>
+            <span className="block text-[#FF0000] text-[11px] sm:text-xs font-medium">
+              If lost, you&apos;ll need to generate a new key and reflash the device.
+            </span>
+          </span>
+        }
+        confirmLabel="Done"
+        onConfirm={handleKeyModalDone}
       />
 
       {/* Unassign dialog */}
