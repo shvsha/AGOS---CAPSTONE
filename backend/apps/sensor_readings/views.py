@@ -189,7 +189,7 @@ def get_water_flow_category(flow_rate) -> str:
 def run_waste_classification(image_bytes: bytes):
     try:
         ai_model_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             'ai_model'
         )
         if ai_model_path not in sys.path:
