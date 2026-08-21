@@ -199,7 +199,7 @@ def call_ai_service(image_bytes: bytes):
             f"{settings.AI_SERVICE_URL}/classify",
             files={"frame": ("frame.jpg", image_bytes, "image/jpeg")},
             headers={"X-Service-Key": settings.AI_SERVICE_KEY},
-            timeout=60,  # first request after cold start can be slow
+            timeout=180,  # first request after cold start can be slow
         )
         response.raise_for_status()
         return response.json()
