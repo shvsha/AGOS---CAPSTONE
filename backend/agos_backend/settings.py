@@ -51,7 +51,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [os.getenv('REDIS_URL', 'redis://127.0.0.1:6379')],
         },
     },
 }
@@ -164,6 +164,7 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
+        'DISABLE_SERVER_SIDE_CURSORS': True,
     }
 }
 

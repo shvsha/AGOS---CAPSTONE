@@ -66,3 +66,6 @@ mobile/.env
 
 # requirements for ML
 backend/requirements-ml.txt
+
+# data needed for the system is here
+seed_data.json
