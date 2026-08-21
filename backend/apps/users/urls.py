@@ -1,6 +1,5 @@
 from django.urls import path
-from .views import (LoginView, LogoutView, MeView, UserListView, UserDetailView, ForgotPasswordView, VerifyOTPView, ResetPasswordView, InitialSetupView, TokenRefreshView, ChangePasswordView, MobileLoginView, MobileTokenRefreshView, MobileLogoutView, AgreePrivacyView
-)
+from .views import (LoginView, LogoutView, MeView, UserListView, UserDetailView, ForgotPasswordView, VerifyOTPView, ResetPasswordView, InitialSetupView, TokenRefreshView, ChangePasswordView, MobileLoginView, MobileTokenRefreshView, MobileLogoutView, AgreePrivacyView, WSTokenView )
 
 urlpatterns = [
     path('auth/setup/', InitialSetupView.as_view(), name='initial-setup'),
@@ -20,4 +19,6 @@ urlpatterns = [
     path('auth/mobile-login/', MobileLoginView.as_view(), name='mobile-login'),
     path('auth/mobile-token/refresh/', MobileTokenRefreshView.as_view(), name='mobile-token-refresh'),
     path('auth/mobile-logout/', MobileLogoutView.as_view(), name='mobile-logout'),
+
+    path('auth/ws-token/', WSTokenView.as_view(), name="ws-token"),
 ]

@@ -463,3 +463,13 @@ class AgreePrivacyView(APIView):
         )
 
         return Response({'user': UserSerializer(request.user).data})
+
+
+class WSTokenView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        raw_token = request.COOKIES.get('access_token')
+        if not raw_token:
+            return Response({'error': 'Not authenticated'}, status=401)
+        return Response({'token': raw_token})

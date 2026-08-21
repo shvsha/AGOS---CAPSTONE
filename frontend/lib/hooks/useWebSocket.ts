@@ -19,9 +19,20 @@ export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOp
   const connect = useCallback(() => {
     if (!enabled) return
 
-    const wsBase = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/^http/, "ws")
+    const wsBase = (process.env.NEXT_PUBLIC_WS_URL ?? "").replace(/^http/, "ws")
     const ws = new WebSocket(`${wsBase}${path}`)
     wsRef.current = ws
+
+    ws.onopen = async () => {
+      try {
+        const res = await fetch("/api/auth/ws-token/", { credentials: "include" })
+        if (!res.ok) return ws.close()
+        const { token } = await res.json()
+        ws.send(JSON.stringify({ type: "auth", token }))
+      } catch {
+        ws.close()
+      }
+    }
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
