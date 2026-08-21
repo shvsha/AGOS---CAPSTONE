@@ -27,6 +27,17 @@ app = FastAPI(title="AGOS AI Service")
 
 SERVICE_KEY = os.environ.get("AI_SERVICE_KEY")  # shared secret, set on both services
 
+import threading
+
+@app.on_event("startup")
+def warm_models():
+    def _load():
+        logger.info("Warming models in background at startup...")
+        _get_tf_model()
+        _get_yolo_model()
+        logger.info("Model warm-up complete.")
+    threading.Thread(target=_load, daemon=True).start()
+
 
 # ------------------------------------------------------------------
 # Lazy-loaded models — loaded once on first request, not at import
@@ -200,7 +211,11 @@ def _run_yolo_detection(image_bytes: bytes):
 @app.get("/healthz")
 def healthz():
     """Plain health check for the keep-alive ping — cheap, no model loading."""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "tf_model_loaded": _tf_model is not None,
+        "yolo_model_loaded": _yolo_model is not None,
+    }
 
 
 @app.post("/classify")
