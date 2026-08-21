@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-import os
-import sys
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -186,25 +184,27 @@ def get_water_flow_category(flow_rate) -> str:
 # AI waste classification
 # ------------------------------------------------------------------
 
-def run_waste_classification(image_bytes: bytes):
+def call_ai_service(image_bytes: bytes):
+    """
+    Calls the standalone AI service (TensorFlow + YOLO) over HTTP.
+    Returns the combined {"classification": ..., "detection": ...} dict,
+    or None if the service is unreachable/erroring — callers should treat
+    None the same way they previously treated a failed in-process call.
+    """
+    import requests
+    from django.conf import settings
+
     try:
-        ai_model_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'ai_model'
+        response = requests.post(
+            f"{settings.AI_SERVICE_URL}/classify",
+            files={"frame": ("frame.jpg", image_bytes, "image/jpeg")},
+            headers={"X-Service-Key": settings.AI_SERVICE_KEY},
+            timeout=60,  # first request after cold start can be slow
         )
-        if ai_model_path not in sys.path:
-            sys.path.append(ai_model_path)
-
-        from classifier import classify_mixed_from_bytes
-        result = classify_mixed_from_bytes(image_bytes)
-
-        if not result.get('success'):
-            return None
-
-        return result
-
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
-        print(f"[WARN] Waste classification failed: {e}")
+        print(f"[WARN] AI service call failed: {e}")
         return None
 
 
@@ -326,10 +326,11 @@ class SensorReadingWithFlowView(APIView):
         from datetime import timedelta
         from apps.sensor_readings.signals import get_clog_severity
         from apps.waste_classification.utils import estimate_weight_kg
-        from apps.waste_classification.detection import estimate_weight_from_detection
-        severity = get_clog_severity(clog_pct)
 
-        classification_result = run_waste_classification(frame_bytes)
+        ai_result = call_ai_service(frame_bytes)
+        classification_result = ai_result.get("classification") if ai_result else None
+        if classification_result and not classification_result.get("success"):
+            classification_result = None
         print(f"[DEBUG] classification_result: {classification_result}")  # ← add this
         if classification_result is None:
             print(f"[WARN] Classification failed for reading {reading.reading_id}")
@@ -351,7 +352,9 @@ class SensorReadingWithFlowView(APIView):
         # (None, None) and we transparently fall back to the existing
         # geometry-based formula — dominant_label/MobileNetV2 output is
         # unaffected either way, only the weight number's source changes.
-        detected_kg, detected_counts = estimate_weight_from_detection(frame_bytes)
+        detection = ai_result.get("detection") if ai_result else {}
+        detected_kg = detection.get("estimated_kg")
+        detected_counts = detection.get("counts_by_class")
         if detected_kg is not None:
             estimated_kg = detected_kg
             print(f"[DEBUG] estimated_kg from detection: {estimated_kg} counts={detected_counts}")
