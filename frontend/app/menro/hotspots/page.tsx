@@ -50,6 +50,7 @@ type Hotspot = {
   hotspot_id: number
   barangay_details: { barangay_id: number; barangay_name: string } | null
   name: string
+  code: string
   description: string
   latitude: number
   longitude: number

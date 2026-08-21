@@ -117,7 +117,7 @@ export default function MonthlyReports() {
   const total = municipalReports.length
   const totalRecyclable = municipalReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
   const totalBiodegredable = municipalReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
-  const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + r.total_special_waste_kg, 0)
+  const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + (r.total_special_waste_kg ?? 0), 0)
 
   const handleExport = async (reportId: number) => {
     setExportingId(reportId)

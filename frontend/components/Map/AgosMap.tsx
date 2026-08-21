@@ -308,7 +308,6 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       minZoom={13}
       style={{ height: "100%", width: "100%" }}
       className="rounded-lg z-0"
-      colorMode={colorMode}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'

@@ -266,7 +266,7 @@ export default function ViewMunicipalReport() {
   if (loading) {
     return (
       <div className="hidden md:flex flex-col items-center justify-center h-150">
-        <SpinnerIcon className="w-8 h-8 text-[#1565BC]" />
+        <SpinnerIcon size={32} color="#1565BC" />
       </div>
     )
   }

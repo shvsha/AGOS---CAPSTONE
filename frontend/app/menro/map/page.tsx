@@ -2,6 +2,7 @@
 
 // react
 import { useEffect, useState, useCallback } from "react"
+import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
 // components
@@ -22,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Leaf, Recycle, Trash2, Biohazard, Siren, Activity, RadioTower, TriangleAlert, MapPin, Droplet, Waves, BatteryMedium, Signal, Radar, X   } from "lucide-react"
 
 
-const ALERT_ICONS: Record<string, JSX.Element> = {
+const ALERT_ICONS: Record<string, ReactNode> = {
   Water_Level_Rising: <Activity size={18} />,
   Critical_Clog:      <RadioTower size={18} />,
   Node_Offline:       <TriangleAlert size={18} />,
@@ -31,7 +32,7 @@ const ALERT_ICONS: Record<string, JSX.Element> = {
   Sensor_Failure:     <RadioTower size={18} />,
 }
 
-const WASTE_ICONS: Record<string, JSX.Element> = {
+const WASTE_ICONS: Record<string, ReactNode> = {
   Recyclable:      <Recycle size={18} />,
   Biodegradable:   <Leaf size={18} />,
   Residual:        <Trash2 size={18} />,

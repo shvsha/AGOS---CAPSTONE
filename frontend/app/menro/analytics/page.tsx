@@ -53,7 +53,7 @@ type WasteClassification = {
 }
 
 // fetch raw data
-const fetchBarangaysRaw = async () => {
+const fetchBarangaysRaw = async (): Promise<{ barangay_id: number; barangay_name: string }[]> => {
   const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
   if (!res.ok) throw new Error()
   const data = await res.json()

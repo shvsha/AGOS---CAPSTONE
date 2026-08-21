@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from "next/navigation"
 
 // icons
+import type { ReactNode } from "react"
 import { RadioTower, Activity, TriangleAlert, Waves, Map, X, Siren  } from "lucide-react"
 
 // shadcn
@@ -72,7 +73,7 @@ const getClogPctColor = (value: number) => {
   return 'text-[#D81010]'
 }
 
-const ALERT_ICONS: Record<string, JSX.Element> = {
+const ALERT_ICONS: Record<string, ReactNode> = {
   Water_Level_Rising: <Activity size={18} />,
   Critical_Clog:      <RadioTower size={18} />,
   Node_Offline:       <TriangleAlert size={18} />,

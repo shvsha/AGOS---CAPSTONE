@@ -421,7 +421,7 @@ export default function Barangay() {
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => handleRegister(barangay)}
+                          onClick={() => handleRegisterClick(barangay)}
                           className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#B2FBC173] hover:bg-[#78ee9073] cursor-pointer border border-[#73b780] h-11 w-23 text-xs"
                         >
                           <MapPinPlus size={16} /> Register
