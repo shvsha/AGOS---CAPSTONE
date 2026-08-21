@@ -121,14 +121,14 @@ export default function Login() {
       setUser(data.user)
 
       if (data.user.must_change_password) {
-        router.replace("/change-password")
+        window.location.href = "/change-password"
         return
       }
 
       const userRole = data.user.user_role
-      if (userRole === "Admin") router.replace("/admin/dashboard")
-      else if (userRole === "MENRO") router.replace("/menro/map")
-      else if (userRole === "MENRO_Staff") router.replace("/menro/map")
+      if (userRole === "Admin") window.location.href = "/admin/dashboard"
+      else if (userRole === "MENRO") window.location.href = "/menro/map"
+      else if (userRole === "MENRO_Staff") window.location.href = "/menro/map"
       else if (userRole === "Barangay") {
         clearAuth()
         setLoginError("Barangay accounts are only available on the AGOS mobile app.")

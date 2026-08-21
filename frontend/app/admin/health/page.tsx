@@ -184,13 +184,15 @@ export default function Health() {
               <p className="text-[#122A48] font-bold mb-1">Canal Network Map - Rosario, La Union</p>
             <div className="flex-1 rounded-lg overflow-hidden">
               <AgosMapWrapper
-                markers={allNodes.map(n => ({
-                  latitude:  n.latitude,
-                  longitude: n.longitude,
-                  label:     n.node_name,
-                  condition: n.health_status ?? 'Normal',
-                  onMarkerClick: () => handleSelectNode(n.node_id)
-                }))}
+                markers={allNodes
+                  .filter(n => n.latitude != null && n.longitude != null)
+                  .map(n => ({
+                    latitude:  n.latitude,
+                    longitude: n.longitude,
+                    label:     n.node_name,
+                    condition: n.health_status ?? 'Normal',
+                    onMarkerClick: () => handleSelectNode(n.node_id)
+                  }))}
                 zoom={13}
                 colorMode="health"
               />
@@ -438,5 +440,3 @@ export default function Health() {
      </>
    )
  }
- 
-

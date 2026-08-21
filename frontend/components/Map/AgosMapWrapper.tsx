@@ -20,7 +20,7 @@ type Props = {
   zoom?: number
   markers?: MapMarker[]
   onMapClick?: (lat: number, lng: number) => void
-  colorMode?: 'clog' | 'health'
+  colorMode?: 'clog' | 'health' | 'availability'
   boundaryGeoJson?: any
 }
 
