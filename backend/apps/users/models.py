@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from apps.barangay.models import Barangay
 
 class UserManager(BaseUserManager):
@@ -19,6 +19,8 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, first_name, last_name, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
         return self.create_user(
             email=email,
             first_name=first_name,
@@ -28,7 +30,7 @@ class UserManager(BaseUserManager):
             **extra_fields
         )
 
-class User(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('Admin', 'Admin'),
         ('MENRO', 'MENRO'),
@@ -58,6 +60,8 @@ class User(AbstractBaseUser):
     updated_at = models.DateTimeField(auto_now=True)
     must_change_password = models.BooleanField(default=False)
     privacy_agreed_at = models.DateTimeField(null=True, blank=True)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = [ 'first_name', 'last_name']
