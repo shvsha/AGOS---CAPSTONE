@@ -2,7 +2,7 @@
 
 // react
 import { useSearchParams, useRouter, } from "next/navigation"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 
 // constant
 import { DIALOG_COLOR } from "@/lib/constant";
@@ -46,7 +46,7 @@ const ROLE_DISPLAY: Record<string, string> = {
   'Admin': 'Admin',
 }
 
-export default function Form() {
+function FormInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const id = searchParams.get('id')
@@ -905,6 +905,15 @@ export default function Form() {
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />
+
     </>
+  )
+}
+
+export default function Form() {
+  return (
+    <Suspense fallback={null}>
+      <FormInner />
+    </Suspense>
   )
 }

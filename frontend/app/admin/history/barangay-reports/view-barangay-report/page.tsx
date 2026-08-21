@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 // icons
@@ -221,7 +221,7 @@ function NarrativePhotos({ report, beforePhotos, afterPhotos, }: {
   )
 }
 
-export default function ViewBarangayReportAdmin() {
+function ViewBarangayReportAdminInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get("id")
@@ -353,5 +353,13 @@ export default function ViewBarangayReportAdmin() {
 
       <Toast toasts={toasts} onRemove={removeToast} />
     </>
+  )
+}
+
+export default function ViewBarangayReportAdmin() {
+  return (
+    <Suspense fallback={null}>
+      <ViewBarangayReportAdminInner />
+    </Suspense>
   )
 }

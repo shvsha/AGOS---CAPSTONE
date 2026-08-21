@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 // logo
@@ -199,7 +199,7 @@ function MunicipalMRFTable({
   )
 }
 
-export default function ViewMunicipalReport() {
+function ViewMunicipalReportInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = searchParams.get("id")
@@ -311,5 +311,13 @@ export default function ViewMunicipalReport() {
       <Toast toasts={toasts} onRemove={removeToast} />
 
     </>
+  )
+}
+
+export default function ViewMunicipalReport() {
+  return (
+    <Suspense fallback={null}>
+      <ViewMunicipalReportInner />
+    </Suspense>
   )
 }
