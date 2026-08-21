@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation"
 
 // lib
 import { api, publicApi } from "@/lib/api"
-import { setUser, clearAuth } from "@/lib/auth"
+import { syncUser, clearAuth } from "@/lib/auth"
 import { formatCooldown, getErrorMessage } from "@/lib/utils"
 
 const RESEND_COOLDOWNS = [0, 60, 180, 3600]
@@ -118,7 +118,7 @@ export default function Login() {
     setIsLoadingLogin(true)
     try {
       const data = await publicApi.post("/api/auth/login/", { email, password })
-      setUser(data.user)
+      syncUser(data.user)
 
       if (data.user.must_change_password) {
         window.location.href = "/change-password"

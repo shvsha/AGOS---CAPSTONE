@@ -37,7 +37,6 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const token    = request.cookies.get('access_token')?.value
   const userRaw  = request.cookies.get('user')?.value
 
   const isLoginPage = pathname === '/login' || pathname === '/'
@@ -45,7 +44,7 @@ export function proxy(request: NextRequest) {
   const isChangePasswordPage = pathname === CHANGE_PASSWORD_PATH
   const isPrivacyConsentPage = pathname === PRIVACY_CONSENT_PATH
 
-  if (!token && (isProtected || isChangePasswordPage || isPrivacyConsentPage)) {
+  if (!userRaw && (isProtected || isChangePasswordPage || isPrivacyConsentPage)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -59,35 +58,35 @@ export function proxy(request: NextRequest) {
   }
 
   // gate 1: privacy consent, before anything else
-  if (token && user && !user.privacy_agreed_at && !isPrivacyConsentPage) {
+  if (user && !user.privacy_agreed_at && !isPrivacyConsentPage) {
     return NextResponse.redirect(new URL(PRIVACY_CONSENT_PATH, request.url))
   }
 
   // block access to consent page once it's already been given
-  if (token && user && user.privacy_agreed_at && isPrivacyConsentPage) {
+  if (user && user.privacy_agreed_at && isPrivacyConsentPage) {
     const next = nextStepFor(user)
     if (next) return NextResponse.redirect(new URL(next, request.url))
   }
 
   // gate 2: mandatory password change
-  if (token && user?.privacy_agreed_at && user?.must_change_password && !isChangePasswordPage) {
+  if (user?.privacy_agreed_at && user?.must_change_password && !isChangePasswordPage) {
     return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url))
   }
 
   // block access to change-password page once it's no longer required
-  if (token && user && !user.must_change_password && isChangePasswordPage) {
+  if (user && !user.must_change_password && isChangePasswordPage) {
     const dashboard = ROLE_ROUTES[user.user_role]
     if (dashboard) {
       return NextResponse.redirect(new URL(dashboard, request.url))
     }
   }
 
-  if (token && isLoginPage && user) {
+  if (isLoginPage && user) {
     const next = nextStepFor(user)
     if (next) return NextResponse.redirect(new URL(next, request.url))
   }
 
-  if (token && isProtected && user) {
+  if (isProtected && user) {
     const allowedPrefix = ROLE_ROUTES[user.user_role]?.split('/').slice(0, 2).join('/')
     const actualPrefix = '/' + pathname.split('/')[1]
 
