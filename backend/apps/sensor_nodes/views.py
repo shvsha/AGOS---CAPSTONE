@@ -6,7 +6,7 @@ from rest_framework import status
 from .models import SensorNode, SystemHealthLog
 from .serializers import SensorNodeSerializer, SystemHealthLogSerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.users.authentication import CookieJWTAuthentication
 from apps.rainfall.services import get_effective_condition, AlertThreshold
 from apps.audit_logs.utils import log_action
 import secrets
@@ -226,7 +226,7 @@ class SensorNodeConfigView(APIView):
     always fetches the correct sensor height for whichever node_id it's
     currently set to.
     """
-    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+    authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
     permission_classes = [IsIoTDevice | IsAdminOrMENROOrBarangay]
 
     def get(self, request, node_id):
@@ -265,7 +265,7 @@ class SensorNodeConfigView(APIView):
 class SystemHealthLogListView(generics.ListCreateAPIView):
     pagination_class = None
     serializer_class = SystemHealthLogSerializer
-    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+    authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
 
     def get_queryset(self):
         from django.utils import timezone

@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from .models import WasteClassification
 from .serializers import WasteClassificationSerializer
 from apps.users.permissions import IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication, IsAdminOrMENRO
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.users.authentication import CookieJWTAuthentication
 import sys
 import os
 from apps.audit_logs.utils import log_action
@@ -61,7 +61,7 @@ class ClassifyWasteView(APIView):
     Runs it through the AI model
     Saves the classification result
     """
-    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+    authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
     permission_classes = [IsIoTDevice | IsAdminOrMENROOrBarangay]
 
     def post(self, request):

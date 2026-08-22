@@ -8,13 +8,13 @@ from .models import SensorReading
 from .serializers import SensorReadingSerializer
 from apps.sensor_nodes.models import SensorNode
 from apps.users.permissions import IsAdminOrMENRO, IsIoTDevice, IoTDeviceAuthentication
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.users.authentication import CookieJWTAuthentication
 
 
 class SensorReadingListView(generics.ListCreateAPIView):
     queryset = SensorReading.objects.all().order_by('-timestamp')
     serializer_class = SensorReadingSerializer
-    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+    authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
 
     def get_permissions(self):
         if self.request.method == 'GET':
