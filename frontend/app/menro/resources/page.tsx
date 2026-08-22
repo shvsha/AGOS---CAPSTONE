@@ -155,35 +155,35 @@ const getClogRankLevel = (clogPct: number | null) => {
 
 // fetch raw data
 const fetchSensorNodeRaw = async (): Promise<SensorNode[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  const res = await fetchWithAuth(`/api/sensor-nodes/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
 }
 
 const fetchReadingsRaw = async (): Promise<SensorReadings[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/`)
+  const res = await fetchWithAuth(`/api/sensor-readings/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
 }
 
 const fetchHotspotsRaw = async (): Promise<Hotspots[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/`)
+  const res = await fetchWithAuth(`/api/hotspots/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
 }
 
 const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+  const res = await fetchWithAuth(`/api/waste-classifications/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
 }
 
 const fetchClogsRaw = async (): Promise<Clogs[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
+  const res = await fetchWithAuth(`}/api/clog-events/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data

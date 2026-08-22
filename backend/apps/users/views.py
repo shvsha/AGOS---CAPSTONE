@@ -71,15 +71,15 @@ class LoginView(APIView):
 
             response.set_cookie(
                 key='access_token', value=access_token, max_age=7*24*60*60,
-                httponly=True, secure=is_secure, samesite='None', path='/',
+                httponly=True, secure=is_secure, samesite='Lax', path='/',
             )
             response.set_cookie(
                 key='refresh_token', value=refresh_token, max_age=7*24*60*60,
-                httponly=True, secure=is_secure, samesite='None', path='/',
+                httponly=True, secure=is_secure, samesite='Lax', path='/',
             )
             response.set_cookie(
                 key='user', value=json.dumps(dict(user_data)), max_age=7*24*60*60,
-                httponly=False, secure=is_secure, samesite='None', path='/',
+                httponly=False, secure=is_secure, samesite='Lax', path='/',
             )
 
             return response
