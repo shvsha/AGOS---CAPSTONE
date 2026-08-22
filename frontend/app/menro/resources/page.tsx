@@ -183,7 +183,7 @@ const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
 }
 
 const fetchClogsRaw = async (): Promise<Clogs[]> => {
-  const res = await fetchWithAuth(`}/api/clog-events/`)
+  const res = await fetchWithAuth(`/api/clog-events/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
