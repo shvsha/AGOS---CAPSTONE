@@ -213,7 +213,7 @@ def call_ai_service(image_bytes: bytes):
 # ------------------------------------------------------------------
 
 class SensorReadingWithFlowView(APIView):
-    authentication_classes = [IoTDeviceAuthentication, JWTAuthentication]
+    authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
     permission_classes = [IsIoTDevice | IsAdminOrMENRO]
 
     def post(self, request):
