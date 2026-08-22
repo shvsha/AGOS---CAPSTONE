@@ -119,8 +119,6 @@ export default function Header() {
     }
 
     loadSoundConfig()
-    const interval = setInterval(loadSoundConfig, 3000) //change this later on (3s sya atm)
-    return () => clearInterval(interval)
   }, [])
 
   function playAlertSound(alertType: string) {
