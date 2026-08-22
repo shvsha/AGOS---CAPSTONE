@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'channels',
+    'anymail',
 
     # apps
     'apps.users',
@@ -261,12 +262,26 @@ SIMPLE_JWT = {
 }
 
 # Email Settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('EMAIL_HOST')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = os.getenv('EMAIL_HOST')
+# EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
+# EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+# EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# Email Settings
+# NOTE: Render's free tier blocks all outbound traffic on SMTP ports
+# (25, 465, 587), so plain smtplib-based sending (Gmail SMTP or any
+# other SMTP provider) silently fails in production even though it
+# works locally. Anymail's Brevo backend sends over Brevo's HTTPS API
+# instead of SMTP, so it isn't affected by that port block.
+EMAIL_BACKEND = 'anymail.backends.brevo.EmailBackend'
+ANYMAIL = {
+    'BREVO_API_KEY': os.getenv('BREVO_API_KEY'),
+}
+# Reused as the "From" address throughout apps/users/utils.py —
+# set this on Render to the address you verified as a Sender in Brevo.
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 # Media files (uploaded photos/videos)
 MEDIA_URL = '/media/'
