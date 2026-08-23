@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "192.168.1.6",
   ],
+  // trailingSlash: true,
   async rewrites() {
     return [
       {
