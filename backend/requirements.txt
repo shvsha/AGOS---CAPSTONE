@@ -52,3 +52,5 @@ xhtml2pdf==0.2.17
 daphne==4.2.3
 whitenoise==6.11.0
 django-anymail==13.0
+django-storages[s3]
+boto3

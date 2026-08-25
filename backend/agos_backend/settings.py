@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django_apscheduler',
     'django_filters',
     'axes',
+    'storages',
 
     'rest_framework',
     'corsheaders',
@@ -264,25 +265,44 @@ SIMPLE_JWT = {
 # ------------------------------
 
 # Email Settings (local/ google smtp)
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = os.getenv('EMAIL_HOST')
-# EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
-# EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
-# EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-# EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 # Email Settings (Deploy/BREVO
-EMAIL_BACKEND = 'anymail.backends.brevo.EmailBackend'
-ANYMAIL = {
-    'BREVO_API_KEY': os.getenv('BREVO_API_KEY'),
-}
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+# EMAIL_BACKEND = 'anymail.backends.brevo.EmailBackend'
+# ANYMAIL = {
+#     'BREVO_API_KEY': os.getenv('BREVO_API_KEY'),
+# }
+# EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 
 # ----------------------------------
 
 # Media files (uploaded photos/videos)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Supabase S3-compatible storage
+AWS_ACCESS_KEY_ID = os.getenv('SUPABASE_S3_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY = os.getenv('SUPABASE_S3_SECRET_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('SUPABASE_S3_BUCKET', 'agos-media')
+AWS_S3_ENDPOINT_URL = os.getenv('SUPABASE_S3_ENDPOINT')
+AWS_S3_REGION_NAME = os.getenv('SUPABASE_S3_REGION')
+AWS_DEFAULT_ACL = 'public-read'
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 # API key for the IoT
 IOT_API_KEY = os.getenv('IOT_API_KEY')

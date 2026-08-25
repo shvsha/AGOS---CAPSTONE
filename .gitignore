@@ -69,3 +69,7 @@ backend/requirements-ml.txt
 
 # data needed for the system is here
 seed_data.json
+
+# ai services
+ai_service/venv
+ai_service/webcam_test.py
