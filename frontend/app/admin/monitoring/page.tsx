@@ -475,7 +475,7 @@ export default function Monitoring() {
                 .map(n => ({
                   latitude:  n.hotspot_details!.latitude,
                   longitude: n.hotspot_details!.longitude,
-                  label:     n.node_name,
+                  label:     `${n.node_name} – ${n.barangay_details?.barangay_name ?? ''}`,
                   condition: n.condition ?? 'Normal',
                   sublabel:  `Water: ${n.water_level ?? "—"}cm | Clog: ${n.clog_pct ?? "—"}%`,
                 }))}
