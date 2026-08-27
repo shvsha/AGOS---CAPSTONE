@@ -185,7 +185,6 @@ class ClogEventExportView(APIView):
             report_title="Clog Events",
             columns=columns,
             rows=rows,
-            accent_color="#E65100",
             generated_by=f"{request.user.first_name} {request.user.last_name}",
             orientation="landscape",
             filename="clog-events.pdf",

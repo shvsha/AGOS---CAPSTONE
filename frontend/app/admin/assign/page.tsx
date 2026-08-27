@@ -156,14 +156,19 @@ export default function NodeAssignment() {
     return {
       latitude: h.latitude,
       longitude: h.longitude,
-      label: assignedNode ? assignedNode.node_name : h.name,
+      label: assignedNode
+        ? `${assignedNode.node_name} – ${assignedNode.barangay_details?.barangay_name ?? ''}`
+        : h.name,
       condition: assignedNode ? 'Occupied' : 'Available',
       sublabel: assignedNode 
-        ? `Water: ${assignedNode.water_level ?? '—'}cm | Clog: ${assignedNode.clog_pct ?? '—'}%`
+        ? `Occupying: ${h.name}`
         : "Available hotspot",
       usePin: !!assignedNode,
     }
   })
+
+  // Occupied-only, for the node "view on map" dialog — unoccupied hotspots aren't relevant there.
+  const occupiedHotspotMarkers = allHotspotMarkers.filter(m => m.condition === 'Occupied')
 
   // Hotspots for the assign-form map preview, scoped to the selected barangay only.
   // Falls back to all hotspots when no barangay has been chosen yet.
@@ -739,9 +744,11 @@ export default function NodeAssignment() {
           </DialogHeader>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
-              markers={allHotspotMarkers}
+              latitude={viewMapDialog.node?.hotspot_details?.latitude}
+              longitude={viewMapDialog.node?.hotspot_details?.longitude}
+              markers={occupiedHotspotMarkers}
               zoom={13}
-              showLegend={true}
+              showLegend={false}
               colorMode="availability"
             />
           </div>

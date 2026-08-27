@@ -102,7 +102,7 @@ export default function TabOneScreen() {
         latitude: n.hotspot_details!.latitude,
         longitude: n.hotspot_details!.longitude,
         status: (n.condition ?? 'Normal') as CanalStatus,
-        label: n.node_name,
+        label: `${n.node_name} – ${n.barangay_details?.barangay_name ?? ''}`,
       })),
     [mappableNodes]
   )

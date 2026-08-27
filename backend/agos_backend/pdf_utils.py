@@ -19,17 +19,17 @@ def get_logo_data_uri():
     return _LOGO_DATA_URI
 
 
-def render_to_pdf(report_title, columns, rows, accent_color, generated_by,
+def render_to_pdf(report_title, columns, rows, generated_by,
                    orientation="portrait", filename="report.pdf"):
     html = render_to_string("exports/base_report.html", {
         "report_title": report_title,
         "columns": columns,
         "rows": rows,
-        "accent_color": accent_color,
         "generated_by": generated_by,
         "generated_at": timezone.now().strftime("%b %d, %Y %I:%M %p"),
         "row_count": len(rows),
         "orientation": orientation,
+        "logo_data_uri": get_logo_data_uri(),
     })
 
     response = HttpResponse(content_type="application/pdf")

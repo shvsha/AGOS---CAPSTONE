@@ -207,7 +207,6 @@ class WasteClassificationExportView(APIView):
             report_title="Waste Classification",
             columns=columns,
             rows=rows,
-            accent_color="#347D43",
             generated_by=f"{request.user.first_name} {request.user.last_name}",
             orientation="landscape",
             filename=f"waste-classification-{month_param or target.strftime('%Y-%m')}.pdf",
