@@ -318,7 +318,7 @@ class TokenRefreshView(APIView):
         response = Response({'access': new_access})
         response.set_cookie(
             key='access_token', value=new_access, max_age=7*24*60*60,
-            httponly=True, secure=is_secure, samesite='None', path='/',
+            httponly=True, secure=is_secure, samesite='Lax', path='/',
         )
         return response
 
