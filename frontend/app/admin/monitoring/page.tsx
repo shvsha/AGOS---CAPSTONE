@@ -468,13 +468,15 @@ export default function Monitoring() {
           </DialogTitle>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
+              latitude={viewMapDialog.node?.hotspot_details?.latitude}
+              longitude={viewMapDialog.node?.hotspot_details?.longitude}
               markers={nodes.data
                 .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
                 .map(n => ({
                   latitude:  n.hotspot_details!.latitude,
                   longitude: n.hotspot_details!.longitude,
                   label:     n.node_name,
-                  condition: n.condition,
+                  condition: n.condition ?? 'Normal',
                   sublabel:  `Water: ${n.water_level ?? "—"}cm | Clog: ${n.clog_pct ?? "—"}%`,
                 }))}
               zoom={13}
