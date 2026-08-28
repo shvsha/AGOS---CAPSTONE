@@ -2,6 +2,12 @@
 
 export const ACCOUNT_INACTIVE_MESSAGE = 'Your account is not active. Please contact your administrator.'
 
+let suppressInactiveRedirect = false
+export const setSuppressInactiveRedirect = (value: boolean) => {
+  suppressInactiveRedirect = value
+}
+export const shouldSuppressInactiveRedirect = () => suppressInactiveRedirect
+
 export const getUser = () => {
   const user = localStorage.getItem("user")
   return user ? JSON.parse(user) : null
@@ -77,7 +83,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     const clone = res.clone()
     try {
       const body = await clone.json()
-      if (body?.detail === ACCOUNT_INACTIVE_MESSAGE) {
+      if (body?.detail === ACCOUNT_INACTIVE_MESSAGE && !shouldSuppressInactiveRedirect()) {
         await logout()
         window.location.href = '/login?reason=inactive'
       }

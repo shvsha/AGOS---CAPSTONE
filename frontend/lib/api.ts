@@ -1,4 +1,4 @@
-import { logout, ACCOUNT_INACTIVE_MESSAGE } from '@/lib/auth'
+import { logout, ACCOUNT_INACTIVE_MESSAGE, shouldSuppressInactiveRedirect } from '@/lib/auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 

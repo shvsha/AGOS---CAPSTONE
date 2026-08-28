@@ -129,6 +129,9 @@ class UserListView(generics.ListCreateAPIView):
         return UserSerializer
     
     def perform_create(self, serializer):
+        if serializer.validated_data.get('user_role') == 'Admin':
+            User.objects.filter(user_role='Admin', status='Active').update(status='Inactive')
+
         user = serializer.save()
         log_action(
             user=self.request.user,
@@ -148,6 +151,16 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     # log actions
     def perform_update(self, serializer):
         old_status = serializer.instance.status
+        instance = serializer.instance
+
+        is_reactivating_admin = (
+            instance.user_role == 'Admin'
+            and old_status == 'Inactive'
+            and serializer.validated_data.get('status') == 'Active'
+        )
+        if is_reactivating_admin:
+            User.objects.filter(user_role='Admin', status='Active').exclude(pk=instance.pk).update(status='Inactive')
+
         user = serializer.save()
         log_action(
             user=self.request.user,

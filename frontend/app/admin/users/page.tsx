@@ -4,7 +4,7 @@
 import { FaSearch } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
 import { FaUsers } from "react-icons/fa";
-import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal  } from "lucide-react";
+import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle  } from "lucide-react";
 
 // react
 import { useState, useEffect } from "react"
@@ -28,6 +28,7 @@ import { DIALOG_COLOR } from "@/lib/constant";
 import { ROLE_DISPLAY } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { usePageCache } from "@/components/hooks/usePageCache";
+import { clearAuth, setSuppressInactiveRedirect } from "@/lib/auth";
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -71,7 +72,7 @@ function getFilteredUsers(users: User[], role: string, status: string, search: s
 // fetch raw data
 const fetchUsersRaw = async (): Promise<User[]> => {
   const data = await api.get('/api/users/')
-  return (data.results as User[]).filter(u => u.user_role !== 'Admin')
+  return (data.results as User[])
 }
 
 
@@ -112,6 +113,7 @@ export default function Users() {
     open: false,
     user: null,
   })
+  const [adminReactivatedDialog, setAdminReactivatedDialog] = useState<DialogState>({ open: false, user: null })
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
 
@@ -130,6 +132,13 @@ export default function Users() {
     setReactivateDialog({open: false, user: null})
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' })
+
+      if (user.user_role === 'Admin') {
+        setSuppressInactiveRedirect(true)
+        setAdminReactivatedDialog({ open: true, user })
+        return
+      }
+
       addToast(`${user.first_name} ${user.last_name} has been activated.`)
       usersCache.setData(prev =>
         prev.map(u =>
@@ -141,6 +150,18 @@ export default function Users() {
     } catch (err) {
       console.log(err)
       addToast('Failed to activate user', 'error')
+    }
+  }
+
+  const handleAdminReactivatedConfirm = async () => {
+    setAdminReactivatedDialog({ open: false, user: null })
+    try {
+      await api.post('/api/auth/logout/', {})
+    } catch (err) {
+      console.log(err)
+    } finally {
+      clearAuth()
+      window.location.href = "/login"
     }
   }
 
@@ -673,23 +694,30 @@ export default function Users() {
       </div>
 
       {/* Dialog */}
+
       {/* Reactivate Dialog */}
       <DialogModal
         open={reactivateDialog.open}
         onClose={() => setReactivateDialog({open: false, user: null})}
         onConfirm={handleReactivate}
-        color={DIALOG_COLOR.lightgreen}
+        color={reactivateDialog.user?.user_role === 'Admin' ? DIALOG_COLOR.lightred : DIALOG_COLOR.lightgreen}
         icon={UserPlus}
-        iconColor={DIALOG_COLOR.green}
-        title="Reactivate User"
+        iconColor={reactivateDialog.user?.user_role === 'Admin' ? DIALOG_COLOR.red : DIALOG_COLOR.green}
+        title={reactivateDialog.user?.user_role === 'Admin' ? "Reactivate Admin?" : "Reactivate User"}
         description={
-          <>
-            Are you sure you want to activate{" "}
-            <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong>?
-          </>
+          reactivateDialog.user?.user_role === 'Admin' ? (
+            <>
+              Reactivating <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong> as Admin will <strong>deactivate the current active Admin</strong>. You will be logged out immediately after this action. Are you sure you want to proceed?
+            </>
+          ) : (
+            <>
+              Are you sure you want to activate{" "}
+              <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong>?
+            </>
+          )
         }
         cancelLabel='Cancel'
-        confirmLabel='Activate User'
+        confirmLabel={reactivateDialog.user?.user_role === 'Admin' ? 'Yes, Proceed' : 'Activate User'}
       />
 
       {/* Deactivate dialog */}
@@ -710,6 +738,24 @@ export default function Users() {
         cancelLabel='Cancel'
         confirmLabel='Deactivate User'
       />
+
+      {/* Admin Reactivated — Logout Confirmation */}
+      <DialogModal
+        open={adminReactivatedDialog.open}
+        onClose={() => {}}
+        onConfirm={handleAdminReactivatedConfirm}
+        color={DIALOG_COLOR.lightblue}
+        icon={CheckCircle}
+        iconColor={DIALOG_COLOR.blue}
+        title="Admin Reactivated"
+        description={
+          <>
+            <strong>{adminReactivatedDialog.user?.first_name} {adminReactivatedDialog.user?.last_name}</strong> is now the active Admin. Click <strong>OK</strong> to log out and return to the login page.
+          </>
+        }
+        confirmLabel="OK"
+      />
+
 
       <Toast toasts={toasts} onRemove={removeToast} />
     </>

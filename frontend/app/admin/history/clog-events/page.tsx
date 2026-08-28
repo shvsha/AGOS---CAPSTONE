@@ -100,6 +100,7 @@ export default function ClogEvents() {
   const [search, setSearch] = useState<string>('')
   const [barangay, setBarangay] = useState<string>('All Barangay')
   const [severity, setSeverity] = useState<string>('All Severity')
+  const [status, setStatus] = useState<string>('All Status')
 
   // table state
   const clogsCache = usePageCache('clogEvents:clogs', fetchClogsRaw, [] as Clogs[], { autoFetch: false })
@@ -117,11 +118,12 @@ export default function ClogEvents() {
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
-  function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, search: string) {
+  function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, status: string, search: string) {
     const q = search.toLowerCase()
     return clogs
       .filter(b => severity === "All Severity" || b.severity === severity)
       .filter(b => barangay === "All Barangay" || b.barangay_details?.barangay_name === barangay)
+      .filter(b => status === "All Status" || b.status === status)
       .filter(b =>
         [b.node_details?.node_name, b.barangay_details?.barangay_name, b.severity]
           .some(field => field?.toLowerCase().includes(q))
@@ -129,12 +131,32 @@ export default function ClogEvents() {
     .sort((a, b) => b.event_id - a.event_id)
   }
 
-  const filtered = getFilteredClogs(clogs, severity, barangay, search)
+  const filtered = getFilteredClogs(clogs, severity, barangay, status, search)
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 8)
 
   // summary cards
   const total = clogs.length
   const cleared = clogs.filter(n => n.status === 'Cleared').length
+
+  const clearedWithDuration = clogs.filter(n => n.status === 'Cleared' && n.resolved_at && n.detected_at)
+  const avgResolutionMinutes = clearedWithDuration.length > 0
+    ? clearedWithDuration.reduce((sum, n) => sum + (new Date(n.resolved_at).getTime() - new Date(n.detected_at).getTime()) / 60000, 0) / clearedWithDuration.length
+    : 0
+
+  const formatDuration = (minutes: number) => {
+    if (minutes <= 0) return "—"
+    const hrs = Math.floor(minutes / 60)
+    const mins = Math.round(minutes % 60)
+    if (hrs === 0) return `${mins}m`
+    return `${hrs}h ${mins}m`
+  }
+
+  const now = new Date()
+  const monthlyCompleted = clogs.filter(n => {
+    if (n.status !== 'Cleared' || !n.resolved_at) return false
+    const resolvedDate = new Date(n.resolved_at)
+    return resolvedDate.getMonth() === now.getMonth() && resolvedDate.getFullYear() === now.getFullYear()
+  }).length
 
   const fetchMedia = async () => {
     if (!selectedClog) {
@@ -234,6 +256,17 @@ export default function ClogEvents() {
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="High">High</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent position="popper" className='w-35 min-w-0'>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Status">All Status</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Detected">Detected</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Cleared">Cleared</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -250,8 +283,8 @@ export default function ClogEvents() {
           {[
             { icon: <Radar size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: total,label: "Total Clog Events" },
             { icon: <ArchiveRestore size={20} color="#FF9705" />, bg: "bg-[#F0FBB2]", count: cleared,  label: "Cleared Events"},
-            { icon: <Clock3 size={20} color="#582579" />, bg: "bg-[#E5EAFF]", count: 0, label: "Average Resolution Time" },
-            { icon: <ClipboardCheck size={20} color="#A21111" />, bg: "bg-[#D8101059]", count: 0,  label: "Monthly Completed Events" },
+            { icon: <Clock3 size={20} color="#582579" />, bg: "bg-[#E5EAFF]", count: formatDuration(avgResolutionMinutes), label: "Average Resolution Time" },
+            { icon: <ClipboardCheck size={20} color="#A21111" />, bg: "bg-[#D8101059]", count: monthlyCompleted,  label: "Monthly Completed Events" },
           ].map(card => (
             <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
