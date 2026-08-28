@@ -54,3 +54,4 @@ whitenoise==6.11.0
 django-anymail==13.0
 django-storages[s3]
 boto3
+paho-mqtt==1.6.1
