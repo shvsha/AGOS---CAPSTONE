@@ -16,7 +16,7 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { useToast } from "@/components/hooks/useToast";
 
 // icons
-import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle  } from "lucide-react";
+import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle, CheckCircle  } from "lucide-react";
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // api + auth
 import { api } from "@/lib/api"
-import { clearAuth  } from "@/lib/auth";
+import { clearAuth, setSuppressInactiveRedirect } from "@/lib/auth";
 
 type DialogState = {
   open: boolean;
@@ -78,6 +78,7 @@ function FormInner() {
     open: false,
   })
   const [adminWarningDialog, setAdminWarningDialog] = useState<DialogState>({ open: false })
+  const [adminCreatedDialog, setAdminCreatedDialog] = useState<DialogState>({ open: false })
 
   // toast
   const {toasts, addToast, removeToast } = useToast()
@@ -94,7 +95,7 @@ function FormInner() {
   useEffect(() => {
     const loadBarangays = async () => {
       try {
-        const data = await api.get('/api/barangays/')
+        const data = await api.get('/api/barangays/all/')
         setBarangays(data.results ?? data)
       } catch {
         addToast('Failed to load barangays.', 'error')
@@ -141,12 +142,12 @@ function FormInner() {
 
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!fname.trim())                                          errors.fname      = 'This field is required.'
-    if (!lname.trim())                                          errors.lname      = 'This field is required.'
-    if (role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && !position.trim()) errors.position   = 'This field is required.'
-    if (!role)                                                  errors.role       = 'This field is required.'
-    if (role !== 'MENRO' && role !== 'MENRO_Staff' &&  role !== 'Admin' && !barangayId)     errors.barangayId = 'This field is required.'
-    if (!email.trim())                                          errors.email      = 'This field is required.'
+    if (!fname.trim()) errors.fname = 'This field is required.'
+    if (!lname.trim()) errors.lname = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && !position.trim()) errors.position = 'This field is required.'
+    if (!role) errors.role = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'MENRO_Staff' &&  role !== 'Admin' && !barangayId) errors.barangayId = 'This field is required.'
+    if (!email.trim()) errors.email = 'This field is required.'
 
     setFieldErrors(errors)
 
@@ -168,7 +169,8 @@ function FormInner() {
     }
 
     // Show special admin warning dialog instead of normal confirm
-    if (role === 'Admin') {
+    if (!isEdit && role === 'Admin') {
+      setSuppressInactiveRedirect(true)
       setAdminWarningDialog({ open: true })
       return
     }
@@ -200,16 +202,7 @@ function FormInner() {
 
       // If new admin was created, log out current admin
       if (!isEdit && role === 'Admin') {
-        addToast('New admin created. You will be logged out.', 'success')
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        try {
-          await api.post('/api/auth/logout/', {})
-        } catch (err) {
-          console.log(err)
-        } finally {
-          clearAuth()
-          window.location.href = "/login"
-        }
+        setAdminCreatedDialog({ open: true })
         return
       }
 
@@ -235,6 +228,18 @@ function FormInner() {
   const handleAdminWarningConfirm = () => {
     setAdminWarningDialog({ open: false })
     handleSubmit()
+  }
+
+  const handleAdminCreatedConfirm = async () => {
+    setAdminCreatedDialog({ open: false })
+    try {
+      await api.post('/api/auth/logout/', {})
+    } catch (err) {
+      console.log(err)
+    } finally {
+      clearAuth()
+      window.location.href = "/login"
+    }
   }
 
   if (isEdit && formLoading) return (
@@ -446,7 +451,7 @@ function FormInner() {
                           <SelectTrigger className={`!font-normal bg-[#1565BC05] h-8 cursor-pointer text-xs rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                             <SelectValue placeholder="Select..." />
                           </SelectTrigger>
-                          <SelectContent position="popper">
+                          <SelectContent position="popper" side="bottom" avoidCollisions={false}>
                             {barangays.map(b => (
                               <SelectItem className="text-xs cursor-pointer p-2" key={b.barangay_id} value={String(b.barangay_id)}>
                                 {b.barangay_name}
@@ -903,6 +908,23 @@ function FormInner() {
         cancelLabel="Cancel"
         confirmLabel="Yes, Proceed"
       />
+
+      {/* Admin Created — Logout Confirmation */}
+        <DialogModal
+          open={adminCreatedDialog.open}
+          onClose={() => {}}
+          onConfirm={handleAdminCreatedConfirm}
+          color={DIALOG_COLOR.lightblue}
+          icon={CheckCircle}
+          iconColor={DIALOG_COLOR.blue}
+          title="New Admin Created"
+          description={
+            <>
+              The new Admin account has been created successfully. Click <strong>OK</strong> to log out and return to the login page.
+            </>
+          }
+          confirmLabel="OK"
+        />
 
       <Toast toasts={toasts} onRemove={removeToast} />
 

@@ -39,7 +39,7 @@ export function DialogModal({
           </div>
         </DialogHeader>
         <div className="flex flex-col">
-          <DialogDescription className="text-[#122A48] text-[12px] sm:text-[15px]">
+          <DialogDescription className="text-[#122A48] text-[12px] sm:text-[15px] text-justify">
             {description}
           </DialogDescription>
 
