@@ -100,3 +100,17 @@ class ListAlertSoundsView(APIView):
         sounds = UploadedAlertSound.objects.all().order_by('-uploaded_at')
         serializer = UploadedAlertSoundSerializer(sounds, many=True, context={'request': request})
         return Response(serializer.data)
+
+
+class DeleteAlertSoundView(APIView):
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, sound_id):
+        try:
+            sound = UploadedAlertSound.objects.get(sound_id=sound_id)
+        except UploadedAlertSound.DoesNotExist:
+            return Response({'error': 'Sound not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        sound.file.delete(save=False)
+        sound.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
