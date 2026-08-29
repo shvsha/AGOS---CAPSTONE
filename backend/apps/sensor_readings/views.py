@@ -186,25 +186,16 @@ def get_water_flow_category(flow_rate) -> str:
 
 def call_ai_service(image_bytes: bytes):
     """
-    Calls the standalone AI service (TensorFlow + YOLO) over HTTP.
+    Runs waste classification + detection in-process (see apps.ai_inference).
     Returns the combined {"classification": ..., "detection": ...} dict,
-    or None if the service is unreachable/erroring — callers should treat
-    None the same way they previously treated a failed in-process call.
+    or None if something goes wrong — callers should treat None the same
+    way they previously treated a failed HTTP call to the old microservice.
     """
-    import requests
-    from django.conf import settings
-
+    from apps.ai_inference.inference import run_ai_classification
     try:
-        response = requests.post(
-            f"{settings.AI_SERVICE_URL}/classify",
-            files={"frame": ("frame.jpg", image_bytes, "image/jpeg")},
-            headers={"X-Service-Key": settings.AI_SERVICE_KEY},
-            timeout=180,  # first request after cold start can be slow
-        )
-        response.raise_for_status()
-        return response.json()
+        return run_ai_classification(image_bytes)
     except Exception as e:
-        print(f"[WARN] AI service call failed: {e}")
+        print(f"[WARN] AI inference failed: {e}")
         return None
 
 
