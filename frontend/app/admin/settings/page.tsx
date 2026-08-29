@@ -4,13 +4,14 @@
 import { useEffect, useRef, useState } from "react"
 
 // icons
-import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert, Bell } from "lucide-react"
+import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert, Bell, Trash2, CheckCircle } from "lucide-react"
 
 // lib
 import { api } from "@/lib/api"
 import { resolveSoundUrl} from '@/lib/soundUtils'
+import { DIALOG_COLOR } from "@/lib/constant"
 
-//d shadcn components
+// shadcn components
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -67,6 +68,10 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 export default function Page() {
   const { toasts, addToast, removeToast } = useToast()
+
+  const [deleteSoundDialog, setDeleteSoundDialog] = useState<{ open: boolean; sound: UploadedSound | null; tier: "critical" | "warning" | "info" | null }>({ open: false, sound: null, tier: null })
+  const [deleteLoadingDialog, setDeleteLoadingDialog] = useState(false)
+  const [deleteSuccessDialog, setDeleteSuccessDialog] = useState<{ open: boolean; filename: string }>({ open: false, filename: "" })
 
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState<BackupConfig | null>(null)
@@ -275,6 +280,47 @@ export default function Page() {
     }
   }
 
+  const handleDeleteSound = async () => {
+    const sound = deleteSoundDialog.sound
+    const tier = deleteSoundDialog.tier
+    if (!sound) return
+    setDeleteSoundDialog({ open: false, sound: null, tier: null })
+    setDeleteLoadingDialog(true)
+
+    try {
+      await api.delete(`/api/alert-sounds/${sound.sound_id}/`)
+
+      setUploadedSounds(prev => prev.filter(s => s.sound_id !== sound.sound_id))
+
+      // Figure out the updated tier values (any tier using this sound falls back to preset)
+      let didResetATier = false
+      const updatedTierValues = { ...tierValues }
+      for (const t of ["critical", "warning", "info"] as const) {
+        if (updatedTierValues[t] === sound.file) {
+          updatedTierValues[t] = `preset:${t}`
+          didResetATier = true
+        }
+      }
+      setTierValues(updatedTierValues)
+
+      if (didResetATier) {
+        await api.patch("/api/alert-sounds/config/", {
+          sound_enabled: soundEnabled,
+          critical_sound: updatedTierValues.critical,
+          warning_sound: updatedTierValues.warning,
+          info_sound: updatedTierValues.info,
+        })
+      }
+
+      setDeleteLoadingDialog(false)
+      setDeleteSuccessDialog({ open: true, filename: sound.original_filename })
+    } catch (err) {
+      console.error(err)
+      setDeleteLoadingDialog(false)
+      addToast('Failed to delete sound.', 'error')
+    }
+  }
+
   async function handleSaveSoundConfig() {
     setSavingSoundConfig(true)
     try {
@@ -340,11 +386,26 @@ export default function Page() {
               </Select>
 
               <Button
-                onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch(() => {})}
+                onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch((err) => console.error('Playback failed:', err))}
                 className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-8 text-xs cursor-pointer"
               >
                 ▶ Preview
               </Button>
+
+              <button
+                disabled={tierValues[tier].startsWith("preset:")}
+                onClick={() => {
+                  const sound = uploadedSounds.find(s => s.file === tierValues[tier])
+                  if (sound) setDeleteSoundDialog({ open: true, sound, tier })
+                }}
+                className={`rounded-lg border p-2 h-8 w-8 flex items-center justify-center flex-shrink-0 ${
+                  tierValues[tier].startsWith("preset:")
+                    ? "border-[#C6C6C8] text-[#C6C6C8] cursor-not-allowed"
+                    : "border-[#C6C6C8] text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                }`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           ))}
 
@@ -680,6 +741,50 @@ export default function Page() {
         }
         cancelLabel="Cancel"
         confirmLabel={restoringFromServer ? "Restoring..." : "Restore"}
+      />
+
+      <DialogModal
+        open={deleteSoundDialog.open}
+        onClose={() => setDeleteSoundDialog({ open: false, sound: null, tier: null })}
+        onConfirm={handleDeleteSound}
+        color={DIALOG_COLOR.lightred}
+        icon={Trash2}
+        iconColor={DIALOG_COLOR.red}
+        title="Delete Sound"
+        description={
+          <>
+            Are you sure you want to delete <strong>{deleteSoundDialog.sound?.original_filename}</strong>? This cannot be undone.
+          </>
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+      />
+
+      {/* Deleting Sound — Loading */}
+      <DialogModal
+        open={deleteLoadingDialog}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title="Deleting Sound"
+        description="Please wait while the sound is being deleted."
+      />
+
+      {/* Sound Deleted — Success */}
+      <DialogModal
+        open={deleteSuccessDialog.open}
+        onClose={() => setDeleteSuccessDialog({ open: false, filename: "" })}
+        onConfirm={() => setDeleteSuccessDialog({ open: false, filename: "" })}
+        color={DIALOG_COLOR.lightgreen}
+        icon={CheckCircle}
+        iconColor={DIALOG_COLOR.green}
+        title="Sound Deleted"
+        description={
+          <>
+            <strong>{deleteSuccessDialog.filename}</strong> has been deleted successfully.
+          </>
+        }
+        confirmLabel="OK"
       />
     </>
   )
