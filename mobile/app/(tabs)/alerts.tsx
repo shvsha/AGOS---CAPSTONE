@@ -52,7 +52,7 @@ export default function AlertsScreen() {
     <>
       <SafeAreaView className="flex-1 bg-[#EEF3F8]">
         <FlatList
-          data={paginatedAlerts}
+          data={(loading || refreshing) ? [] : paginatedAlerts}
           keyExtractor={(item) => item.alert_id.toString()}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -108,13 +108,16 @@ export default function AlertsScreen() {
                 </View>
               )}
 
-              {loading && !error && (
-                <View className="items-center py-10">
-                  <ActivityIndicator color="#7FA9B8" />
-                </View>
+              {(loading || refreshing) && !error && (
+                <>
+                  <View className="items-center justify-center p-10 flex flex-col gap-2">
+                    <ActivityIndicator color="#2F6FED" />
+                    <Text>Loading...</Text>
+                  </View>
+                </>
               )}
 
-              {!loading && !error && alerts.length === 0 && (
+              {!loading && !refreshing && !error && alerts.length === 0 && (
                 <View className="items-center py-10">
                   <Text className="text-slate-500 text-sm">No alerts found.</Text>
                 </View>
@@ -125,7 +128,7 @@ export default function AlertsScreen() {
             <AlertCard alert={item} onPress={() => handleAlertPress(item)} />
           )}
           ListFooterComponent={
-            !loading && !error && alerts.length > 0 ? (
+            !loading && !refreshing && !error && alerts.length > 0 ? (
               <Pagination
                 currentPage={page}
                 totalPages={totalPages}

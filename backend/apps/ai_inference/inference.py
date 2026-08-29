@@ -1,49 +1,16 @@
 """
-AGOS AI Service — standalone microservice hosting both waste-classification
-models (TensorFlow/MobileNetV2 + YOLO detection), deployed separately from
-the main Django backend so the two heavy ML frameworks don't compete with
-Django/Channels for the same 512MB memory pool.
+In-process waste classification (TFLite) and detection (YOLO ONNX).
 
-Exposes one endpoint: POST /classify
-Input:  a single JPEG frame (multipart/form-data, field name "frame")
-Output: combined JSON with both models' results, in the same shape the
-        Django backend previously computed in-process.
-
-Auth: a shared secret header (X-Service-Key) checked against an env var,
-since this service should only ever be called by the Django backend, not
-exposed publicly.
+Originally a separate microservice, split out purely to keep TensorFlow
+and PyTorch out of Django's memory pool. Since converting to TFLite/ONNX
+eliminated that memory pressure, this now runs in-process instead.
 """
 import os
 import io
 import logging
 
-from fastapi import FastAPI, File, UploadFile, Header, HTTPException
-from fastapi.responses import JSONResponse
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-app = FastAPI(title="AGOS AI Service")
-
-SERVICE_KEY = os.environ.get("AI_SERVICE_KEY")  # shared secret, set on both services
-
-import threading
-
-@app.on_event("startup")
-def warm_models():
-    def _load():
-        logger.info("Warming models in background at startup...")
-        _get_tf_model()
-        _get_yolo_model()
-        logger.info("Model warm-up complete.")
-    threading.Thread(target=_load, daemon=True).start()
-
-
-# ------------------------------------------------------------------
-# Lazy-loaded models — loaded once on first request, not at import
-# time, so the service starts up fast and only pays the loading cost
-# when actually needed.
-# ------------------------------------------------------------------
 
 _tf_model = None
 _tf_load_failed = False
@@ -53,12 +20,12 @@ _yolo_load_failed = False
 
 CATEGORIES = ["biodegradable", "none", "recyclable", "residual", "special_waste"]
 MIXED_THRESHOLD = 0.35
-TF_MODEL_PATH = os.path.join(os.path.dirname(__file__), "saved_model", "waste_classifier.keras")
+TF_MODEL_PATH = os.path.join(os.path.dirname(__file__), "saved_model", "waste_classifier.tflite")
 
-YOLO_MODEL_PATH = os.environ.get(
-    "WASTE_DETECTION_MODEL_PATH",
-    os.path.join(os.path.dirname(__file__), "weights", "waste_yolo.pt"),
-)
+YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "weights", "waste_yolo.onnx")
+YOLO_INPUT_SIZE = 640
+CONFIDENCE_THRESHOLD = 0.5
+YOLO_CLASS_NAMES = ["plastic_bottle", "dry_leaves", "paper", "paper_carton", "rigid_plastic", "sachet_wrapper", "can", "glass", "styrofoam", "fallen_fruit", "other"]
 AVG_WEIGHT_KG = {
     "plastic_bottle": 0.025,
     "dry_leaves": 0.010,
@@ -72,7 +39,6 @@ AVG_WEIGHT_KG = {
     "fallen_fruit": 0.180,
     "other": 0.015,
 }
-CONFIDENCE_THRESHOLD = 0.5
 
 
 def _get_tf_model():
@@ -81,15 +47,14 @@ def _get_tf_model():
         return _tf_model
     if _tf_load_failed:
         return None
-    tflite_path = TF_MODEL_PATH.replace(".keras", ".tflite")
-    if not os.path.exists(tflite_path):
-        logger.info("TFLite classifier not found at %s — skipping classification.", tflite_path)
+    if not os.path.exists(TF_MODEL_PATH):
+        logger.info("TFLite classifier not found at %s — skipping classification.", TF_MODEL_PATH)
         _tf_load_failed = True
         return None
     try:
         from ai_edge_litert.interpreter import Interpreter
         logger.info("Loading AGOS waste classification model...")
-        interpreter = Interpreter(model_path=tflite_path)
+        interpreter = Interpreter(model_path=TF_MODEL_PATH)
         interpreter.allocate_tensors()
         _tf_model = interpreter
         logger.info("TFLite model loaded successfully!")
@@ -99,32 +64,6 @@ def _get_tf_model():
         _tf_load_failed = True
         return None
 
-
-def _get_yolo_model():
-    global _yolo_model, _yolo_load_failed
-    if _yolo_model is not None:
-        return _yolo_model
-    if _yolo_load_failed:
-        return None
-    onnx_path = YOLO_MODEL_PATH.replace(".pt", ".onnx")
-    if not os.path.exists(onnx_path):
-        logger.info("YOLO ONNX weights not found at %s — skipping detection.", onnx_path)
-        _yolo_load_failed = True
-        return None
-    try:
-        import onnxruntime as ort
-        _yolo_model = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
-        logger.info("YOLO ONNX model loaded successfully!")
-        return _yolo_model
-    except Exception:
-        logger.exception("Failed to load YOLO ONNX model.")
-        _yolo_load_failed = True
-        return None
-
-
-# ------------------------------------------------------------------
-# TensorFlow classification (ported from ai_model/classifier.py)
-# ------------------------------------------------------------------
 
 def _run_tf_classification(image_bytes: bytes) -> dict:
     interpreter = _get_tf_model()
@@ -181,12 +120,26 @@ def _run_tf_classification(image_bytes: bytes) -> dict:
         }
 
 
-# ------------------------------------------------------------------
-# YOLO detection-based weight estimate (ported from detection.py)
-# ------------------------------------------------------------------
+def _get_yolo_model():
+    global _yolo_model, _yolo_load_failed
+    if _yolo_model is not None:
+        return _yolo_model
+    if _yolo_load_failed:
+        return None
+    if not os.path.exists(YOLO_MODEL_PATH):
+        logger.info("YOLO ONNX weights not found at %s — skipping detection.", YOLO_MODEL_PATH)
+        _yolo_load_failed = True
+        return None
+    try:
+        import onnxruntime as ort
+        _yolo_model = ort.InferenceSession(YOLO_MODEL_PATH, providers=["CPUExecutionProvider"])
+        logger.info("YOLO ONNX model loaded successfully!")
+        return _yolo_model
+    except Exception:
+        logger.exception("Failed to load YOLO ONNX model.")
+        _yolo_load_failed = True
+        return None
 
-YOLO_INPUT_SIZE = 640
-YOLO_CLASS_NAMES = ["plastic_bottle", "dry_leaves", "paper", "paper_carton", "rigid_plastic", "sachet_wrapper", "can", "glass", "styrofoam", "fallen_fruit", "other"]
 
 def _preprocess_yolo(img):
     import cv2
@@ -226,7 +179,7 @@ def _run_yolo_detection(image_bytes: bytes):
         input_name = session.get_inputs()[0].name
         output = session.run(None, {input_name: blob})[0]
 
-        output = output[0].T  # (8400, 4+num_classes)
+        output = output[0].T
         boxes_xywh = output[:, :4]
         class_scores = output[:, 4:]
 
@@ -242,8 +195,8 @@ def _run_yolo_detection(image_bytes: bytes):
             return 0.0, {}
 
         boxes_xy = boxes_xywh.copy()
-        boxes_xy[:, 0] -= boxes_xy[:, 2] / 2  # center x -> left x
-        boxes_xy[:, 1] -= boxes_xy[:, 3] / 2  # center y -> top y
+        boxes_xy[:, 0] -= boxes_xy[:, 2] / 2
+        boxes_xy[:, 1] -= boxes_xy[:, 3] / 2
 
         indices = cv2.dnn.NMSBoxes(
             boxes_xy.tolist(), confidences.tolist(),
@@ -265,37 +218,17 @@ def _run_yolo_detection(image_bytes: bytes):
         return None, None
 
 
-# ------------------------------------------------------------------
-# Routes
-# ------------------------------------------------------------------
-
-@app.get("/healthz")
-def healthz():
-    """Plain health check for the keep-alive ping — cheap, no model loading."""
-    return {
-        "status": "ok",
-        "tf_model_loaded": _tf_model is not None,
-        "yolo_model_loaded": _yolo_model is not None,
-    }
-
-
-@app.post("/classify")
-async def classify(
-    frame: UploadFile = File(...),
-    x_service_key: str = Header(None),
-):
-    if SERVICE_KEY and x_service_key != SERVICE_KEY:
-        raise HTTPException(status_code=403, detail="Invalid service key")
-
-    image_bytes = await frame.read()
-
+def run_ai_classification(image_bytes: bytes) -> dict:
+    """
+    The single entry point Django views should call — runs both models
+    and returns the same combined shape the old HTTP microservice returned.
+    """
     classification_result = _run_tf_classification(image_bytes)
     detected_kg, detected_counts = _run_yolo_detection(image_bytes)
-
-    return JSONResponse({
+    return {
         "classification": classification_result,
         "detection": {
             "estimated_kg": detected_kg,
             "counts_by_class": detected_counts,
         },
-    })
+    }

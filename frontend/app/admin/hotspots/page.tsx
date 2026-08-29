@@ -704,16 +704,22 @@ export default function HotspotManagement() {
       <Dialog open={formDialog.open}>
         <DialogContent className="overflow-y-auto [&>button]:hidden p-0 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] min-w-80 md:min-w-180 max-h-150">
           <DialogHeader>
-            <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5">
-              <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? "bg-[#FF9705] mt-0.5" : "bg-[#1565BC] mt-1.5 md:mt-0.5"}`}>
-                {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+            <div className="flex items-start justify-between gap-3 p-4 py-3 md:p-5 md:py-5">
+              <div className="flex gap-3 min-w-0">
+                <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? "bg-[#FF9705] mt-0.5" : "bg-[#1565BC] mt-1.5 md:mt-0.5"}`}>
+                  {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <p className="font-bold text-base md:text-lg">{isEdit ? formDialog.hotspot?.name ?? "Edit Hotspot" : "Add Hotspot"}</p>
+                  <p className="text-[10px] md:text-sm">
+                    {isEdit ? "Rosario, La Union" : "Register a new canal hotspot under AGOS monitoring coverage"}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <p className="font-bold text-base md:text-lg">{isEdit ? formDialog.hotspot?.name ?? "Edit Hotspot" : "Add Hotspot"}</p>
-                <p className="text-[10px] md:text-sm">
-                  {isEdit ? "Rosario, La Union" : "Register a new canal hotspot under AGOS monitoring coverage"}
-                </p>
-              </div>
+
+              <button type="button" onClick={() => setCancelDialog({ open: true })} className="cursor-pointer flex-shrink-0">
+                <X size={18} />
+              </button>
             </div>
           </DialogHeader>
 

@@ -116,6 +116,9 @@ export default function NodeAssignment() {
   const [installedAt, setInstalledAt] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  const [loadingAvailableNodes, setLoadingAvailableNodes] = useState(false)
+  const [loadingHotspots, setLoadingHotspots] = useState(false)
+
   const fetchError = assignedNodesCache.error || barangaysCache.error || allHotspotsCache.error
   const loading = assignedNodesCache.loading || barangaysCache.loading || allHotspotsCache.loading
 
@@ -179,6 +182,7 @@ export default function NodeAssignment() {
   
 
   const fetchAvailableNodes = async () => {
+    setLoadingAvailableNodes(true)
     try {
       const res = await fetchWithAuth(
         `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/?availability_status=Available`
@@ -186,7 +190,9 @@ export default function NodeAssignment() {
       if (!res.ok) throw new Error()
       const data = await res.json()
       setAvailableNodes(data.results ?? data)
-    } catch {}
+    } catch {} finally {
+      setLoadingAvailableNodes(false)
+    }
   }
 
   const refetchAll = useCallback(async () => {
@@ -231,6 +237,7 @@ export default function NodeAssignment() {
     if (!barangay) { setHotspots([]); setHotspot(''); return }
 
     const fetchHotspots = async () => {
+      setLoadingHotspots(true)
       try {
         const res = await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/barangay/${barangay}/available/`
@@ -239,7 +246,6 @@ export default function NodeAssignment() {
         const data = await res.json()
         let spots: Hotspot[] = data.results ?? data
 
-        // On edit, keep the current hotspot in the list even if occupied
         if (assignFormDialog.node?.hotspot_details) {
           const current = assignFormDialog.node.hotspot_details
           const alreadyIncluded = spots.some(h => h.hotspot_id === current.hotspot_id)
@@ -249,7 +255,9 @@ export default function NodeAssignment() {
         }
 
         setHotspots(spots)
-      } catch { setHotspots([]) }
+      } catch { setHotspots([]) } finally {
+        setLoadingHotspots(false)
+      }
     }
     fetchHotspots()
   }, [barangay])
@@ -497,16 +505,21 @@ export default function NodeAssignment() {
       <Dialog open={assignFormDialog.open}>
         <DialogContent className="overflow-y-auto [&>button]:hidden p-0 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] min-w-80 md:min-w-180 max-h-150">
           <DialogHeader>
-            <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5">
-              <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? 'bg-[#FF9705] mt-0.5' : 'bg-[#1565BC] mt-1.5 md:mt-0.5'}`}>
-                {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+            <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5 justify-between">
+              <div className="flex gap-3">
+                <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? 'bg-[#FF9705] mt-0.5' : 'bg-[#1565BC] mt-1.5 md:mt-0.5'}`}>
+                  {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+                </div>
+                <div className="flex flex-col">
+                  <p className="font-bold text-base md:text-lg">{isEdit ? assignFormDialog.node?.node_name ?? 'Edit Assignment' : 'Assign Node'}</p>
+                  <p className="text-[10px] md:text-sm text-[#727272]">
+                    {isEdit ? "Update this node's hotspot assignment." : 'Assign an available node to a canal hotspot.'}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <p className="font-bold text-base md:text-lg">{isEdit ? assignFormDialog.node?.node_name ?? 'Edit Assignment' : 'Assign Node'}</p>
-                <p className="text-[10px] md:text-sm text-[#727272]">
-                  {isEdit ? "Update this node's hotspot assignment." : 'Assign an available node to a canal hotspot.'}
-                </p>
-              </div>
+              <button type="button" onClick={() => setCancelDialog({ open: true })} className="cursor-pointer flex-shrink-0">
+                <X size={18} />
+              </button>
             </div>
           </DialogHeader>
           <DialogTitle className="sr-only">{isEdit ? 'Edit Assignment' : 'Assign Node'}</DialogTitle>
@@ -539,8 +552,8 @@ export default function NodeAssignment() {
                             if (fieldErrors.selectedNode) setFieldErrors(prev => ({ ...prev, selectedNode: '' }))
                           }}
                         >
-                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.selectedNode ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                            <SelectValue placeholder="Select available node..." />
+                          <SelectTrigger disabled={loadingAvailableNodes} className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.selectedNode ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder={loadingAvailableNodes ? "Loading node..." : "Select available node..."} />
                           </SelectTrigger>
                           <SelectContent position="popper" className="max-h-60 overflow-y-auto">
                             {availableNodes.length === 0 ? (
@@ -573,8 +586,8 @@ export default function NodeAssignment() {
                           if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: '' }))
                         }}
                       >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select Barangay..." />
+                        <SelectTrigger disabled={loading} className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder={loading ? "Loading barangay..." : "Select Barangay..."} />
                         </SelectTrigger>
                         <SelectContent position="popper" className="max-h-60 overflow-y-auto">
                           {[...allBarangays]
@@ -606,8 +619,16 @@ export default function NodeAssignment() {
                         }}
                         disabled={!barangay}
                       >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.hotspot ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder={!barangay ? "Select barangay first..." : "Select hotspot..."} />
+                        <SelectTrigger disabled={loading || !barangay} className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.hotspot ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue
+                            placeholder={
+                              loadingHotspots
+                                ? "Loading..."
+                                : !barangay
+                                  ? "Select barangay first..."
+                                  : "Select hotspot..."
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent position="popper" className="max-h-60 overflow-y-auto">
                           {hotspots.length === 0 ? (
