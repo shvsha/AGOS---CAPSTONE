@@ -61,12 +61,16 @@ YOLO_MODEL_PATH = os.environ.get(
 )
 AVG_WEIGHT_KG = {
     "plastic_bottle": 0.025,
-    "paper_cartoon": 0.015,  # NOTE: typo baked into the trained model's class names — keep as-is
-    "sachet_wrapper": 0.005,
     "dry_leaves": 0.010,
+    "paper": 0.010,
+    "paper_carton": 0.015,
     "rigid_plastic": 0.010,
-    "other": 0.015,
+    "sachet_wrapper": 0.005,
+    "can": 0.015,
     "glass": 0.150,
+    "styrofoam": 0.008,
+    "fallen_fruit": 0.180,
+    "other": 0.015,
 }
 CONFIDENCE_THRESHOLD = 0.5
 
@@ -77,14 +81,21 @@ def _get_tf_model():
         return _tf_model
     if _tf_load_failed:
         return None
+    tflite_path = TF_MODEL_PATH.replace(".keras", ".tflite")
+    if not os.path.exists(tflite_path):
+        logger.info("TFLite classifier not found at %s — skipping classification.", tflite_path)
+        _tf_load_failed = True
+        return None
     try:
-        import tensorflow as tf
+        from ai_edge_litert.interpreter import Interpreter
         logger.info("Loading AGOS waste classification model...")
-        _tf_model = tf.keras.models.load_model(TF_MODEL_PATH)
-        logger.info("TensorFlow model loaded successfully!")
+        interpreter = Interpreter(model_path=tflite_path)
+        interpreter.allocate_tensors()
+        _tf_model = interpreter
+        logger.info("TFLite model loaded successfully!")
         return _tf_model
     except Exception:
-        logger.exception("Failed to load TensorFlow model.")
+        logger.exception("Failed to load TFLite model.")
         _tf_load_failed = True
         return None
 
@@ -95,17 +106,18 @@ def _get_yolo_model():
         return _yolo_model
     if _yolo_load_failed:
         return None
-    if not os.path.exists(YOLO_MODEL_PATH):
-        logger.info("YOLO weights not found at %s — skipping detection.", YOLO_MODEL_PATH)
+    onnx_path = YOLO_MODEL_PATH.replace(".pt", ".onnx")
+    if not os.path.exists(onnx_path):
+        logger.info("YOLO ONNX weights not found at %s — skipping detection.", onnx_path)
         _yolo_load_failed = True
         return None
     try:
-        from ultralytics import YOLO
-        _yolo_model = YOLO(YOLO_MODEL_PATH)
-        logger.info("YOLO model loaded successfully!")
+        import onnxruntime as ort
+        _yolo_model = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+        logger.info("YOLO ONNX model loaded successfully!")
         return _yolo_model
     except Exception:
-        logger.exception("Failed to load YOLO model.")
+        logger.exception("Failed to load YOLO ONNX model.")
         _yolo_load_failed = True
         return None
 
@@ -115,8 +127,8 @@ def _get_yolo_model():
 # ------------------------------------------------------------------
 
 def _run_tf_classification(image_bytes: bytes) -> dict:
-    model = _get_tf_model()
-    if model is None:
+    interpreter = _get_tf_model()
+    if interpreter is None:
         return {
             "percentages": {}, "dominant_waste_type": None, "confidence": 0,
             "is_mixed": False, "present_waste_types": [], "success": False,
@@ -131,7 +143,12 @@ def _run_tf_classification(image_bytes: bytes) -> dict:
         img_array = np.array(img, dtype=np.float32) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
-        predictions = model.predict(img_array, verbose=0)
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        interpreter.set_tensor(input_details[0]['index'], img_array)
+        interpreter.invoke()
+        predictions = interpreter.get_tensor(output_details[0]['index'])
         percentages_raw = predictions[0]
 
         result = {}
@@ -168,9 +185,32 @@ def _run_tf_classification(image_bytes: bytes) -> dict:
 # YOLO detection-based weight estimate (ported from detection.py)
 # ------------------------------------------------------------------
 
+YOLO_INPUT_SIZE = 640
+YOLO_CLASS_NAMES = ["plastic_bottle", "dry_leaves", "paper", "paper_carton", "rigid_plastic", "sachet_wrapper", "can", "glass", "styrofoam", "fallen_fruit", "other"]
+
+def _preprocess_yolo(img):
+    import cv2
+    import numpy as np
+    h, w = img.shape[:2]
+    scale = min(YOLO_INPUT_SIZE / h, YOLO_INPUT_SIZE / w)
+    new_h, new_w = int(round(h * scale)), int(round(w * scale))
+    resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+    pad_h = YOLO_INPUT_SIZE - new_h
+    pad_w = YOLO_INPUT_SIZE - new_w
+    top, bottom = pad_h // 2, pad_h - pad_h // 2
+    left, right = pad_w // 2, pad_w - pad_w // 2
+
+    padded = cv2.copyMakeBorder(resized, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114))
+
+    blob = padded[:, :, ::-1].astype(np.float32) / 255.0
+    blob = blob.transpose(2, 0, 1)[None, ...]
+    return blob, scale
+
+
 def _run_yolo_detection(image_bytes: bytes):
-    model = _get_yolo_model()
-    if model is None:
+    session = _get_yolo_model()
+    if session is None:
         return None, None
     try:
         import numpy as np
@@ -182,16 +222,37 @@ def _run_yolo_detection(image_bytes: bytes):
             logger.warning("Could not decode frame for detection")
             return None, None
 
-        results = model(img, verbose=False)
-        boxes = results[0].boxes
-        names = results[0].names
+        blob, scale = _preprocess_yolo(img)
+        input_name = session.get_inputs()[0].name
+        output = session.run(None, {input_name: blob})[0]
+
+        output = output[0].T  # (8400, 4+num_classes)
+        boxes_xywh = output[:, :4]
+        class_scores = output[:, 4:]
+
+        class_ids = np.argmax(class_scores, axis=1)
+        confidences = np.max(class_scores, axis=1)
+
+        mask = confidences >= CONFIDENCE_THRESHOLD
+        boxes_xywh = boxes_xywh[mask]
+        class_ids = class_ids[mask]
+        confidences = confidences[mask]
+
+        if len(boxes_xywh) == 0:
+            return 0.0, {}
+
+        boxes_xy = boxes_xywh.copy()
+        boxes_xy[:, 0] -= boxes_xy[:, 2] / 2  # center x -> left x
+        boxes_xy[:, 1] -= boxes_xy[:, 3] / 2  # center y -> top y
+
+        indices = cv2.dnn.NMSBoxes(
+            boxes_xy.tolist(), confidences.tolist(),
+            CONFIDENCE_THRESHOLD, 0.45
+        )
 
         counts_by_class = {}
-        for box in boxes:
-            conf = float(box.conf[0])
-            if conf < CONFIDENCE_THRESHOLD:
-                continue
-            class_name = names[int(box.cls[0])]
+        for i in (indices.flatten() if len(indices) > 0 else []):
+            class_name = YOLO_CLASS_NAMES[class_ids[i]]
             counts_by_class[class_name] = counts_by_class.get(class_name, 0) + 1
 
         estimated_kg = sum(
