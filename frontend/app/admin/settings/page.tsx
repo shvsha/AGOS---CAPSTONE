@@ -354,86 +354,97 @@ export default function Page() {
             <h2 className="font-bold text-[#122A48] text-base">Alert Sound</h2>
           </div>
 
-          <div className="flex items-center justify-between border border-[#C6C6C8] rounded-lg p-3">
-            <label className="text-[#122A48] text-xs font-medium">Enable alert sounds</label>
-            <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${soundEnabled ? "bg-[#2C7B3C]" : "bg-[#C6C6C8]"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${soundEnabled ? "translate-x-5" : "translate-x-0"}`} />
-            </button>
-          </div>
-
-          {(["critical", "warning", "info"] as const).map((tier) => (
-            <div key={tier} className="border border-[#C6C6C8] rounded-lg p-3 flex items-center justify-between gap-3">
-              <span className="text-[#122A48] text-xs font-medium capitalize w-16">{tier}</span>
-
-              <Select
-                value={tierValues[tier]}
-                onValueChange={(v) => setTierValues(prev => ({ ...prev, [tier]: v }))}
-              >
-                <SelectTrigger className="cursor-pointer flex-1 h-8 text-xs border-[#C6C6C8]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value={`preset:${tier}`}>Default ({tier})</SelectItem>
-                  {uploadedSounds.map((s) => (
-                    <SelectItem key={s.sound_id} value={s.file}>
-                      {s.original_filename}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch((err) => console.error('Playback failed:', err))}
-                className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-8 text-xs cursor-pointer"
-              >
-                ▶ Preview
-              </Button>
-
-              <button
-                disabled={tierValues[tier].startsWith("preset:")}
-                onClick={() => {
-                  const sound = uploadedSounds.find(s => s.file === tierValues[tier])
-                  if (sound) setDeleteSoundDialog({ open: true, sound, tier })
-                }}
-                className={`rounded-lg border p-2 h-8 w-8 flex items-center justify-center flex-shrink-0 ${
-                  tierValues[tier].startsWith("preset:")
-                    ? "border-[#C6C6C8] text-[#C6C6C8] cursor-not-allowed"
-                    : "border-[#C6C6C8] text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
-                }`}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+          {loading ? (
+            <div className="flex justify-center items-center h-90">
+              <div className="flex flex-col items-center gap-3 -mt-10">
+                <SpinnerIcon size={24} color="#122A48" />
+                <p className="text-[#122A48]">Loading...</p>
+              </div>
             </div>
-          ))}
+          ) : (
+            <>
+              <div className="flex items-center justify-between border border-[#C6C6C8] rounded-lg p-3">
+                <label className="text-[#122A48] text-xs font-medium">Enable alert sounds</label>
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${soundEnabled ? "bg-[#2C7B3C]" : "bg-[#C6C6C8]"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${soundEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
 
-          <div className="flex items-center justify-between">
-            <input
-              ref={soundFileInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleUploadSound}
-              className="hidden"
-            />
-            <Button
-              onClick={() => soundFileInputRef.current?.click()}
-              disabled={uploadingSound}
-              className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-9 text-xs cursor-pointer flex items-center gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              {uploadingSound ? "Uploading..." : "Upload Custom Sound"}
-            </Button>
+              {(["critical", "warning", "info"] as const).map((tier) => (
+                <div key={tier} className="border border-[#C6C6C8] rounded-lg p-3 flex items-center justify-between gap-3">
+                  <span className="text-[#122A48] text-xs font-medium capitalize w-16">{tier}</span>
 
-            <Button
-              onClick={handleSaveSoundConfig}
-              disabled={savingSoundConfig}
-              className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer"
-            >
-              {savingSoundConfig ? "Saving..." : "Save Settings"}
-            </Button>
-          </div>
+                  <Select
+                    value={tierValues[tier]}
+                    onValueChange={(v) => setTierValues(prev => ({ ...prev, [tier]: v }))}
+                  >
+                    <SelectTrigger className="cursor-pointer flex-1 h-8 text-xs border-[#C6C6C8]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value={`preset:${tier}`}>Default ({tier})</SelectItem>
+                      {uploadedSounds.map((s) => (
+                        <SelectItem key={s.sound_id} value={s.file}>
+                          {s.original_filename}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch((err) => console.error('Playback failed:', err))}
+                    className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-8 text-xs cursor-pointer"
+                  >
+                    ▶ Preview
+                  </Button>
+
+                  <button
+                    disabled={tierValues[tier].startsWith("preset:")}
+                    onClick={() => {
+                      const sound = uploadedSounds.find(s => s.file === tierValues[tier])
+                      if (sound) setDeleteSoundDialog({ open: true, sound, tier })
+                    }}
+                    className={`rounded-lg border p-2 h-8 w-8 flex items-center justify-center flex-shrink-0 ${
+                      tierValues[tier].startsWith("preset:")
+                        ? "border-[#C6C6C8] text-[#C6C6C8] cursor-not-allowed"
+                        : "border-[#C6C6C8] text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between">
+                <input
+                  ref={soundFileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleUploadSound}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => soundFileInputRef.current?.click()}
+                  disabled={uploadingSound}
+                  className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-9 text-xs cursor-pointer flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingSound ? "Uploading..." : "Upload Custom Sound"}
+                </Button>
+
+                <Button
+                  onClick={handleSaveSoundConfig}
+                  disabled={savingSoundConfig}
+                  className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer"
+                >
+                  {savingSoundConfig ? "Saving..." : "Save Settings"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Backup & Restore section */}

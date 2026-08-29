@@ -87,9 +87,6 @@ function StatCard({ icon, title, value, subtitle, subtitleColor, }: {
 }
 
 export default function TabOneScreen() {
-  const { logout } = useAuth()
-
-  const [result, setResult] = useState('Not tested yet')
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
 
   const { nodes, mappableNodes, stats, composition, totalWasteKg, loading, refreshing, error, refetch } = useMapData()
@@ -120,30 +117,6 @@ export default function TabOneScreen() {
     return node ? getNodeDetail(node) : null
   }, [selectedNodeId, nodes])
 
-  const handleRespond = (nodeId: string | number) => {
-    // TODO: wire up to your respond/dispatch flow
-    setSelectedNodeId(null)
-  }
-
-  const handleMarkCleared = (nodeId: string | number) => {
-    // TODO: wire up to your API to mark the node cleared
-    setSelectedNodeId(null)
-  }
-
-  const testConnection = async () => {
-    setResult('Testing...')
-    try {
-      const res = await fetch(`${BASE_URL}/api/auth/mobile-login/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'ballpenandpencil619@gmail.com', password: 'yO4N9aivlL' }),
-      })
-      const data = await res.json()
-      setResult(`Status ${res.status}: ${JSON.stringify(data)}`)
-    } catch (err: any) {
-      setResult(`FAILED: ${err.message}`)
-    }
-  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#EDF2F7]" edges={['top']}>
@@ -173,13 +146,16 @@ export default function TabOneScreen() {
             </View>
           )}
 
-          {loading && !error && (
-            <View className="items-center justify-center p-10">
-              <ActivityIndicator color="#2F6FED" />
-            </View>
+          {(loading || refreshing) && !error && (
+            <>
+              <View className="items-center justify-center p-10 flex flex-col gap-2">
+                <ActivityIndicator color="#2F6FED" />
+                <Text>Loading...</Text>
+              </View>
+            </>
           )}
 
-          {!loading && !error && (
+          {!loading && !refreshing && !error && (
             <>
               <CanalMapScreen
                 nodes={canalNodes}
@@ -235,8 +211,6 @@ export default function TabOneScreen() {
           node={selectedNode}
           visible={selectedNode !== null}
           onClose={() => setSelectedNodeId(null)}
-          onRespond={handleRespond}
-          onMarkCleared={handleMarkCleared}
         />
       </ScrollView>
     </SafeAreaView>

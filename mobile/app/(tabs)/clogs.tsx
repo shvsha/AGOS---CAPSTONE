@@ -102,10 +102,11 @@ export default function ClogEventsScreen() {
     router.push('/clog-details')
   }
 
-  if (loading) {
+  if (loading || refreshing) {
     return (
-      <View className="flex-1 items-center justify-center bg-[#FAFCFD]">
-        <ActivityIndicator size="large" color="#122A48" />
+      <View className="flex-1 items-center justify-center gap-3">
+        <ActivityIndicator color="#2F6FED" />
+        <Text>Loading...</Text>
       </View>
     )
   }
