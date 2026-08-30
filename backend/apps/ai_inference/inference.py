@@ -8,6 +8,8 @@ eliminated that memory pressure, this now runs in-process instead.
 import os
 import io
 import logging
+import threading
+_tf_lock = threading.Lock()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -86,8 +88,9 @@ def _run_tf_classification(image_bytes: bytes) -> dict:
         output_details = interpreter.get_output_details()
 
         interpreter.set_tensor(input_details[0]['index'], img_array)
-        interpreter.invoke()
-        predictions = interpreter.get_tensor(output_details[0]['index'])
+        with _tf_lock:
+            interpreter.invoke()
+            predictions = interpreter.get_tensor(output_details[0]['index'])
         percentages_raw = predictions[0]
 
         result = {}
