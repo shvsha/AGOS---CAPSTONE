@@ -10,14 +10,11 @@ import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, Us
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-// toast
-import { useToast } from "@/components/hooks/useToast";
-import { Toast } from "@/components/Toast";
-
 // component
 import { UsersSkeleton } from "@/components/Skeleton/Admin/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
 import { SearchFilter } from "@/components/SearchFilter";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -54,6 +51,10 @@ type DialogState = {
   user: User | null;
 };
 
+type DialogStateLoading = {
+  open: boolean
+}
+
 const getAvatarColor = (role: string) => {
   if (role === "MENRO") return "#2C7B3C"
   if (role === "MENRO_Staff") return "#37b851"
@@ -75,7 +76,6 @@ const fetchUsersRaw = async (): Promise<User[]> => {
   return (data.results as User[])
 }
 
-
 export default function Users() {
   const router = useRouter()
 
@@ -89,9 +89,6 @@ export default function Users() {
   const [tempStatus, setTempStatus] = useState<string>(userStatus)
   const [filterOpen, setFilterOpen] = useState<boolean>(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
-
-  // toast
-  const {toasts, addToast, removeToast } = useToast()
 
   const usersCache = usePageCache('users:users', fetchUsersRaw, [] as User[], { autoFetch: false })
 
@@ -113,10 +110,20 @@ export default function Users() {
     open: false,
     user: null,
   })
+  const [loadingDialog, setLoadingDialog] = useState<DialogStateLoading>({
+    open: false,
+  })
+  const [successDialog, setSuccessDialog] = useState<DialogStateLoading>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+
+  const [actionResult, setActionResult] = useState<{ user: User | null; action: 'Activated' | 'Deactivated' | null }>({
+    user: null,
+    action: null,
+  })
+
   const [adminReactivatedDialog, setAdminReactivatedDialog] = useState<DialogState>({ open: false, user: null })
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
-
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 7)
 
   // summary cards
@@ -130,6 +137,7 @@ export default function Users() {
     const user = reactivateDialog.user
     if (!user) return
     setReactivateDialog({open: false, user: null})
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' })
 
@@ -139,7 +147,6 @@ export default function Users() {
         return
       }
 
-      addToast(`${user.first_name} ${user.last_name} has been activated.`)
       usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
@@ -147,16 +154,24 @@ export default function Users() {
             : u
         )
       )
+      setActionResult({ user, action: 'Activated' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err) {
       console.log(err)
-      addToast('Failed to activate user', 'error')
+      setActionResult({ user, action: 'Activated' })
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: `Failed to activate ${user.first_name} ${user.last_name}. Please try again.` })
     }
   }
 
   const handleAdminReactivatedConfirm = async () => {
     setAdminReactivatedDialog({ open: false, user: null })
+    setLoadingDialog({ open: true })
     try {
       await api.post('/api/auth/logout/', {})
+
+      setLoadingDialog({ open: false })
     } catch (err) {
       console.log(err)
     } finally {
@@ -169,9 +184,10 @@ export default function Users() {
     const user = deactivateDialog.user
     if (!user) return
     setDeactivateDialog({open: false, user: null})
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' })
-      addToast(`${user.first_name} ${user.last_name} has been deactivated.`)
+      
       usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
@@ -179,10 +195,20 @@ export default function Users() {
             : u
         )
       )
+
+      setActionResult({ user, action: 'Deactivated' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err) {
       console.log(err)
-      addToast('Failed to deactivate user.', 'error')
+      setActionResult({ user, action: 'Deactivated' })
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: `Failed to deactivate ${user.first_name} ${user.last_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false }) 
   }
 
   if (loading) return <UsersSkeleton />
@@ -756,10 +782,48 @@ export default function Users() {
         confirmLabel="OK"
       />
 
-      
+      {/* Loading Dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={"Saving Changes"}
+        description={
+          <>
+            Updating user account status, please wait...
+          </>
+        }
+      />
 
+      {/* success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Status Updated!"
+        description={
+          <>
+            <strong>{actionResult.user?.first_name} {actionResult.user?.last_name}</strong> has been {actionResult.action?.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
+
     </>
   )
 }

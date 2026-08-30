@@ -13,6 +13,7 @@ import { DIALOG_COLOR } from "@/lib/constant"
 
 // component
 import { DialogModal } from "../DialogModal"
+import { SpinnerIcon } from "../SpinnerIcon"
 
 // icons
 import {
@@ -118,6 +119,7 @@ export default function NavBar() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [logoutDialog, setLogoutDialog] = useState<boolean>(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
 
@@ -163,6 +165,8 @@ export default function NavBar() {
   }, [])
 
   const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
     try {
       await api.post('/api/auth/logout/', {})
     } catch (err) {
@@ -430,18 +434,27 @@ export default function NavBar() {
       </div>
       
       {/* Dialog */}
-      <DialogModal
-        open={logoutDialog}
-        onClose={() => setLogoutDialog(false)}
-        onConfirm={handleLogout}
-        color={DIALOG_COLOR.lightgray}
-        icon={LogOut}
-        iconColor={DIALOG_COLOR.gray}
-        title="Logout"
-        description="Are you sure you want to log out of your account?"
-        cancelLabel="Cancel"
-        confirmLabel="Logout"
-      />
+    <DialogModal
+      open={logoutDialog}
+      onClose={() => setLogoutDialog(false)}
+      onConfirm={handleLogout}
+      color={DIALOG_COLOR.lightgray}
+      icon={LogOut}
+      iconColor={DIALOG_COLOR.gray}
+      title="Logout"
+      description="Are you sure you want to log out of your account?"
+      cancelLabel="Cancel"
+      confirmLabel={
+        loggingOut ? (
+          <span className="flex items-center gap-2">
+            <SpinnerIcon size={14} />
+            Logging out...
+          </span>
+        ) : (
+          "Logout"
+        )
+      }
+    />
     </>
   )
 }

@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical  } from "lucide-react"
+import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical, BadgeCheck } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback, useRef, Fragment } from "react"
@@ -24,10 +24,6 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { HotspotsSkeleton } from "@/components/Skeleton/Admin/HotspotsSkeleton"
 
-// toast
-import { useToast } from "@/components/hooks/useToast"
-import { Toast } from "@/components/Toast"
-
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
@@ -37,6 +33,10 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
 import { point, feature } from "@turf/helpers"
+
+// hooks
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
 
 
 type Barangay = {
@@ -189,6 +189,14 @@ export default function HotspotManagement() {
   const [deleteDialog, setDeleteDialog] = useState<DialogState>({ open: false, hotspot: null })
   const [blockedDialog, setBlockedDialog] = useState<{ open: boolean }>({ open: false })
   const [dialogBarangay, setDialogBarangay] = useState<Barangay | null>(null)
+
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ name: string; action: 'Updated' | 'Added' | 'Removed' } | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
+    title: "Saving Changes",
+    description: "Processing hotspot details. Please wait.",
+  })
 
   const { toasts, addToast, removeToast } = useToast()
 
@@ -419,6 +427,10 @@ export default function HotspotManagement() {
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
+    setLoadingMessage({
+      title: isEdit ? "Saving Changes" : "Saving Hotspot",
+      description: "Processing hotspot details. Please wait.",
+    })
     setLoadingDialog({ open: true })
 
     const payload = {
@@ -437,14 +449,17 @@ export default function HotspotManagement() {
       if (isEdit) {
         const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
         hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
-        addToast(`${updated.name} has been updated.`, "success")   // was: ${hotspotName}
+        setActionResult({ name: updated.name, action: 'Updated' })
       } else {
         const created = await api.post("/api/hotspots/", payload)
         hotspotsCache.setData(prev => [created, ...prev])
-        addToast(`${created.name} has been added.`, "success")
+        setActionResult({ name: created.name, action: 'Added' })
       }
       setFormDialog({ open: false, hotspot: null })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
+      setLoadingDialog({ open: false })
       if (err && typeof err === "object") {
         const backendErrors: Record<string, string> = {}
         for (const key in err) {
@@ -453,9 +468,7 @@ export default function HotspotManagement() {
         }
         setFieldErrors(prev => ({ ...prev, ...backendErrors }))
       }
-      addToast(err?.detail ?? err?.code?.[0] ?? err?.name ?? "Something went wrong.", "error")
-    } finally {
-      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.code?.[0] ?? err?.name ?? "Something went wrong. Please try again." })
     }
   }
 
@@ -471,13 +484,26 @@ export default function HotspotManagement() {
     const h = deleteDialog.hotspot
     if (!h) return
     setDeleteDialog({ open: false, hotspot: null })
+    setLoadingMessage({
+      title: "Removing Hotspot",
+      description: `Removing ${h.name}. Please wait.`,
+    })
+    setLoadingDialog({ open: true })
     try {
       await api.delete(`/api/hotspots/${h.hotspot_id}/`)
       hotspotsCache.setData(prev => prev.filter(x => x.hotspot_id !== h.hotspot_id))
-      addToast(`${h.name} has been remove.`, "success")
+      setActionResult({ name: h.name, action: 'Removed' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? "Failed to remove hotspot.", "error")
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to remove ${h.name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    setActionResult(null)
   }
 
   // selected barangay object for map center fallback
@@ -1102,8 +1128,8 @@ export default function HotspotManagement() {
         color={DIALOG_COLOR.lightblue}
         icon={SpinnerIcon}
         iconColor={DIALOG_COLOR.blue}
-        title={isEdit ? "Saving Changes" : "Saving Hotspot"}
-        description={<>Processing hotspot details. Please wait.</>}
+        title={loadingMessage.title}
+        description={<>{loadingMessage.description}</>}
       />
 
       {/* Remove dialog */}
@@ -1131,6 +1157,34 @@ export default function HotspotManagement() {
         title="Cannot Remove Hotspot"
         description="This hotspot is currently occupied by an active sensor node. Unassign the node first before removing this hotspot."
         cancelLabel="Close"
+        confirmLabel="Okay"
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={
+          <>
+            <strong>{actionResult?.name}</strong> has been {actionResult?.action.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
         confirmLabel="Okay"
       />
 

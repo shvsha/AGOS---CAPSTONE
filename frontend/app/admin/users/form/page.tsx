@@ -9,14 +9,13 @@ import { DIALOG_COLOR } from "@/lib/constant";
 
 // components
 import { DialogModal } from "@/components/DialogModal";
-import { Toast } from "@/components/Toast";
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 
-// hooks
-import { useToast } from "@/components/hooks/useToast";
+// lib
+import { getErrorMessage } from "@/lib/utils";
 
 // icons
-import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle, CheckCircle  } from "lucide-react";
+import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle, CheckCircle, BadgeCheck, X } from "lucide-react";
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -80,9 +79,9 @@ function FormInner() {
   const [adminWarningDialog, setAdminWarningDialog] = useState<DialogState>({ open: false })
   const [adminCreatedDialog, setAdminCreatedDialog] = useState<DialogState>({ open: false })
 
-  // toast
-  const {toasts, addToast, removeToast } = useToast()
-
+  const [successDialog, setSuccessDialog] = useState<DialogState>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  
   // refs
   const fnameRef = useRef<HTMLDivElement>(null)
   const lnameRef = useRef<HTMLDivElement>(null)
@@ -97,8 +96,8 @@ function FormInner() {
       try {
         const data = await api.get('/api/barangays/all/')
         setBarangays(data.results ?? data)
-      } catch {
-        addToast('Failed to load barangays.', 'error')
+      } catch (err) {
+        setErrorDialog({ open: true, message: getErrorMessage(err) })
       }
     }
     loadBarangays()
@@ -117,8 +116,8 @@ function FormInner() {
         setStatus(data.status)
         setPosition(data.position ?? '')
         setBarangayId(data.barangay_id ?? null)
-      } catch {
-        addToast('Failed to load user data.', 'error')
+      } catch (err) {
+        setErrorDialog({ open: true, message: getErrorMessage(err) })
       } finally {
         setFormLoading(false)
       }
@@ -206,13 +205,11 @@ function FormInner() {
         return
       }
 
-      addToast(isEdit ? `User account has \nbeen updated.` : `User has been \nadded successfully.`, 'success')
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      router.push('/admin/users')
+      setSuccessDialog({ open: true })
 
     } catch (err: any) {
       setLoadingDialog({ open: false })
-      
+
       if (err && typeof err === 'object') {
         const backendErrors: Record<string, string> = {}
         for (const key in err) {
@@ -221,7 +218,12 @@ function FormInner() {
         setFieldErrors(backendErrors)
       }
 
-      addToast(isEdit ? 'Failed to save changes. Please try again.' : 'Failed to create user. Please try again.', 'error')
+      setErrorDialog({
+        open: true,
+        message: isEdit
+          ? `Failed to save changes for ${fname} ${lname}. Please try again.`
+          : 'Failed to create user. Please try again.'
+      })
     }
   }
 
@@ -240,6 +242,11 @@ function FormInner() {
       clearAuth()
       window.location.href = "/login"
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    router.push('/admin/users')
   }
 
   if (isEdit && formLoading) return (
@@ -926,7 +933,37 @@ function FormInner() {
           confirmLabel="OK"
         />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+        {/* success dialog */}
+        <DialogModal
+          open={successDialog.open}
+          onConfirm={handleSuccessConfirm}
+          color={DIALOG_COLOR.lightgreen}
+          icon={BadgeCheck}
+          iconColor={DIALOG_COLOR.green}
+          title={isEdit ? "Changes Saved!" : "User Created!"}
+          description={
+            isEdit ? (
+              <>
+                <strong>{fname} {lname}</strong>'s account has been updated successfully.
+              </>
+            ) : (
+              "The new user account has been created successfully."
+            )
+          }
+          confirmLabel="Done"
+        />
+
+        {/* error dialog */}
+        <DialogModal
+          open={errorDialog.open}
+          onConfirm={() => setErrorDialog({ open: false, message: '' })}
+          color={DIALOG_COLOR.lightred}
+          icon={X}
+          iconColor={DIALOG_COLOR.red}
+          title="Something Went Wrong"
+          description={errorDialog.message}
+          confirmLabel="Okay"
+        />
 
     </>
   )
