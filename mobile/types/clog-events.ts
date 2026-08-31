@@ -9,6 +9,7 @@ export interface ClogEvent {
   peak_severity: 'Low' | 'Medium' | 'High' | null
   status: 'Detected' | 'Responded' | 'Cleared' | 'Verified'
   detected_at: string
+  responded_at: string | null
   resolved_at: string | null
   cleared_by: number | null
   responded_by: number | null

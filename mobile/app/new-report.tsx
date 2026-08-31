@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform, KeyboardTypeOptions, Image, Modal, ActivityIndicator, } from "react-native";
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform, KeyboardTypeOptions, Image, Modal, ActivityIndicator, Pressable, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
@@ -209,6 +209,54 @@ function PhotoUploadMulti({ label, photos, onAdd, onRemove, required = false, }:
   );
 }
 
+function PhotoSourceSheet({ visible, onClose, onTakePhoto, onChooseGallery, }: {
+  visible: boolean;
+  onClose: () => void;
+  onTakePhoto: () => void;
+  onChooseGallery: () => void;
+}) {
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <Pressable className="flex-1 bg-black/35 justify-end" onPress={onClose}>
+        <Pressable className="bg-white rounded-t-3xl px-5 pt-3 pb-8" onPress={(e) => e.stopPropagation()}>
+          {/* drag handle */}
+          <View className="self-center w-10 h-1 rounded-full bg-[#E2E8F0] mb-4" />
+
+          <Text className="text-sm font-bold text-[#122A48] mb-1">Add Photo</Text>
+          <Text className="text-[11px] text-[#94A3B8] mb-3">Choose a source</Text>
+
+          <TouchableOpacity
+            onPress={onTakePhoto}
+            className="flex-row items-center gap-3 py-3 border-b border-[#F1F5F9]"
+          >
+            <View className="w-10 h-10 rounded-xl bg-[#dcfce7] items-center justify-center">
+              <MaterialCommunityIcons name="camera-outline" size={20} color="#16a34a" />
+            </View>
+            <Text className="text-[13px] font-semibold text-[#334155]">Take Photo</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onChooseGallery}
+            className="flex-row items-center gap-3 py-3"
+          >
+            <View className="w-10 h-10 rounded-xl bg-[#dcfce7] items-center justify-center">
+              <MaterialCommunityIcons name="image-outline" size={20} color="#16a34a" />
+            </View>
+            <Text className="text-[13px] font-semibold text-[#334155]">Choose from Gallery</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onClose}
+            className="mt-4 items-center justify-center rounded-xl bg-[#f1f5f9] py-3"
+          >
+            <Text className="text-[13px] font-semibold text-[#64748B]">Cancel</Text>
+          </TouchableOpacity>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 function TotalCollectedCard({ amount }: { amount: number }) {
   return (
     <View className="mb-3.5 flex-row items-center justify-between rounded-[10px] border border-dashed border-[#86efac] bg-[#dcfce7] px-3.5 py-2.5">
@@ -258,6 +306,7 @@ export default function NewReportScreen() {
   const [isDraftSavedModalVisible, setIsDraftSavedModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [photoSheetField, setPhotoSheetField] = useState<"beforePhotos" | "afterPhotos" | null>(null);
 
   useEffect(() => {
     if (!reportMonth) {
@@ -357,23 +406,41 @@ export default function NewReportScreen() {
     return report.monthly_report_id;
   };
 
-  const pickImages = async (field: "beforePhotos" | "afterPhotos") => {
+  const pickFromGallery = async (field: "beforePhotos" | "afterPhotos") => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Permission needed", "Please allow photo access to upload evidence.");
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.7,
       allowsMultipleSelection: true,
     });
-
     if (result.canceled || result.assets.length === 0) return;
+    await uploadPickedAssets(field, result.assets);
+  };
 
+  const pickFromCamera = async (field: "beforePhotos" | "afterPhotos") => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Please allow camera access to take evidence photos.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    await uploadPickedAssets(field, result.assets);
+  };
+
+  const uploadPickedAssets = async (
+    field: "beforePhotos" | "afterPhotos",
+    assets: ImagePicker.ImagePickerAsset[]
+  ) => {
     const category = field === "beforePhotos" ? "Before_Clearing" : "After_Clearing";
-    const pending: PhotoAsset[] = result.assets.map((asset) => ({
+    const pending: PhotoAsset[] = assets.map((asset) => ({
       uri: asset.uri,
       fileName: asset.fileName || asset.uri.split("/").pop() || "evidence_image.jpg",
       uploading: true,
@@ -385,7 +452,6 @@ export default function NewReportScreen() {
 
       for (const photo of pending) {
         const formData = new FormData();
-        // @ts-ignore - React Native's FormData file shape differs from web
         formData.append("file", { uri: photo.uri, name: photo.fileName, type: "image/jpeg" });
         formData.append("media_type", "Image");
         formData.append("media_category", category);
@@ -421,6 +487,10 @@ export default function NewReportScreen() {
         }));
       }
     }
+  };
+
+  const onAddPhoto = (field: "beforePhotos" | "afterPhotos") => {
+    setPhotoSheetField(field);
   };
 
   const handleSaveDraft = async () => {
@@ -692,14 +762,14 @@ export default function NewReportScreen() {
               label="Before"
               required
               photos={form.beforePhotos}
-              onAdd={() => pickImages("beforePhotos")}
+              onAdd={() => onAddPhoto("beforePhotos")}
               onRemove={(index) => removePhoto("beforePhotos", index)}
             />
             <PhotoUploadMulti
               label="After"
               required
               photos={form.afterPhotos}
-              onAdd={() => pickImages("afterPhotos")}
+              onAdd={() => onAddPhoto("beforePhotos")}
               onRemove={(index) => removePhoto("afterPhotos", index)}
             />
 
@@ -749,6 +819,21 @@ export default function NewReportScreen() {
           attachmentsCount: form.beforePhotos.length + form.afterPhotos.length,
           responder: form.submittedBy,
           entryDate: form.entryDate,
+        }}
+      />
+
+      <PhotoSourceSheet
+        visible={photoSheetField !== null}
+        onClose={() => setPhotoSheetField(null)}
+        onTakePhoto={() => {
+          const field = photoSheetField;
+          setPhotoSheetField(null);
+          if (field) pickFromCamera(field);
+        }}
+        onChooseGallery={() => {
+          const field = photoSheetField;
+          setPhotoSheetField(null);
+          if (field) pickFromGallery(field);
         }}
       />
 

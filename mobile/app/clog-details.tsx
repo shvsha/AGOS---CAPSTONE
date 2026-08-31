@@ -292,6 +292,9 @@ export default function ClogDetails() {
                 <Text className="text-[11px] text-[#64748B] mt-0.5">
                   {isRespondedDone ? 'Response team deployed' : 'Pending'}
                 </Text>
+                  {isRespondedDone && (
+                    <Text className="text-[11px] text-[#64748B] mt-0.5">{formatDate(selectedEvent.responded_at)}</Text>
+                  )}
                   {isRespondedDone && selectedEvent.responded_by_details && (
                     <Text className="text-[11px] text-[#64748B] mt-0.5">
                       by: {selectedEvent.responded_by_details.first_name} {selectedEvent.responded_by_details.last_name}
@@ -315,6 +318,9 @@ export default function ClogDetails() {
                 <Text className="text-[11px] text-[#64748B] mt-0.5">
                   {isClearedDone ? 'Clearing operation completed' : 'Pending'}
                 </Text>
+                  {isClearedDone && (
+                    <Text className="text-[11px] text-[#64748B] mt-0.5">{formatDate(selectedEvent.resolved_at)}</Text>
+                  )}
                   {isClearedDone && selectedEvent.cleared_by_details && (
                     <Text className="text-[11px] text-[#64748B] mt-0.5">
                       by: {selectedEvent.cleared_by_details.first_name} {selectedEvent.cleared_by_details.last_name}
