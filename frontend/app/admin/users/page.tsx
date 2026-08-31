@@ -4,7 +4,7 @@
 import { FaSearch } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
 import { FaUsers } from "react-icons/fa";
-import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle  } from "lucide-react";
+import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle, ShieldAlert  } from "lucide-react";
 
 // react
 import { useState, useEffect } from "react"
@@ -110,6 +110,10 @@ export default function Users() {
     open: false,
     user: null,
   })
+  const [blockedDialog, setBlockedDialog] = useState<DialogState>({
+    open: false,
+    user: null,
+  })
   const [loadingDialog, setLoadingDialog] = useState<DialogStateLoading>({
     open: false,
   })
@@ -180,6 +184,16 @@ export default function Users() {
     }
   }
 
+  // guard: block deactivating the only active Admin (there must always be one)
+  const handleDeactivateClick = (user: User) => {
+    const activeAdminCount = users.filter(u => u.user_role === 'Admin' && u.status === 'Active').length
+    if (user.user_role === 'Admin' && user.status === 'Active' && activeAdminCount <= 1) {
+      setBlockedDialog({ open: true, user })
+      return
+    }
+    setDeactivateDialog({ open: true, user })
+  }
+
   const handlerDeactivate = async () => {
     const user = deactivateDialog.user
     if (!user) return
@@ -199,11 +213,11 @@ export default function Users() {
       setActionResult({ user, action: 'Deactivated' })
       setLoadingDialog({ open: false })
       setSuccessDialog({ open: true })
-    } catch (err) {
+    } catch (err: any) {
       console.log(err)
       setActionResult({ user, action: 'Deactivated' })
       setLoadingDialog({ open: false })
-      setErrorDialog({ open: true, message: `Failed to deactivate ${user.first_name} ${user.last_name}. Please try again.` })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? `Failed to deactivate ${user.first_name} ${user.last_name}. Please try again.` })
     }
   }
 
@@ -384,7 +398,7 @@ export default function Users() {
 
                           {user.status === 'Active' ? (
                             <Button 
-                              onClick={() => setDeactivateDialog({ open: true, user: user})}
+                              onClick={() => handleDeactivateClick(user)}
                               className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
                             >
                               <UserMinus size={16} />
@@ -610,7 +624,7 @@ export default function Users() {
 
                           {user.status === 'Active' ? (
                             <button
-                              onClick={() => { setDeactivateDialog({ open: true, user }); setOpenMenuId(null) }}
+                              onClick={() => { handleDeactivateClick(user); setOpenMenuId(null) }}
                               className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] text-[#D81010] hover:bg-[#FFE5E5]"
                             >
                               <UserMinus size={13} /> Deactivate
@@ -765,6 +779,23 @@ export default function Users() {
         confirmLabel='Deactivate User'
       />
 
+      {/* Blocked: cannot deactivate the only active Admin */}
+      <DialogModal
+        open={blockedDialog.open}
+        onClose={() => setBlockedDialog({ open: false, user: null })}
+        onConfirm={() => setBlockedDialog({ open: false, user: null })}
+        color={DIALOG_COLOR.lightorange}
+        icon={ShieldAlert}
+        iconColor={DIALOG_COLOR.orange}
+        title="Cannot Deactivate Admin"
+        description={
+          <>
+            <strong>{blockedDialog.user?.first_name} {blockedDialog.user?.last_name}</strong> is the only active Admin account. There must always be at least one active Admin — activate another Admin first before deactivating this one.
+          </>
+        }
+        confirmLabel="Okay"
+      />
+
       {/* Admin Reactivated — Logout Confirmation */}
       <DialogModal
         open={adminReactivatedDialog.open}
@@ -827,4 +858,3 @@ export default function Users() {
     </>
   )
 }
-

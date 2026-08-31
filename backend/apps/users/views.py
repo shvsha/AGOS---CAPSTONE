@@ -1,6 +1,7 @@
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import generate_otp, send_otp_email, store_otp, verify_otp, is_verified, clear_verified
 from django.contrib.auth import authenticate
@@ -152,6 +153,20 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         old_status = serializer.instance.status
         instance = serializer.instance
+
+        is_deactivating_admin = (
+            instance.user_role == 'Admin'
+            and old_status == 'Active'
+            and serializer.validated_data.get('status') == 'Inactive'
+        )
+        if is_deactivating_admin:
+            other_active_admin_exists = User.objects.filter(
+                user_role='Admin', status='Active'
+            ).exclude(pk=instance.pk).exists()
+            if not other_active_admin_exists:
+                raise ValidationError({
+                    'error': 'Cannot deactivate this Admin account. There must always be at least one active Admin — activate another Admin first.'
+                })
 
         is_reactivating_admin = (
             instance.user_role == 'Admin'
