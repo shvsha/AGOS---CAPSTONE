@@ -48,6 +48,8 @@ def create_backup_archive(output_dir):
     archive_path = os.path.join(output_dir, archive_name)
 
     db_settings = settings.DATABASES['default']
+    dump_host = os.getenv('DB_HOST_DIRECT', db_settings['HOST'])
+    dump_port = os.getenv('DB_PORT_DIRECT', db_settings['PORT'])
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         # 1. Dump the database to a .sql file
@@ -59,8 +61,8 @@ def create_backup_archive(output_dir):
         result = subprocess.run(
           [
               'pg_dump',
-              '-h', db_settings['HOST'],
-              '-p', str(db_settings['PORT']),
+              '-h', dump_host,
+              '-p', str(dump_port),
               '-U', db_settings['USER'],
               '-F', 'p',
               '--clean',
@@ -123,6 +125,8 @@ def restore_backup_archive(zip_path):
 
         dump_path = os.path.join(tmp_dir, 'database.sql')
         db_settings = settings.DATABASES['default']
+        dump_host = os.getenv('DB_HOST_DIRECT', db_settings['HOST'])
+        dump_port = os.getenv('DB_PORT_DIRECT', db_settings['PORT'])
 
         env = os.environ.copy()
         env['PGPASSWORD'] = db_settings['PASSWORD']
@@ -130,8 +134,8 @@ def restore_backup_archive(zip_path):
         result = subprocess.run(
             [
                 'psql',
-                '-h', db_settings['HOST'],
-                '-p', str(db_settings['PORT']),
+                '-h', dump_host,
+                '-p', str(dump_port),
                 '-U', db_settings['USER'],
                 '-d', db_settings['NAME'],
                 '-f', dump_path,
