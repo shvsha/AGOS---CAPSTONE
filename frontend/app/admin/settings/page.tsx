@@ -169,6 +169,24 @@ export default function Page() {
     setManualBackupConfirmOpen(false)
     setBackingUp(true)
     setActionLoadingDialog({ open: true, title: "Creating Backup", description: "Please wait while your backup is being created..." })
+    let handle: any = null
+    if ('showSaveFilePicker' in window) {
+      try {
+        handle = await (window as any).showSaveFilePicker({
+          suggestedName: `agos_backup_${Date.now()}.zip`,
+          types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }],
+        })
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          // user cancelled the save dialog — bail out before hitting the backend at all
+          setActionLoadingDialog({ open: false, title: "", description: "" })
+          setBackingUp(false)
+          return
+        }
+        // picker failed for some other reason — fall back to the classic download below
+      }
+    }
+
     try {
       const res = await fetch(`${BASE_URL}/api/backup/manual/`, {
         method: "GET",
@@ -182,23 +200,10 @@ export default function Page() {
       const match = disposition?.match(/filename="?([^"]+)"?/)
       const filename = match?.[1] || `agos_backup_${Date.now()}.zip`
 
-      if ('showSaveFilePicker' in window) {
-        try {
-          const handle = await (window as any).showSaveFilePicker({
-            suggestedName: filename,
-            types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }],
-          })
-          const writable = await handle.createWritable()
-          await writable.write(blob)
-          await writable.close()
-        } catch (err: any) {
-          if (err?.name === 'AbortError') {
-            setActionLoadingDialog({ open: false, title: "", description: "" })
-            setBackingUp(false)
-            return
-          }
-          throw err
-        }
+      if (handle) {
+        const writable = await handle.createWritable()
+        await writable.write(blob)
+        await writable.close()
       } else {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
