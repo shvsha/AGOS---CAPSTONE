@@ -246,10 +246,17 @@ export default function Page() {
       const formData = new FormData()
       formData.append("backup_file", selectedFile)
 
+      const tokenRes = await fetch(`${BASE_URL}/api/auth/ws-token/`, {
+        method: "GET",
+        credentials: "include",
+      })
+      if (!tokenRes.ok) throw new Error("Could not authenticate for restore.")
+      const { token } = await tokenRes.json()
+
       const RENDER_URL = "https://agos-capstone.onrender.com"
       const res = await fetch(`${RENDER_URL}/api/backup/restore/`, {
         method: "POST",
-        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
 
