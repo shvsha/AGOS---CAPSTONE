@@ -11,8 +11,9 @@ type DialogModalProps = {
   iconColor: string;
   title: string;
   description: React.ReactNode;
-  cancelLabel?: string;
-  confirmLabel?: string;
+  cancelLabel?: React.ReactNode;
+  confirmLabel?: React.ReactNode;
+  loading?: boolean;
 }
 
 export function DialogModal({
@@ -26,10 +27,11 @@ export function DialogModal({
   description,
   cancelLabel,
   confirmLabel,
+  loading = false,
 }: DialogModalProps) {
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={`!max-w-[300px] sm:!max-w-[380px] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)] ${!onClose ? '[&>button]:hidden' : '[&>button]:cursor-pointer'}`}>
+    <Dialog open={open} onOpenChange={loading ? undefined : onClose}>
+      <DialogContent className={`!max-w-[300px] sm:!max-w-[380px] bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)] ${!onClose || loading ? '[&>button]:hidden' : '[&>button]:cursor-pointer'}`}>
         <DialogHeader>
           <div className="flex items-center gap-3 ">
             <div className="p-2 rounded-lg" style={{ backgroundColor: color }}>
@@ -48,12 +50,21 @@ export function DialogModal({
               <hr className="my-3 mb-4" />
               <div className="flex gap-3 justify-end">
                 {cancelLabel && (
-                  <Button onClick={onClose} className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer text-[11px] sm:text-sm bg-transparent hover:bg-[#edebeb] text-[#727272]">
+                  <Button
+                    onClick={onClose}
+                    disabled={loading}
+                    className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer text-[11px] sm:text-sm bg-transparent hover:bg-[#edebeb] text-[#727272] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     {cancelLabel}
                   </Button>
                 )}
                 {confirmLabel && (
-                  <Button onClick={onConfirm} className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer text-[11px] sm:text-sm" style={{ backgroundColor: iconColor }}>
+                  <Button
+                    onClick={onConfirm}
+                    disabled={loading}
+                    className="rounded-lg border border-[#C6C6C8] px-4 h-8 sm:h-9 cursor-pointer text-[11px] sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: iconColor }}
+                  >
                     {confirmLabel}
                   </Button>
                 )}

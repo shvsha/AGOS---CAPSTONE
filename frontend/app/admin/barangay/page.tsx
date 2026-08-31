@@ -16,13 +16,10 @@ import { DialogModal } from "@/components/DialogModal";
 import { BarangaySkeleton } from "@/components/Skeleton/Admin/BarangaySkeleton"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { SearchFilter } from "@/components/SearchFilter";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
 
 // react
-import { useState, useEffect, useRef } from "react"
-
-// toast
-import { useToast } from "@/components/hooks/useToast";
-import { Toast } from "@/components/Toast";
+import { useState, useEffect } from "react"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -46,6 +43,10 @@ type DialogState = {
   open: boolean;
   barangay?: Barangay | null;
 };
+
+type DialogStateLoading = {
+  open: boolean
+}
 
 function getFilteredBarangay(barangays: Barangay[], search: string, statusFilter: string) {
   return barangays
@@ -95,9 +96,6 @@ export default function Barangay() {
   const [search, setSearch] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Registered' | 'Unregistered'>('All')
 
-  // toast
-  const { toasts, addToast, removeToast } = useToast()
-
   const [registerDialog, setRegisterDialog] = useState<DialogState>({
     open: false,
     barangay: null,
@@ -119,6 +117,16 @@ export default function Barangay() {
     open: false,
     message: '',
     issues: [],
+  })
+
+  const [loadingDialog, setLoadingDialog] = useState<DialogStateLoading>({
+    open: false,
+  })
+  const [successDialog, setSuccessDialog] = useState<DialogState>({ open: false, barangay: null, })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ barangay: Barangay | null; action: 'Registered' | 'Unregistered' | null }>({
+    barangay: null,
+    action: null,
   })
 
   const filteredBarangay = getFilteredBarangay(barangays, search, statusFilter)
@@ -144,7 +152,7 @@ export default function Barangay() {
         setUnregisterDialog({ open: true, barangay: b })
       }
     } catch {
-      addToast('Failed to check barangay status.', 'error')
+      setErrorDialog({ open: true, message: 'Failed to check barangay status. Please try again.' })
     }
   }
 
@@ -152,14 +160,18 @@ export default function Barangay() {
     const b = unregisterDialog.barangay
     if (!b) return
     setUnregisterDialog({ open: false, barangay: null })
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/barangays/${b.barangay_id}/unregister/`, {})
       barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: false } : x
       ))
-      addToast(`${b.barangay_name} has been unregistered.`, 'success')
+      setActionResult({ barangay: b, action: 'Unregistered' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to unregister barangay.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unregister ${b.barangay_name}. Please try again.` })
     }
   }
 
@@ -167,15 +179,23 @@ export default function Barangay() {
     const b = registerDialog.barangay
     if (!b) return
     setRegisterDialog({ open: false, barangay: null })
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/barangays/${b.barangay_id}/register/`, {})
       barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: true } : x
       ))
-      addToast(`${b.barangay_name} has been registered.`, 'success')
+      setActionResult({ barangay: b, action: 'Registered' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to register barangay.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to register ${b.barangay_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false }) 
   }
 
   if (loading) return <BarangaySkeleton />
@@ -551,7 +571,44 @@ export default function Barangay() {
         confirmLabel="Okay"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Loading Dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title="Saving Changes"
+        description="Updating barangay status, please wait..."
+      />
+      
+      {/* success Dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Barangay Status Updated!"
+        description={
+          <>
+            <strong>{actionResult.barangay?.barangay_name}</strong> has been {actionResult.action?.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
+
     </>
   )
 }

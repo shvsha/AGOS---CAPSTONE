@@ -4,20 +4,17 @@
 import { FaSearch } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
 import { FaUsers } from "react-icons/fa";
-import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle  } from "lucide-react";
+import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle, ShieldAlert  } from "lucide-react";
 
 // react
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-// toast
-import { useToast } from "@/components/hooks/useToast";
-import { Toast } from "@/components/Toast";
-
 // component
 import { UsersSkeleton } from "@/components/Skeleton/Admin/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
 import { SearchFilter } from "@/components/SearchFilter";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -54,6 +51,10 @@ type DialogState = {
   user: User | null;
 };
 
+type DialogStateLoading = {
+  open: boolean
+}
+
 const getAvatarColor = (role: string) => {
   if (role === "MENRO") return "#2C7B3C"
   if (role === "MENRO_Staff") return "#37b851"
@@ -75,7 +76,6 @@ const fetchUsersRaw = async (): Promise<User[]> => {
   return (data.results as User[])
 }
 
-
 export default function Users() {
   const router = useRouter()
 
@@ -89,9 +89,6 @@ export default function Users() {
   const [tempStatus, setTempStatus] = useState<string>(userStatus)
   const [filterOpen, setFilterOpen] = useState<boolean>(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
-
-  // toast
-  const {toasts, addToast, removeToast } = useToast()
 
   const usersCache = usePageCache('users:users', fetchUsersRaw, [] as User[], { autoFetch: false })
 
@@ -113,10 +110,24 @@ export default function Users() {
     open: false,
     user: null,
   })
+  const [blockedDialog, setBlockedDialog] = useState<DialogState>({
+    open: false,
+    user: null,
+  })
+  const [loadingDialog, setLoadingDialog] = useState<DialogStateLoading>({
+    open: false,
+  })
+  const [successDialog, setSuccessDialog] = useState<DialogStateLoading>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+
+  const [actionResult, setActionResult] = useState<{ user: User | null; action: 'Activated' | 'Deactivated' | null }>({
+    user: null,
+    action: null,
+  })
+
   const [adminReactivatedDialog, setAdminReactivatedDialog] = useState<DialogState>({ open: false, user: null })
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
-
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 7)
 
   // summary cards
@@ -130,6 +141,7 @@ export default function Users() {
     const user = reactivateDialog.user
     if (!user) return
     setReactivateDialog({open: false, user: null})
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' })
 
@@ -139,7 +151,6 @@ export default function Users() {
         return
       }
 
-      addToast(`${user.first_name} ${user.last_name} has been activated.`)
       usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
@@ -147,16 +158,24 @@ export default function Users() {
             : u
         )
       )
+      setActionResult({ user, action: 'Activated' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err) {
       console.log(err)
-      addToast('Failed to activate user', 'error')
+      setActionResult({ user, action: 'Activated' })
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: `Failed to activate ${user.first_name} ${user.last_name}. Please try again.` })
     }
   }
 
   const handleAdminReactivatedConfirm = async () => {
     setAdminReactivatedDialog({ open: false, user: null })
+    setLoadingDialog({ open: true })
     try {
       await api.post('/api/auth/logout/', {})
+
+      setLoadingDialog({ open: false })
     } catch (err) {
       console.log(err)
     } finally {
@@ -165,13 +184,24 @@ export default function Users() {
     }
   }
 
+  // guard: block deactivating the only active Admin (there must always be one)
+  const handleDeactivateClick = (user: User) => {
+    const activeAdminCount = users.filter(u => u.user_role === 'Admin' && u.status === 'Active').length
+    if (user.user_role === 'Admin' && user.status === 'Active' && activeAdminCount <= 1) {
+      setBlockedDialog({ open: true, user })
+      return
+    }
+    setDeactivateDialog({ open: true, user })
+  }
+
   const handlerDeactivate = async () => {
     const user = deactivateDialog.user
     if (!user) return
     setDeactivateDialog({open: false, user: null})
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' })
-      addToast(`${user.first_name} ${user.last_name} has been deactivated.`)
+      
       usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
@@ -179,10 +209,20 @@ export default function Users() {
             : u
         )
       )
-    } catch (err) {
+
+      setActionResult({ user, action: 'Deactivated' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
+    } catch (err: any) {
       console.log(err)
-      addToast('Failed to deactivate user.', 'error')
+      setActionResult({ user, action: 'Deactivated' })
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? `Failed to deactivate ${user.first_name} ${user.last_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false }) 
   }
 
   if (loading) return <UsersSkeleton />
@@ -358,7 +398,7 @@ export default function Users() {
 
                           {user.status === 'Active' ? (
                             <Button 
-                              onClick={() => setDeactivateDialog({ open: true, user: user})}
+                              onClick={() => handleDeactivateClick(user)}
                               className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
                             >
                               <UserMinus size={16} />
@@ -584,7 +624,7 @@ export default function Users() {
 
                           {user.status === 'Active' ? (
                             <button
-                              onClick={() => { setDeactivateDialog({ open: true, user }); setOpenMenuId(null) }}
+                              onClick={() => { handleDeactivateClick(user); setOpenMenuId(null) }}
                               className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] text-[#D81010] hover:bg-[#FFE5E5]"
                             >
                               <UserMinus size={13} /> Deactivate
@@ -739,6 +779,23 @@ export default function Users() {
         confirmLabel='Deactivate User'
       />
 
+      {/* Blocked: cannot deactivate the only active Admin */}
+      <DialogModal
+        open={blockedDialog.open}
+        onClose={() => setBlockedDialog({ open: false, user: null })}
+        onConfirm={() => setBlockedDialog({ open: false, user: null })}
+        color={DIALOG_COLOR.lightorange}
+        icon={ShieldAlert}
+        iconColor={DIALOG_COLOR.orange}
+        title="Cannot Deactivate Admin"
+        description={
+          <>
+            <strong>{blockedDialog.user?.first_name} {blockedDialog.user?.last_name}</strong> is the only active Admin account. There must always be at least one active Admin — activate another Admin first before deactivating this one.
+          </>
+        }
+        confirmLabel="Okay"
+      />
+
       {/* Admin Reactivated — Logout Confirmation */}
       <DialogModal
         open={adminReactivatedDialog.open}
@@ -756,9 +813,48 @@ export default function Users() {
         confirmLabel="OK"
       />
 
+      {/* Loading Dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={"Saving Changes"}
+        description={
+          <>
+            Updating user account status, please wait...
+          </>
+        }
+      />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Status Updated!"
+        description={
+          <>
+            <strong>{actionResult.user?.first_name} {actionResult.user?.last_name}</strong> has been {actionResult.action?.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
+
     </>
   )
 }
-

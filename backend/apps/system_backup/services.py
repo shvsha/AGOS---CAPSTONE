@@ -84,18 +84,18 @@ def create_backup_archive(output_dir):
             report_media_dir = os.path.join(media_root, 'report_media')
             
             # 3. Add AI model weights (if present)
-            mobilenet_path = os.path.join(settings.BASE_DIR.parent, 'ai_model', 'saved_model', 'waste_classifier.keras')
-            yolo_path = os.path.join(settings.BASE_DIR, 'apps', 'waste_classification', 'weights', 'waste_yolo.pt')
+            classifier_path = os.path.join(settings.BASE_DIR, 'apps', 'ai_inference', 'saved_model', 'waste_classifier.tflite')
+            yolo_path = os.path.join(settings.BASE_DIR, 'apps', 'ai_inference', 'weights', 'waste_yolo.onnx')
 
-            if os.path.exists(mobilenet_path):
-                zf.write(mobilenet_path, arcname='models/waste_classifier.keras')
+            if os.path.exists(classifier_path):
+                zf.write(classifier_path, arcname='models/waste_classifier.tflite')
             else:
-                print("Warning: MobileNetV2 weights not found, skipping.")
+                print("Warning: TFLite classifier weights not found, skipping.")
 
             if os.path.exists(yolo_path):
-                zf.write(yolo_path, arcname='models/waste_yolo.pt')
+                zf.write(yolo_path, arcname='models/waste_yolo.onnx')
             else:
-                print("Warning: YOLO weights not found, skipping (this is expected if not yet trained).")
+                print("Warning: YOLO ONNX weights not found, skipping.")
 
             if os.path.exists(report_media_dir):
                 for root, dirs, files in os.walk(report_media_dir):

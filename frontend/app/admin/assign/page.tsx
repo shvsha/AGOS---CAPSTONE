@@ -23,10 +23,6 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { AssignSkeleton } from "@/components/Skeleton/Admin/AssignSkeleton"
 
-// toast
-import { useToast } from "@/components/hooks/useToast"
-import { Toast } from "@/components/Toast"
-
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
@@ -122,7 +118,13 @@ export default function NodeAssignment() {
   const fetchError = assignedNodesCache.error || barangaysCache.error || allHotspotsCache.error
   const loading = assignedNodesCache.loading || barangaysCache.loading || allHotspotsCache.loading
 
-  const { toasts, addToast, removeToast } = useToast()
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ message: string } | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
+    title: "Assigning Node",
+    description: "Processing. Please wait.",
+  })
 
   const [assignFormDialog, setAssignFormDialog] = useState<DialogState>({ open: false, node: null })
   const [viewMapDialog, setViewMapDialog] = useState<DialogState>({ open: false, node: null })
@@ -304,6 +306,10 @@ export default function NodeAssignment() {
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
+    setLoadingMessage({
+      title: isEdit ? "Saving Changes" : "Assigning Node",
+      description: "Processing. Please wait.",
+    })
     setLoadingDialog({ open: true })
 
     const payload = {
@@ -318,30 +324,41 @@ export default function NodeAssignment() {
         assignedNodesCache.setData(prev => prev.map(n =>
           n.node_id === assignFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
-        addToast(`${assignFormDialog.node!.node_name} assignment updated.`, 'success')
+        setActionResult({ message: `${assignFormDialog.node!.node_name}'s assignment has been updated successfully.` })
       } else {
         const updated = await api.patch(`/api/sensor-nodes/${selectedNode}/`, payload)
         assignedNodesCache.setData(prev => [updated, ...prev])
-        addToast('Node has been assigned successfully.', 'success')
+        setActionResult({ message: 'Node has been assigned successfully.' })
       }
       setAssignFormDialog({ open: false, node: null })
       resetForm()
-    } catch (err: any) {
-      addToast(err?.detail ?? err?.error ?? 'Something went wrong.', 'error')
-    } finally {
       setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
+    } catch (err: any) {
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? 'Something went wrong. Please try again.' })
     }
   }
 
   const handleUnassign = async (node: SensorNode) => {
     setUnassignDialog({ open: false, node: null })
+    setLoadingMessage({ title: "Unassigning Node", description: `Unassigning ${node.node_name}. Please wait.` })
+    setLoadingDialog({ open: true })
     try {
       await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
       assignedNodesCache.setData(prev => prev.filter(n => n.node_id !== node.node_id))
-      addToast(`${node.node_name} has been unassigned.`, 'success')
+      setActionResult({ message: `${node.node_name} has been unassigned successfully.` })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to unassign node.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unassign ${node.node_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    setActionResult(null)
   }
 
   if (loading) return <AssignSkeleton/>
@@ -851,7 +868,39 @@ export default function NodeAssignment() {
         confirmLabel="Unassign"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Loading dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={loadingMessage.title}
+        description={<>{loadingMessage.description}</>}
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={actionResult?.message}
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
     </>
   )
 }

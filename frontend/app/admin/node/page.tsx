@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Copy } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Copy, BadgeCheck } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback } from "react"
@@ -23,10 +23,6 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { NodeSkeleton } from "@/components/Skeleton/Admin/NodeSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
-
-// toast
-import { useToast } from "@/components/hooks/useToast"
-import { Toast } from "@/components/Toast"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -99,7 +95,13 @@ export default function NodeManagement() {
   const [readingsError, setReadingsError] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
-  const { toasts, addToast, removeToast } = useToast()
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ name: string; action: string } | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
+    title: "Saving Changes",
+    description: "Processing details. Please wait.",
+  })
 
   const [nodeFormDialog, setNodeFormDialog] = useState<DialogState>({ open: false, node: null })
   const [loadingDialog, setLoadingDialog] = useState<DialogState>({ open: false })
@@ -216,7 +218,7 @@ export default function NodeManagement() {
       const result = await api.post(`/api/sensor-nodes/${node.node_id}/generate-key/`, {})
       setKeyModal({ open: true, deviceKey: result.device_key, nodeName: node.node_name, fromAdd })
     } catch (err: any) {
-      addToast(err?.detail ?? err?.error ?? 'Failed to generate device key.', 'error')
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? 'Failed to generate device key.' })
       if (fromAdd) {
         setNodeFormDialog({ open: false, node: null })
         resetForm()
@@ -233,11 +235,16 @@ export default function NodeManagement() {
     if (wasFromAdd) {
       setNodeFormDialog({ open: false, node: null })
       resetForm()
+      setSuccessDialog({ open: true })
     }
   }
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
+    setLoadingMessage({
+      title: isEdit ? "Saving Changes" : "Adding Node",
+      description: "Processing details. Please wait.",
+    })
     setLoadingDialog({ open: true })
 
     const payload = { node_code: nodeCode.trim() }
@@ -248,27 +255,32 @@ export default function NodeManagement() {
         nodesCache.setData(prev => prev.map(n =>
           n.node_id === nodeFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
-        addToast(`${updated.node_name} has been updated.`, 'success') 
+        setActionResult({ name: updated.node_name, action: 'updated' })
+        setNodeFormDialog({ open: false, node: null })
+        resetForm()
+        setLoadingDialog({ open: false })
+        setSuccessDialog({ open: true })
       } else {
         const created = await api.post('/api/sensor-nodes/', payload)
         nodesCache.setData(prev => [created, ...prev])
-        addToast(`${created.node_name} has been added.`, 'success')
+        setActionResult({ name: created.node_name, action: 'added' })
+        setLoadingDialog({ open: false })
         await generateKeyForNode(created, true)
+        // form closes + success dialog fires inside handleKeyModalDone, once the key's been shown
       }
-      setNodeFormDialog({ open: false, node: null })
-      resetForm()
     } catch (err: any) {
+      setLoadingDialog({ open: false })
       if (err?.node_code) {
         setFieldErrors(prev => ({ ...prev, nodeCode: Array.isArray(err.node_code) ? err.node_code[0] : err.node_code }))
       }
-      addToast(err?.detail ?? err?.node_code?.[0] ?? err?.error ?? 'Something went wrong.', 'error')
-    } finally {
-      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.node_code?.[0] ?? err?.error ?? 'Something went wrong. Please try again.' })
     }
   }
 
   const handleUnassign = async (node: SensorNode) => {
     setUnassignDialog({ open: false, node: null })
+    setLoadingMessage({ title: "Unassigning Node", description: `Unassigning ${node.node_name}. Please wait.` })
+    setLoadingDialog({ open: true })
     try {
       await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
       nodesCache.setData(prev => prev.map(n =>
@@ -276,14 +288,19 @@ export default function NodeManagement() {
           ? { ...n, availability_status: 'Available', status: 'Active' }
           : n
       ))
-      addToast(`${node.node_name} has been unassigned and is now available.`, 'success')
+      setActionResult({ name: node.node_name, action: 'unassigned and is now available' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to unassign node.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unassign ${node.node_name}. Please try again.` })
     }
   }
 
   const handleDecommission = async (node: SensorNode) => {
     setDecommissionDialog({ open: false, node: null })
+    setLoadingMessage({ title: "Decommissioning Node", description: `Decommissioning ${node.node_name}. Please wait.` })
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/sensor-nodes/${node.node_id}/`, { availability_status: 'Retired' })
       nodesCache.setData(prev => prev.map(n =>
@@ -291,10 +308,18 @@ export default function NodeManagement() {
           ? { ...n, availability_status: 'Retired' }
           : n
       ))
-      addToast(`${node.node_name} has been decommissioned.`, 'success')
+      setActionResult({ name: node.node_name, action: 'decommissioned' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to decommission node.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to decommission ${node.node_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    setActionResult(null)
   }
 
   if (loading) return <NodeSkeleton/>
@@ -840,7 +865,43 @@ export default function NodeManagement() {
         confirmLabel="Okay"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Loading dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={loadingMessage.title}
+        description={<>{loadingMessage.description}</>}
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={
+          <>
+            <strong>{actionResult?.name}</strong> has been {actionResult?.action} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
     </>
   )
 }
