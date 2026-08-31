@@ -65,6 +65,7 @@ class LoginView(APIView):
             )
 
             is_secure = not settings.DEBUG
+            cookie_samesite = 'None' if is_secure else 'Lax'
 
             response = Response({
                 'user': user_data
@@ -72,15 +73,15 @@ class LoginView(APIView):
 
             response.set_cookie(
                 key='access_token', value=access_token, max_age=7*24*60*60,
-                httponly=True, secure=is_secure, samesite='Lax', path='/',
+                httponly=True, secure=is_secure, samesite=cookie_samesite, path='/',
             )
             response.set_cookie(
                 key='refresh_token', value=refresh_token, max_age=7*24*60*60,
-                httponly=True, secure=is_secure, samesite='Lax', path='/',
+                httponly=True, secure=is_secure, samesite=cookie_samesite, path='/',
             )
             response.set_cookie(
                 key='user', value=json.dumps(dict(user_data)), max_age=7*24*60*60,
-                httponly=False, secure=is_secure, samesite='Lax', path='/',
+                httponly=False, secure=is_secure, samesite=cookie_samesite, path='/',
             )
 
             return response
@@ -343,10 +344,11 @@ class TokenRefreshView(APIView):
             return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
 
         is_secure = not settings.DEBUG
+        cookie_samesite = 'None' if is_secure else 'Lax'
         response = Response({'access': new_access})
         response.set_cookie(
             key='access_token', value=new_access, max_age=7*24*60*60,
-            httponly=True, secure=is_secure, samesite='Lax', path='/',
+            httponly=True, secure=is_secure, samesite=cookie_samesite, path='/',
         )
         return response
 

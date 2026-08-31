@@ -246,7 +246,8 @@ export default function Page() {
       const formData = new FormData()
       formData.append("backup_file", selectedFile)
 
-      const res = await fetch(`${BASE_URL}/api/backup/restore/`, {
+      const RENDER_URL = "https://agos-capstone.onrender.com"
+      const res = await fetch(`${RENDER_URL}/api/backup/restore/`, {
         method: "POST",
         credentials: "include",
         body: formData,
