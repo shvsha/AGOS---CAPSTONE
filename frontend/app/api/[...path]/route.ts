@@ -23,10 +23,8 @@ async function proxy(request: NextRequest, path: string[]) {
     const formData = await request.formData()
     init.body = formData
   } else if (!["GET", "HEAD"].includes(request.method)) {
-    init.body = request.body
-    init.duplex = "half"
+    init.body = await request.text()
   }
-
   const backendRes = await fetch(targetUrl, init)
 
   const responseHeaders = new Headers()

@@ -43,6 +43,7 @@ class ClogEvent(models.Model):
     
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Detected')
     detected_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     cleared_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

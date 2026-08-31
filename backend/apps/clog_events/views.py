@@ -101,6 +101,7 @@ class UpdateClogStatusView(APIView):
                 event.resolved_at = timezone.now()
                 event.cleared_by = user
             elif new_status == 'Responded':
+                event.responded_at = timezone.now()
                 event.responded_by = user
             event.save()
 

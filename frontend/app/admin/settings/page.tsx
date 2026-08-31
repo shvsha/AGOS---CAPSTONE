@@ -168,7 +168,7 @@ export default function Page() {
   async function handleManualBackup() {
     setManualBackupConfirmOpen(false)
     setBackingUp(true)
-    setActionLoadingDialog({ open: true, title: "Creating Backup", description: "Please wait while your backup is being created..." })
+        setActionLoadingDialog({ open: true, title: "Creating Backup", description: "Please wait while your backup is being created. This might take a minute..." })
     let handle: any = null
     if ('showSaveFilePicker' in window) {
       try {
@@ -241,15 +241,22 @@ export default function Page() {
     if (!selectedFile) return
     setConfirmRestoreOpen(false)
     setRestoring(true)
-    setActionLoadingDialog({ open: true, title: "Restoring System", description: "Please wait while your system is being restored..." })
+    setActionLoadingDialog({ open: true, title: "Restoring System", description: "Please wait while your system is being restored. This might take a minute — you'll be logged out automatically once it's done." })
     try {
       const formData = new FormData()
       formData.append("backup_file", selectedFile)
 
+      const tokenRes = await fetch(`${BASE_URL}/api/auth/ws-token/`, {
+        method: "GET",
+        credentials: "include",
+      })
+      if (!tokenRes.ok) throw new Error("Could not authenticate for restore.")
+      const { token } = await tokenRes.json()
+
       const RENDER_URL = "https://agos-capstone.onrender.com"
       const res = await fetch(`${RENDER_URL}/api/backup/restore/`, {
         method: "POST",
-        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
 
@@ -284,7 +291,7 @@ export default function Page() {
     if (!selectedRestorePoint) return
     setConfirmServerRestoreOpen(false)
     setRestoringFromServer(true)
-    setActionLoadingDialog({ open: true, title: "Restoring System", description: "Please wait while your system is being restored..." })
+    setActionLoadingDialog({ open: true, title: "Restoring System", description: "Please wait while your system is being restored. This might take a minute — you'll be logged out automatically once it's done." })
     try {
       await api.post("/api/backup/restore-from-server/", {
         file_name: selectedRestorePoint.file_name,
@@ -771,6 +778,7 @@ export default function Page() {
           <>
             This will overwrite your current database, media files, and AI models with
             the contents of <strong>{selectedFile?.name}</strong>. This action cannot be undone.
+            You will be logged out automatically once it completes, and will need to sign in again.
           </>
         }
         cancelLabel="Cancel"
@@ -788,7 +796,8 @@ export default function Page() {
         description={
           <>
             This will overwrite your current database, media files, and AI models with
-            the contents of <strong>{selectedRestorePoint?.file_name}</strong>. This action cannot be undone.
+            the contents of <strong>{selectedFile?.name}</strong>. This action cannot be undone.
+            You will be logged out automatically once it completes, and will need to sign in again.
           </>
         }
         cancelLabel="Cancel"
