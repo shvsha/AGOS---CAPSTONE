@@ -65,6 +65,6 @@ def fetch_rainfall_for_barangay(barangay):
 
 
 def fetch_all_barangays():
-    barangays = Barangay.objects.filter(is_registered=True)
+    barangays = Barangay.objects.all()
     for barangay in barangays:
         fetch_rainfall_for_barangay(barangay)
