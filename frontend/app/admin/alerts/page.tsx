@@ -147,7 +147,7 @@ export default function Alerts() {
 
     if (alert.is_read) return
     try {
-      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {})
+      await api.post(`/api/alerts/${alert.alert_id}/read/`, {})
       activeAlerts.setData(prev => prev.map(a =>
         a.alert_id === alert.alert_id ? { ...a, is_read: true } : a
       ))

@@ -2,7 +2,7 @@
 
 // icons
 import { Menu } from 'lucide-react' 
-import { FaBell } from 'react-icons/fa'
+import NotificationsDropdown from '@/components/Header/NotificationsDropdown'
 
 import Link from 'next/link'
 
@@ -185,14 +185,11 @@ export default function Header() {
       </div>
 
       {/* notification bell */}
-      <Link href={alertHref} className="relative inline-flex items-center">
-        <FaBell size={17} color="white" />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </Link>
+      <NotificationsDropdown
+        alertHref={alertHref}
+        unreadCount={unreadCount}
+        onUnreadCountChange={setUnreadCount}
+      />
 
     </header>
   )
