@@ -221,8 +221,7 @@ export default function ClogEvents() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
-
+      <div className="hidden md:flex md:flex-col md:h-full">
         {/* filter adn export container */}
         <div className="flex justify-between w-full">
           {/* filters */}
@@ -279,14 +278,14 @@ export default function ClogEvents() {
         </div>
 
         {/* summary cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-3">
           {[
             { icon: <Radar size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: total,label: "Total Clog Events" },
             { icon: <ArchiveRestore size={20} color="#FF9705" />, bg: "bg-[#F0FBB2]", count: cleared,  label: "Cleared Events"},
             { icon: <Clock3 size={20} color="#582579" />, bg: "bg-[#E5EAFF]", count: formatDuration(avgResolutionMinutes), label: "Average Resolution Time" },
             { icon: <ClipboardCheck size={20} color="#A21111" />, bg: "bg-[#D8101059]", count: monthlyCompleted,  label: "Monthly Completed Events" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -297,10 +296,10 @@ export default function ClogEvents() {
         </div>
 
         {/* table and preview */}
-        <div className="flex gap-3 mt-3 h-130 ">
+        <div className="flex gap-3 mt-3 flex-1 min-h-[520px]">
 
           {/* Table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-250 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col'>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
@@ -396,7 +395,7 @@ export default function ClogEvents() {
           </div>
 
         {/* preview of selected clog event */}
-        <div className="border border-[#C6C6C8] rounded-lg bg-[#F8F9FA] w-85">
+        <div className="border border-[#C6C6C8] rounded-lg bg-[#F8F9FA] flex-1 min-w-[240px]">
           {!selectedClog ? (
             <div className="flex flex-col gap-3 justify-center items-center h-full">
               <FileSearch size={70} className="text-[#1565BC80]"/>

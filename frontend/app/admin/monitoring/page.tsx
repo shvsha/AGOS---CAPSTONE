@@ -202,7 +202,7 @@ export default function Monitoring() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* title and date/time */}
         <div className='flex justify-between'>
@@ -219,14 +219,14 @@ export default function Monitoring() {
         </div>
 
         {/* summary cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Occupied Nodes" },
             { icon: <Activity   size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: critical,  label: "Critical Events" },
             { icon: <TriangleAlert size={20} color="#FF9705" />, bg: "bg-[#F4E4A7]", count: warning, label: "Warning"   },
             { icon: <Waves      size={20} color="#1868A9" />, bg: "bg-[#1868A929]", count: normal,  label: "Normal"  },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -237,10 +237,10 @@ export default function Monitoring() {
         </div>
 
         {/* body */}
-        <div className='flex gap-2 mt-3 h-129'>
+        <div className='flex gap-2 mt-3 flex-1 min-h-0'>
 
           {/* table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-205 rounded-lg flex flex-col h-133'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col h-full'>
             {/* filters */}
             <div className='flex gap-3 items-center p-3'>
               <SearchFilter value={search} onChange={setSearch} placeholder='Search sensor node or barangay...' width='w-105' height='h-9' />
@@ -342,7 +342,7 @@ export default function Monitoring() {
           </div>
 
           {/* live alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col h-133'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full'>
             <div className='flex justify-between items-center justify-between p-2'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>

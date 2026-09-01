@@ -514,7 +514,7 @@ export default function HotspotManagement() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* Header */}
         <div className="flex justify-between w-full mb-2">
@@ -540,13 +540,13 @@ export default function HotspotManagement() {
         </div>
 
         {/* Summary cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-3 gap-3 w-full text-[#122A48]">
           {[
             { icon: <Target size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Hotspots" },
             { icon: <MapPinCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: available, label: "Available" },
             { icon: <MapPin size={20} color="#1565BC" />, bg: "bg-[#DBEAFE]", count: occupied, label: "Occupied" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-105 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold leading-tight">{card.count}</span>
@@ -557,7 +557,7 @@ export default function HotspotManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-2 h-132">
+        <div className="flex gap-4 mt-2 flex-1 min-h-[528px]">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Hotspot List</p>
 

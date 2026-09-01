@@ -196,7 +196,7 @@ export default function BarangayReports() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
         <div className="flex justify-between">
           <div className="flex gap-3">
             {/* search */}
@@ -236,14 +236,14 @@ export default function BarangayReports() {
         </div>
 
         {/* summary cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <Trash2 size={20} color="#D48A00" />, bg: "bg-[#EED7AA]", count: total, label: "Total Barangay Reports" },
             { icon: <Recycle size={20} color="#582579" />, bg: "bg-[#E1CDE3]", count: totalRecyclable, label: "Total Recyclable (kg)" },
             { icon: <Leaf size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalBiodegredable, label: "Total Biodegradable (kg)" },
             { icon: <Blocks size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: totalResidualOthers, label: "Total Residual/Others (kg)" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -255,7 +255,7 @@ export default function BarangayReports() {
 
         {/* monthly report progress */}
         <div className="mt-2 flex gap-2 w-full">
-          <div className="w-250">
+          <div className="flex-[3]">
             <ReportProgressBar
               reports={barangayReports.filter(r => r.report_month.startsWith(selectedMonth))}
               totalBarangays={allBarangays.length}
@@ -263,7 +263,7 @@ export default function BarangayReports() {
             />
           </div>
 
-          <div className="bg-[#58D07159] rounded-lg flex justify-center flex-1">
+          <div className="bg-[#58D07159] rounded-lg flex justify-center flex-1 min-w-[240px]">
             <div className="flex gap-4.5 items-center">
               <CalendarIcon color={'#2C7B3C'} size={32} />
               <div>
@@ -282,7 +282,7 @@ export default function BarangayReports() {
         </div>
 
         {/* table */}
-        <div className='h-103 mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col'>
+        <div className='flex-1 min-h-[412px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col'>
           <Table>
             <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg'>
               <TableRow>

@@ -365,7 +365,7 @@ export default function NodeAssignment() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* Header */}
         <div className="flex justify-between w-full">
@@ -394,13 +394,13 @@ export default function NodeAssignment() {
         </div>
 
         {/* Summary Cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-3 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Assigned" },
             { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active,   label: "Active" },
             { icon: <CircleOff size={20} color="#D81010" />,  bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -411,7 +411,7 @@ export default function NodeAssignment() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-132">
+        <div className="flex gap-4 mt-3 flex-1 min-h-[528px]">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 font-bold text-[#122A48] text-sm">Assigned Canal Nodes</p>
             <Table>

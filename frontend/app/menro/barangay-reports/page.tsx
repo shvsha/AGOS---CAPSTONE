@@ -187,7 +187,7 @@ export default function BarangayReports() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* top filter and export */}
         <div className="flex justify-between">
@@ -263,7 +263,7 @@ export default function BarangayReports() {
         </div>
         
         {/* barangay reports table */}
-        <div className="flex gap-4 mt-3 h-150">
+        <div className="flex gap-4 mt-3 flex-1 min-h-[600px]">
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Barangay Reports</p>
 

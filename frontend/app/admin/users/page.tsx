@@ -229,7 +229,7 @@ export default function Users() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* title and filter container */}
         <div className="flex justify-between w-full mb-2">
@@ -280,14 +280,14 @@ export default function Users() {
         </div>
 
         {/* header total cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
             { icon: <FaUsers size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Users" },
             { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active, label: "Active" },
             { icon: <CircleOff size={20} color="#FF0101" />, bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
             { icon: <ShieldCheck size={20} color="#582579" />, bg: "bg-[#DACDE3]", count: barangay, label: "Barangay Officer" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -298,7 +298,7 @@ export default function Users() {
         </div>
         
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-133">
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
           <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">User Accounts</p>
 
           <div>

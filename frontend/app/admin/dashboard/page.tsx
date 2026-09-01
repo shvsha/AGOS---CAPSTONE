@@ -364,7 +364,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
         
         {/* title */}
         <div className="flex w-full mb-2">
@@ -372,14 +372,14 @@ export default function Dashboard() {
         </div>
 
         {/* total cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Assigned Sensor Nodes" },
             { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAlerts, label: "Critical Clogs" },
             { icon: <MapPinned   size={20} color="#1f518f" />, bg: "bg-[#CDE3DE]", count: registeredBarangay, label: "Registered Barangay" },
             { icon: <Droplets size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: resolvedClog, label: "Resolved this Month" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -391,9 +391,9 @@ export default function Dashboard() {
 
         {/* map, monthly report, waste, alerts */}
         <div className="text-[#122A48] mt-3 flex gap-2 w-full">
-          <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div className="flex flex-col gap-2 flex-[3] min-w-0">
             {/* map */}
-            <div className="bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-[380px] flex flex-col">
+            <div className="bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-[380px] min-[2560px]:h-[460px] min-[3840px]:h-[540px] flex flex-col">
               <div className="px-2 pt-2 pb-1">
                 <p className="font-bold text-sm">Canal Network Map - Rosario, La Union</p>
               </div>
@@ -425,7 +425,7 @@ export default function Dashboard() {
           </div>
           
           {/* wastes */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col'>
             <div className='flex justify-between items-center justify-between p-1.5 px-3'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Waste Classification</p>
             </div>
@@ -463,7 +463,7 @@ export default function Dashboard() {
           </div>
 
           {/* alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col'>
             <div className='flex justify-between items-center justify-between p-1.5 px-3'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>
@@ -508,7 +508,7 @@ export default function Dashboard() {
 
         {/* sensor node health summary */}
         <>
-          <div className="bg-[#FAFCFD] rounded-lg border border-[#00000040] text-[#122A48] mt-2 p-3">
+          <div className="bg-[#FAFCFD] rounded-lg border border-[#00000040] text-[#122A48] mt-2 p-3 flex-1 min-h-[200px]">
             <div className="mb-2">
               <p className="font-semibold text-sm">Sensor Node Health Summary</p>
               <p className="text-[12px] text-[#727272]">Average across all active sensor nodes</p>
@@ -517,7 +517,7 @@ export default function Dashboard() {
             <div className="flex gap-3">
 
               {/* Battery Voltage */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Battery size={15} />
@@ -539,7 +539,7 @@ export default function Dashboard() {
               </div>
 
               {/* 4G Signal */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Signal size={15} />
@@ -561,7 +561,7 @@ export default function Dashboard() {
               </div>
 
               {/* Sensor Continuity */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <ScanSearch size={15} />
