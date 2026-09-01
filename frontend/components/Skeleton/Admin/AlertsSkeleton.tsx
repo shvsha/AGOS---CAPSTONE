@@ -19,7 +19,7 @@ export function AlertsSkeleton() {
   const [dateFilter, setDateFilter] = useState('Today')
 
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* filter container */}
       <div className="flex justify-between">
@@ -50,7 +50,7 @@ export function AlertsSkeleton() {
       </div>
 
       {/* notif list container */}
-      <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col h-151">
+      <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
         <div className="flex w-full p-3 items-center justify-between flex-wrap gap-2">
           <p className="text-[#122A48] font-semibold">Notifications</p>
           <div className="flex gap-2 flex-wrap">

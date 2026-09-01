@@ -6,17 +6,17 @@ import { RadioTower, Trash2, TriangleAlert, BadgeCheck } from "lucide-react"
 
 export function ResourcesSkeleton() {
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* total cards */}
-      <div className="flex justify-between w-full text-[#122A48]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
         {[
           { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]" },
           { icon: <Trash2 size={20} color="#122A48" />, bg: "bg-[#CDE3DE]" },
           { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]" },
           { icon: <BadgeCheck size={20} color="#1565BC" />, bg: "bg-[#1565BC29]" },
         ].map((card, i) => (
-          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             <div className={`${card.bg} rounded-lg p-2 opacity-60`}>{card.icon}</div>
             <div className="flex flex-col gap-1.5">
               <Skeleton className="h-5 w-8" />
@@ -30,7 +30,7 @@ export function ResourcesSkeleton() {
       <div className="flex gap-3 text-[#122A48] mt-2 h-70">
 
         {/* waste hotspot */}
-        <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1">
+        <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-[2] min-w-[320px]">
           <div className="w-full">
             <Skeleton className="h-3.5 w-36 m-2" />
           </div>
@@ -59,7 +59,7 @@ export function ResourcesSkeleton() {
         </div>
 
         {/* trash accumulated */}
-        <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1">
+        <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1 min-w-[240px]">
           <div className="w-full">
             <Skeleton className="h-3.5 w-48 m-2" />
           </div>
@@ -95,7 +95,7 @@ export function ResourcesSkeleton() {
         </div>
 
         {/* priority */}
-        <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1">
+        <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1 min-w-[220px]">
           <div className="p-2 border-b">
             <Skeleton className="h-3.5 w-44" />
             <Skeleton className="h-2.5 w-32 mt-1.5" />
@@ -122,7 +122,7 @@ export function ResourcesSkeleton() {
       </div>
 
       {/* all waste hotspots */}
-      <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-71">
+      <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg flex-1 min-h-[284px] flex flex-col">
         <div className="flex gap-2 w-full p-3 items-center">
           <Skeleton className="h-3.5 w-32" />
           <Skeleton className="h-3 w-24" />

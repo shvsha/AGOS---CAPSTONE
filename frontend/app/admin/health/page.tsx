@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
+import { HealthSkeleton } from "@/components/Skeleton/Admin/HealthSkeleton";
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -153,7 +154,7 @@ export default function Health() {
     }
   }
 
-
+  if (loading) return <HealthSkeleton/>
 
    return (
      <>
@@ -178,7 +179,7 @@ export default function Health() {
         </div>
 
         {/* map and preview node */}
-        <div className="flex gap-3 mt-2 h-[450px]"> 
+        <div className="flex gap-3 mt-2 flex-1 min-h-[450px]">
           {/* map */}
           <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex-[3] min-w-0 h-full flex flex-col">
               <p className="text-[#122A48] font-bold mb-1">Canal Network Map - Rosario, La Union</p>
@@ -291,7 +292,7 @@ export default function Health() {
         </div>
         
         {/* node health cards */}
-        <div className="grid grid-cols-3 gap-3 mt-2 w-full flex-1 min-h-[130px]">
+        <div className="grid grid-cols-3 gap-3 mt-2 w-full min-h-[130px]">
 
           {/* Battery Voltage */}
           <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] w-full bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">

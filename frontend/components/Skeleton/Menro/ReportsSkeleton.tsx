@@ -10,7 +10,7 @@ export function ReportsSkeleton() {
   const [selectedMonth, setSelectedMonth] = useState<string>("current")
 
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* month filter */}
       <div className="flex justify-between">
@@ -27,7 +27,7 @@ export function ReportsSkeleton() {
       </div>
 
       {/* municipal reports table */}
-      <div className="flex gap-4 mt-3 h-150">
+      <div className="flex gap-4 mt-3 flex-1 min-h-[600px]">
         <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
           <Skeleton className="h-4 w-36 m-3" />
 

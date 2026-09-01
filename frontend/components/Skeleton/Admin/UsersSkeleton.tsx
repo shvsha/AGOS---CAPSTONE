@@ -18,7 +18,7 @@ export function UsersSkeleton() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* title and filter container */}
         <div className="flex justify-between w-full mb-2">
@@ -61,9 +61,9 @@ export function UsersSkeleton() {
         </div>
 
         {/* header total cards */}
-        <div className="flex justify-between w-full">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 bg-[#FAFCFD]">
+            <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD]">
               <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
               <div className="flex flex-col gap-1.5">
                 <Skeleton className="h-5 w-8" />
@@ -74,7 +74,7 @@ export function UsersSkeleton() {
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-133">
+        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
           <Skeleton className="h-4 w-28 mx-3 mb-2" />
 
           <div>

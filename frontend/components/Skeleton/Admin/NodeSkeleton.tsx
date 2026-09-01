@@ -13,7 +13,7 @@ export function NodeSkeleton() {
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("All Status")
 
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* Header */}
       <div className="flex justify-between w-full">
@@ -42,9 +42,9 @@ export function NodeSkeleton() {
       </div>
 
       {/* Summary cards */}
-      <div className="flex justify-between w-full text-[#122A48] mt-2">
+      <div className="grid grid-cols-3 gap-3 w-full text-[#122A48] mt-2">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
             <div className="flex flex-col gap-1.5">
               <Skeleton className="h-5 w-8" />
@@ -55,7 +55,7 @@ export function NodeSkeleton() {
       </div>
 
       {/* Table */}
-      <div className="flex gap-4 mt-2 h-132 overflow-visible">
+      <div className="flex gap-4 mt-2 flex-1 min-h-[528px] overflow-visible">
         <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
           <Skeleton className="h-4 w-32 m-2" />
 

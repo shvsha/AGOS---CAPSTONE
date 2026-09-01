@@ -10,7 +10,7 @@ const CONDITIONS = ["All", "Critical", "Warning", "Normal"]
 
 export function MonitoringSkeleton() {
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* title and date/time */}
       <div className="flex justify-between">
@@ -23,9 +23,9 @@ export function MonitoringSkeleton() {
       </div>
 
       {/* summary cards */}
-      <div className="flex justify-between w-full mt-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full mt-2">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 bg-[#FAFCFD]">
+          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD]">
             <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
             <div className="flex flex-col gap-1.5">
               <Skeleton className="h-5 w-8" />
@@ -36,10 +36,10 @@ export function MonitoringSkeleton() {
       </div>
 
       {/* body */}
-      <div className="flex gap-2 mt-3 h-129">
+      <div className="flex gap-2 mt-3 flex-1 min-h-0">
 
         {/* table */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-205 rounded-lg flex flex-col h-133">
+        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col h-full">
           {/* filters */}
           <div className="flex gap-3 items-center p-3">
             <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-9 w-105">
@@ -94,7 +94,7 @@ export function MonitoringSkeleton() {
         </div>
 
         {/* live alerts */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col h-133">
+        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full">
           <div className="flex items-center p-2">
             <Skeleton className="h-4 w-24" />
           </div>

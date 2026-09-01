@@ -9,7 +9,7 @@ import { FaSearch } from "react-icons/fa"
 
 export function AuditSkeleton() {
   return (
-    <div className="w-full flex flex-col gap-2 max-w-full box-border">
+    <div className="w-full h-full flex flex-col gap-2 max-w-full box-border">
 
       {/* Toolbar */}
       <div className="w-full flex gap-2 items-end items-center justify-between">
@@ -37,7 +37,7 @@ export function AuditSkeleton() {
       </div>
 
       {/* Audit Table Card */}
-      <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 h-149">
+      <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 flex-1 min-h-[596px]">
         <Skeleton className="h-4 w-40 m-2" />
 
         <div className="w-full overflow-x-auto">
