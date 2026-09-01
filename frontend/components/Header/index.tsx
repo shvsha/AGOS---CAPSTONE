@@ -161,7 +161,7 @@ export default function Header() {
     }
 
     checkNewAlert()
-    const interval = setInterval(checkNewAlert, 3000)
+    const interval = setInterval(checkNewAlert, 30000)
     return () => clearInterval(interval)
   }, [])
 

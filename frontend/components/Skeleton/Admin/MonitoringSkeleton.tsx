@@ -5,10 +5,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FaSearch } from "react-icons/fa"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 const CONDITIONS = ["All", "Critical", "Warning", "Normal"]
 
 export function MonitoringSkeleton() {
+  // Canal Sensor Nodes table — h-14 rows, has a pagination bar below it
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+  })
+
+  // Live Alerts list — h-14 cards with gap-2 between them, no pagination bar
+  const { panelRef: alertsPanelRef, tableWrapRef: alertsListRef, rows: alertRows } = useFillRows({
+    rowHeight: 56,
+    itemGap: 8,
+    initialRows: 6,
+    reservePaginationSpace: false,
+  })
+
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
 
@@ -39,7 +54,7 @@ export function MonitoringSkeleton() {
       <div className="flex gap-2 mt-3 flex-1 min-h-0">
 
         {/* table */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col h-full">
+        <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col h-full">
           {/* filters */}
           <div className="flex gap-3 items-center p-3">
             <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-9 w-105">
@@ -57,32 +72,34 @@ export function MonitoringSkeleton() {
             <Skeleton className="h-4 w-32 mb-2 -mt-1" />
           </div>
 
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-              <TableRow>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">WATER LEVEL</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">FLOW RATE</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">CLOG</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">CONDITION</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-8" /></TableCell>
-                  <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-7 w-28 rounded-lg" /></TableCell>
-                  <TableCell><Skeleton className="h-3.5 w-14" /></TableCell>
-                  <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-3.5 w-10" /></TableCell>
-                  <TableCell><Skeleton className="h-3.5 w-16" /></TableCell>
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                <TableRow>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">WATER LEVEL</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">FLOW RATE</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">CLOG</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">CONDITION</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[...Array(rows)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-7 w-28 rounded-lg" /></TableCell>
+                    <TableCell><Skeleton className="h-3.5 w-14" /></TableCell>
+                    <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-3.5 w-10" /></TableCell>
+                    <TableCell><Skeleton className="h-3.5 w-16" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="mt-auto flex items-center justify-between px-4 py-3 border-t border-[#C6C6C8]">
             <Skeleton className="h-4 w-24" />
@@ -94,13 +111,13 @@ export function MonitoringSkeleton() {
         </div>
 
         {/* live alerts */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full">
+        <div ref={alertsPanelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full">
           <div className="flex items-center p-2">
             <Skeleton className="h-4 w-24" />
           </div>
           <hr className="border-[#C6C6C8]" />
-          <div className="flex flex-col gap-2 p-3">
-            {[...Array(6)].map((_, i) => (
+          <div ref={alertsListRef} className="flex flex-col gap-2 p-3">
+            {[...Array(alertRows)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 p-1 h-14 rounded-lg border border-[#E5E5E6] bg-white">
                 <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
                 <div className="flex flex-col gap-1.5 flex-1">

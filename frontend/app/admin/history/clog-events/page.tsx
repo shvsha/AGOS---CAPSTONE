@@ -9,6 +9,7 @@ import { usePolling } from "@/components/hooks/usePolling"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { ClogEventsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/ClogEventsSkeleton"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // react
 import { useState, useEffect, useCallback } from "react"
@@ -132,7 +133,13 @@ export default function ClogEvents() {
   }
 
   const filtered = getFilteredClogs(clogs, severity, barangay, status, search)
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 8)
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 52,
+    initialRows: 8,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   // summary cards
   const total = clogs.length
@@ -299,89 +306,83 @@ export default function ClogEvents() {
         <div className="flex gap-3 mt-3 flex-1 min-h-[520px]">
 
           {/* Table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col'>
-            <Table>
-              <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
-                <TableRow>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>EVENT ID</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>SEVERITY</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DETECTED AT</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>RESOLVED AT</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER FLOW</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>STATUS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* fetch error state */}
-                  {fetchError ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-38">
-                        <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-base">Failed to clog events. Please try again later.</p>
-                          <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  
-                  // no node state
-                  ) : filtered.length === 0 ? (
+          <div ref={panelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col'>
+
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-38">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <Radar size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No clog events in the system</p>
-                        <p className="text-[#727272] text-sm">
-                          No clog events have been added yet.
-                        </p>
-                      </div>
-                    </TableCell>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>EVENT ID</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>SEVERITY</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>DETECTED AT</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>RESOLVED AT</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER FLOW</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>STATUS</TableHead>
                   </TableRow>
-                
-                  // with clog event states
-                  ) : (
-                    paginated.map(clog => (
-                      <TableRow
-                        key={clog.event_id}
-                        className={`border-b border-[#C6C6C8] cursor-pointer ${
-                          selectedClog?.event_id === clog.event_id
-                            ? 'bg-[#CDE3DE45]'
-                            : 'hover:bg-[#f5f5f5]'
-                        }`}
-                        onClick={() => setSelectedClog(clog)}
-                       >
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog.event_id}</TableCell>
-                        <TableCell className="text-left h-13 text-xs">
-                          <span className={`inline-flex items-center !text-[11px] px-5 py-1 rounded-full text-[13px] font-semibold ${
-                            clog.severity === 'High'   ? 'bg-[#FFE5E5] text-[#D81010]' :
-                            clog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#E4B600]' :
-                            'bg-[#B2FBC173] text-[#2C7B3C]'
-                          }`}>
-                            {clog.severity}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
-                          {clog.detected_at
-                            ? new Date(clog.detected_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
-                          {clog.resolved_at
-                            ? new Date(clog.resolved_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog.status}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {!fetchError && filtered.length > 0 && paginated.map(clog => (
+                    <TableRow
+                      key={clog.event_id}
+                      className={`border-b border-[#C6C6C8] cursor-pointer ${
+                        selectedClog?.event_id === clog.event_id
+                          ? 'bg-[#CDE3DE45]'
+                          : 'hover:bg-[#f5f5f5]'
+                      }`}
+                      onClick={() => setSelectedClog(clog)}
+                    >
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog.event_id}</TableCell>
+                      <TableCell className="text-left h-13 text-xs">
+                        <span className={`inline-flex items-center !text-[11px] px-5 py-1 rounded-full text-[13px] font-semibold ${
+                          clog.severity === 'High'   ? 'bg-[#FFE5E5] text-[#D81010]' :
+                          clog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#E4B600]' :
+                          'bg-[#B2FBC173] text-[#2C7B3C]'
+                        }`}>
+                          {clog.severity}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">
+                        {clog.detected_at
+                          ? new Date(clog.detected_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">
+                        {clog.resolved_at
+                          ? new Date(clog.resolved_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">Brgy. {clog?.barangay_details?.barangay_name}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog?.reading_details?.water_level ?? '—'} cm</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">~ {clog.reading_details?.water_flow_rate != null ? Number(clog.reading_details.water_flow_rate).toFixed(5) : '—'} m/s</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">{clog.status}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* fetch error state */}
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                <p className="text-[#D81010] font-semibold text-base">Failed to clog events. Please try again later.</p>
+                <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              </div>
+            )}
+
+            {/* no node state */}
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <Radar size={30} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No clog events in the system</p>
+                <p className="text-[#727272] text-xs">
+                  No clog events have been added yet.
+                </p>
+              </div>
+            )}
 
             <div className='mt-auto'>
               <TablePagination

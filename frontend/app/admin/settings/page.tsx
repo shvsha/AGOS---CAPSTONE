@@ -691,7 +691,7 @@ export default function Page() {
                 </div>
 
                 {/* Backup History */}
-                <div className="border border-[#C6C6C8] rounded-lg flex-1">
+                <div className="border border-[#C6C6C8] rounded-lg flex-1 flex flex-col h-full">
                   <h3 className="font-semibold text-[#122A48] text-sm p-3">Recent Backup Activity</h3>
                   <Table>
                     <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
@@ -724,14 +724,6 @@ export default function Page() {
                               </span>
                             </TableCell>
                             <TableCell className="text-xs">{log.triggered_by_name}</TableCell>
-                            <TableCell className="text-xs flex justify-center">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${
-                                log.status === 'failed'   ? 'bg-[#FFE5E5] text-[#D81010]' :
-                                'bg-[#B2FBC173] text-[#2C7B3C]'
-                              }`}>
-                                {log.status === 'failed' ? 'Failed' : 'Success'}
-                              </span>
-                            </TableCell>
                             <TableCell className="text-xs">
                               {log.status === 'failed' && log.error_message ? (
                                 <span className="text-[#D81010] max-w-50 block truncate" title={log.error_message}>

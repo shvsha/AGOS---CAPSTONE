@@ -10,10 +10,17 @@ import { FaSearch } from "react-icons/fa"
 import { FileSearch, FileDown } from "lucide-react"
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function WasteSkeleton() {
   const [barangayFilterOpt, setBarangayFilterOpt] = useState<string>("All Barangay")
   const [dominantWaste, setDominantWaste] = useState<string>("All Waste")
   const [sensorNode, setSensorNode] = useState<string>("All Nodes")
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 52,
+    initialRows: 8,
+  })
 
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
@@ -78,38 +85,40 @@ export function WasteSkeleton() {
       <div className="flex gap-2 mt-2 flex-1 min-h-[524px]">
 
         {/* Table */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col">
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12">
-              <TableRow>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">CLASSIFICATION ID</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">DOMINANT WASTE TYPE</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">TIMESTAMP</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">READING ID</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">CONFIDENCE</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(7)].map((_, i) => (
-                <TableRow key={i} className="border-b border-[#C6C6C8]">
-                  <TableCell className="h-13"><Skeleton className="h-3.5 w-20" /></TableCell>
-                  <TableCell className="h-13">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-7 w-7 rounded-full" />
-                      <Skeleton className="h-3.5 w-20" />
-                    </div>
-                  </TableCell>
-                  <TableCell className="h-13"><Skeleton className="h-3.5 w-24" /></TableCell>
-                  <TableCell className="h-13"><Skeleton className="h-3.5 w-16" /></TableCell>
-                  <TableCell className="h-13"><Skeleton className="h-3.5 w-20" /></TableCell>
-                  <TableCell className="h-13"><Skeleton className="h-3.5 w-14" /></TableCell>
-                  <TableCell className="h-13"><Skeleton className="h-3.5 w-10" /></TableCell>
+        <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col">
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12">
+                <TableRow>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">CLASSIFICATION ID</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">DOMINANT WASTE TYPE</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">TIMESTAMP</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">READING ID</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">CONFIDENCE</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[...Array(rows)].map((_, i) => (
+                  <TableRow key={i} className="border-b border-[#C6C6C8]">
+                    <TableCell className="h-13"><Skeleton className="h-3.5 w-20" /></TableCell>
+                    <TableCell className="h-13">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-3.5 w-20" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="h-13"><Skeleton className="h-3.5 w-24" /></TableCell>
+                    <TableCell className="h-13"><Skeleton className="h-3.5 w-16" /></TableCell>
+                    <TableCell className="h-13"><Skeleton className="h-3.5 w-20" /></TableCell>
+                    <TableCell className="h-13"><Skeleton className="h-3.5 w-14" /></TableCell>
+                    <TableCell className="h-13"><Skeleton className="h-3.5 w-10" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="mt-auto flex items-center justify-between px-4 py-3 border-t border-[#C6C6C8]">
             <Skeleton className="h-4 w-24" />

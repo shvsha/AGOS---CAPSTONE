@@ -22,6 +22,8 @@ import { BarangayReportsSkeleton } from "@/components/Skeleton/Menro/BarangayRep
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useFillRows } from "@/components/hooks/useFillRows"
+import { table } from "console"
 
 
 // types
@@ -153,6 +155,12 @@ export default function BarangayReports() {
     )
     .sort((a, b) => b.monthly_report_id - a.monthly_report_id)
 
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 6,
+    deps: [loading],
+  })
+
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredReports, 6)
 
   const refetchAll = useCallback(async () => {
@@ -264,47 +272,23 @@ export default function BarangayReports() {
         
         {/* barangay reports table */}
         <div className="flex gap-4 mt-3 flex-1 min-h-[600px]">
-          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Barangay Reports</p>
 
-            <Table>
-              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-                <TableRow>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                  <TableRow>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
+                  </TableRow>
+                </TableHeader>
 
-              <TableBody>
-                  {fetchError ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-35">
-                        <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-base">Failed to load barangay reports. Please try again later.</p>
-                          <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-
-                  ) : filteredReports.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-47">
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="rounded-full bg-[#E5E5E6] p-4">
-                            <FileText size={36} color="#727272" />
-                          </div>
-                          <p className="text-[#122A48] font-bold">No barangay reports found</p>
-                          <p className="text-[#727272] text-sm">
-                            No barangay reports have been submitted yet.
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-
-                  ) : (
+                <TableBody>
+                  {!fetchError && filteredReports.length > 0 &&
                     paginated.map(reports => (
                       <TableRow key={reports.monthly_report_id} className="border-b border-[#C6C6C8] text-xs">
                         <TableCell className="text-[#122A48] text-left h-14">{formatReportMonth(reports.report_month)}</TableCell>
@@ -347,13 +331,42 @@ export default function BarangayReports() {
                           </Button>
                           
                         </TableCell>
-
-
                       </TableRow>
-                    ))
-                  )}
-              </TableBody>
-            </Table>
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <p className="text-[#D81010] font-semibold text-xs">
+                  Failed to load barangay reports. Please try again later.
+                </p>
+
+                <Button
+                  onClick={refetchAll}
+                  className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                >
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {!fetchError && filteredReports.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <FileText size={30} color="#727272" />
+                </div>
+
+                <p className="text-[#122A48] font-bold">
+                  No barangay reports found
+                </p>
+
+                <p className="text-[#727272] text-xs">
+                  No barangay reports have been submitted yet.
+                </p>
+              </div>
+            )}
 
             <div className="mt-auto">
               <TablePagination

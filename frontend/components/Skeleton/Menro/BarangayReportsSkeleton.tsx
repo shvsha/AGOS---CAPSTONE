@@ -6,10 +6,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function BarangayReportsSkeleton() {
   const [selectedMonth, setSelectedMonth] = useState<string>("current")
   const [filterBarangay, setFilterBarangay] = useState<string>("All")
   const [filterStatus, setFilterStatus] = useState<string>("All")
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 8,
+  })
 
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
@@ -48,36 +55,38 @@ export function BarangayReportsSkeleton() {
 
       {/* barangay reports table */}
       <div className="flex gap-4 mt-3 flex-1 min-h-[600px]">
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+        <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
           <Skeleton className="h-4 w-32 m-3" />
 
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-              <TableRow>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(8)].map((_, i) => (
-                <TableRow key={i} className="border-b border-[#C6C6C8]">
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-20" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                  <TableCell className="h-14">
-                    <div className="flex gap-3">
-                      <Skeleton className="h-9 w-16 rounded-lg" />
-                      <Skeleton className="h-9 w-26 rounded-lg" />
-                    </div>
-                  </TableCell>
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                <TableRow>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[...Array(rows)].map((_, i) => (
+                  <TableRow key={i} className="border-b border-[#C6C6C8]">
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-20" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="h-14">
+                      <div className="flex gap-3">
+                        <Skeleton className="h-9 w-16 rounded-lg" />
+                        <Skeleton className="h-9 w-26 rounded-lg" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="mt-auto">
             <div className="flex items-center justify-between px-4 py-3 border-t border-[#C6C6C8]">

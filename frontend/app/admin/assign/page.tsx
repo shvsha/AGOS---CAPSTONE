@@ -22,6 +22,7 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { AssignSkeleton } from "@/components/Skeleton/Admin/AssignSkeleton"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -150,7 +151,13 @@ export default function NodeAssignment() {
     )
     .sort((a, b) => b.node_id - a.node_id)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   const total    = assignedNodes.length
   const active   = assignedNodes.filter(n => n.status === 'Active').length
@@ -412,100 +419,99 @@ export default function NodeAssignment() {
 
         {/* Table */}
         <div className="flex gap-4 mt-3 flex-1 min-h-[528px]">
-          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 font-bold text-[#122A48] text-sm">Assigned Canal Nodes</p>
-            <Table>
-              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-                <TableRow>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">INSTALLED</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fetchError ? (
+
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load assignments. Please try again.</p>
-                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">INSTALLED</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                   </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <RadioTower size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No nodes assigned yet</p>
-                        <p className="text-[#727272] text-sm">Assign an available node to a canal hotspot.</p>
-                        <Button
-                          onClick={() => setAssignFormDialog({ open: true, node: null })}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                        >
-                          + Assign Node
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginated.map(node => (
-                    <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.hotspot_details?.name ?? '—'}</TableCell>
-                      <TableCell className="text-left h-14 text-xs">
-                        <Button
-                          className="text-xs text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
-                          onClick={() => setViewMapDialog({ open: true, node })}
-                        >
-                          <Map size={16} /> View on map
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-left h-18">
-                        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                          node.status === 'Active' ? 'bg-[#B2FBC173] text-[#2C7B3C]' : 'bg-[#FFE5E5] text-[#D81010]'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            node.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
-                          }`} />
-                          {node.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">
-                        {node.installed_at
-                          ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
-                              year: 'numeric', month: 'short', day: 'numeric'
-                            })
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-center h-14 text-xs">
-                        <Button
-                          onClick={() => setAssignFormDialog({ open: true, node })}
-                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 text-xs px-3"
-                        >
-                          <SquarePen size={16} /> Edit
-                        </Button>
-                        <Button
-                          onClick={() => setUnassignDialog({ open: true, node })}
-                          className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-3.5 text-xs px-3"
-                        >
-                          <Unplug size={16} /> Unassign
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                    {!fetchError && filtered.length > 0 && paginated.map(node => (
+                      <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.hotspot_details?.name ?? '—'}</TableCell>
+                        <TableCell className="text-left h-14 text-xs">
+                          <Button
+                            className="text-xs text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
+                            onClick={() => setViewMapDialog({ open: true, node })}
+                          >
+                            <Map size={16} /> View on map
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-left h-18">
+                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                            node.status === 'Active' ? 'bg-[#B2FBC173] text-[#2C7B3C]' : 'bg-[#FFE5E5] text-[#D81010]'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              node.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
+                            }`} />
+                            {node.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">
+                          {node.installed_at
+                            ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
+                                year: 'numeric', month: 'short', day: 'numeric'
+                              })
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="text-[#122A48] flex gap-2 justify-left items-center h-14 text-xs">
+                          <Button
+                            onClick={() => setAssignFormDialog({ open: true, node })}
+                            className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 text-xs px-3"
+                          >
+                            <SquarePen size={16} /> Edit
+                          </Button>
+                          <Button
+                            onClick={() => setUnassignDialog({ open: true, node })}
+                            className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-3.5 text-xs px-3"
+                          >
+                            <Unplug size={16} /> Unassign
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                <p className="text-[#D81010] font-semibold text-base">Failed to load assignments. Please try again.</p>
+                <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              </div>
+            )}
+
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <RadioTower size={30} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No nodes assigned yet</p>
+                <p className="text-[#727272] text-xs">Assign an available node to a canal hotspot.</p>
+                <Button
+                  onClick={() => setAssignFormDialog({ open: true, node: null })}
+                  className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                >
+                  + Assign Node
+                </Button>
+              </div>
+            )}
+            
             <div className="mt-auto">
               <TablePagination
                 totalItems={totalItems}

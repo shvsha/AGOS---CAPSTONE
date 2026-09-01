@@ -9,9 +9,16 @@ import { FaSearch } from "react-icons/fa"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function BarangayReportsSkeleton() {
   const [filterBarangay, setFilterBarangay] = useState<string>("All")
   const [selectedMonth, setSelectedMonth] = useState<string>("current")
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+  })
 
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
@@ -91,34 +98,36 @@ export function BarangayReportsSkeleton() {
       </div>
 
       {/* table */}
-      <div className="flex-1 min-h-[412px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col">
-        <Table>
-          <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg">
-            <TableRow>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {[...Array(6)].map((_, i) => (
-              <TableRow key={i} className="border-b border-[#C6C6C8]">
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-20" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                <TableCell className="h-14">
-                  <div className="flex gap-3">
-                    <Skeleton className="h-9 w-16 rounded-lg" />
-                    <Skeleton className="h-9 w-26 rounded-lg" />
-                  </div>
-                </TableCell>
+      <div ref={panelRef} className="flex-1 min-h-[412px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col">
+        <div ref={tableWrapRef}>
+          <Table>
+            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg">
+              <TableRow>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {[...Array(rows)].map((_, i) => (
+                <TableRow key={i} className="border-b border-[#C6C6C8]">
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-20" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                  <TableCell className="h-14">
+                    <div className="flex gap-3">
+                      <Skeleton className="h-9 w-16 rounded-lg" />
+                      <Skeleton className="h-9 w-26 rounded-lg" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

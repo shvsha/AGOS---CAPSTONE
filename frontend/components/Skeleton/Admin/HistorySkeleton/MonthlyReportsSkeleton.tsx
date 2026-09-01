@@ -8,8 +8,15 @@ import { Input } from "@/components/ui/input"
 import { FaSearch } from "react-icons/fa"
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function MonthlyReportsSkeleton() {
   const [selectedMonth, setSelectedMonth] = useState<string>("current")
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+  })
 
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
@@ -45,32 +52,34 @@ export function MonthlyReportsSkeleton() {
       </div>
 
       {/* table */}
-      <div className="flex-1 min-h-[528px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col">
-        <Table>
-          <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-10 rounded-lg">
-            <TableRow>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">ID</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">VERIFIED BY</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {[...Array(8)].map((_, i) => (
-              <TableRow key={i} className="border-b border-[#C6C6C8]">
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-8" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
-                <TableCell className="h-14">
-                  <div className="flex gap-3">
-                    <Skeleton className="h-9 w-16 rounded-lg" />
-                    <Skeleton className="h-9 w-26 rounded-lg" />
-                  </div>
-                </TableCell>
+      <div ref={panelRef} className="flex-1 min-h-[528px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col">
+        <div ref={tableWrapRef}>
+          <Table>
+            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-10 rounded-lg">
+              <TableRow>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">ID</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">VERIFIED BY</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {[...Array(rows)].map((_, i) => (
+                <TableRow key={i} className="border-b border-[#C6C6C8]">
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-8" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
+                  <TableCell className="h-14">
+                    <div className="flex gap-3">
+                      <Skeleton className="h-9 w-16 rounded-lg" />
+                      <Skeleton className="h-9 w-26 rounded-lg" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
     </div>

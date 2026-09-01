@@ -17,6 +17,7 @@ import { BarangaySkeleton } from "@/components/Skeleton/Admin/BarangaySkeleton"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { SearchFilter } from "@/components/SearchFilter";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
+import { useFillRows } from "@/components/hooks/useFillRows";
 
 // react
 import { useState, useEffect } from "react"
@@ -131,7 +132,12 @@ export default function Barangay() {
 
   const filteredBarangay = getFilteredBarangay(barangays, search, statusFilter)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, 7)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, rows)
 
   // summary cards
   const total = barangays.length
@@ -245,51 +251,22 @@ export default function Barangay() {
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[528px]">
+        <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[528px]">
           <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">Barangay List</p>
 
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
-              <TableRow>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-
-              {/* fetch error state */}
-              {fetchError ? (
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-15">
-                    <div className="flex flex-col justify-center items-center gap-3 py-20">
-                      <p className="text-[#D81010] font-semibold text-base">Failed to load barangay. Please try again later.</p>
-                      <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                    </div>
-                  </TableCell>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
                 </TableRow>
+              </TableHeader>
 
-                // no barangay state
-              ) : filteredBarangay.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-15">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-full bg-[#E5E5E6] p-4">
-                        <UserRound size={36} color="#727272" />
-                      </div>
-                      <p className="text-[#122A48] font-bold">No barangay found</p>
-                      <p className="text-[#727272] text-sm">
-                        No barangay have been registered yet. <br /> Click the button below to start register barangay.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-
-                // with barangay state
-              ) : (
-                paginated.map(barangay => (
+              <TableBody>
+                {!fetchError && filteredBarangay.length > 0 && paginated.map(barangay => (
                   <TableRow key={barangay.barangay_id} className="border-b border-[#C6C6C8]">
                     <TableCell className="text-[#122A48] text-left h-14 text-xs">{barangay.barangay_id}</TableCell>
 
@@ -325,10 +302,32 @@ export default function Barangay() {
                     </TableCell>
 
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* fetch error state */}
+          {fetchError && (
+            <div className="flex-1 flex flex-col justify-center items-center gap-3">
+              <p className="text-[#D81010] font-semibold text-base">Failed to load barangay. Please try again later.</p>
+              <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+            </div>
+          )}
+
+          {/* no barangay state */}
+          {!fetchError && filteredBarangay.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+              <div className="rounded-full bg-[#E5E5E6] p-3">
+                <UserRound size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold">No barangay found</p>
+              <p className="text-[#727272] text-xs">
+                No barangay have been found.
+              </p>
+            </div>
+          )}
+
           <div className="mt-auto">
             <TablePagination
               totalItems={totalItems}

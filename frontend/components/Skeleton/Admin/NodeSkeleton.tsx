@@ -9,8 +9,15 @@ import { Button } from "@/components/ui/button"
 import { FaSearch, FaPlus } from "react-icons/fa"
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function NodeSkeleton() {
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("All Status")
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 4,
+  })
 
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
@@ -56,34 +63,36 @@ export function NodeSkeleton() {
 
       {/* Table */}
       <div className="flex gap-4 mt-2 flex-1 min-h-[528px] overflow-visible">
-        <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+        <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
           <Skeleton className="h-4 w-32 m-2" />
 
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-              <TableRow>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
-                <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(6)].map((_, i) => (
-                <TableRow key={i} className="border-b border-[#C6C6C8]">
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-6" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-6 w-22 rounded-full" /></TableCell>
-                  <TableCell className="h-14">
-                    <div className="flex gap-2">
-                      <Skeleton className="h-9 w-20 rounded-lg" />
-                      <Skeleton className="h-9 w-9 rounded-lg" />
-                    </div>
-                  </TableCell>
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                <TableRow>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[...Array(rows)].map((_, i) => (
+                  <TableRow key={i} className="border-b border-[#C6C6C8]">
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-6" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-6 w-22 rounded-full" /></TableCell>
+                    <TableCell className="h-14">
+                      <div className="flex gap-2">
+                        <Skeleton className="h-9 w-20 rounded-lg" />
+                        <Skeleton className="h-9 w-9 rounded-lg" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="mt-auto flex items-center justify-between px-4 py-3 border-t border-[#C6C6C8]">
             <Skeleton className="h-4 w-24" />

@@ -12,9 +12,16 @@ import { SlidersHorizontal } from "lucide-react"
 
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function UsersSkeleton() {
   const [userRole, setUserRole] = useState<string>('All')
   const [userStatus, setUserStatus] = useState<string>('Active')
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+  })
 
   return (
     <>
@@ -74,10 +81,10 @@ export function UsersSkeleton() {
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
+        <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
           <Skeleton className="h-4 w-28 mx-3 mb-2" />
 
-          <div>
+          <div ref={tableWrapRef}>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
@@ -89,7 +96,7 @@ export function UsersSkeleton() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...Array(7)].map((_, i) => (
+                {[...Array(rows)].map((_, i) => (
                   <TableRow key={i} className="border-b border-[#C6C6C8]">
                     <TableCell className="h-14"><Skeleton className="h-3.5 w-6" /></TableCell>
                     <TableCell className="h-14">

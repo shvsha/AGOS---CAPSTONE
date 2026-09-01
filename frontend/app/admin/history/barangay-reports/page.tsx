@@ -7,6 +7,7 @@ import { BarangayReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkel
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // react
 import { useState, useEffect, useCallback} from "react"
@@ -161,7 +162,13 @@ export default function BarangayReports() {
   }
 
   const filtered = getFilteredBarangayReports(barangayReports, filterBarangay, selectedMonth, search)
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   // summary cards
   const total = barangayReports.length
@@ -282,44 +289,21 @@ export default function BarangayReports() {
         </div>
 
         {/* table */}
-        <div className='flex-1 min-h-[412px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col'>
-          <Table>
-            <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg'>
-              <TableRow>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>DATE</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>SUBMITTED BY</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>STATUS</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
+        <div ref={panelRef} className='flex-1 min-h-[412px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col'>
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg'>
+                <TableRow>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DATE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>SUBMITTED BY</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>STATUS</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>ACTIONS</TableHead>
+                </TableRow>
+              </TableHeader>
 
-            <TableBody>
-              {fetchError ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-25">
-                    <div className="flex flex-col justify-center items-center gap-3 py-20">
-                      <p className="text-[#D81010] font-semibold text-base">Failed to load barangay reports. Please try again later.</p>
-                      <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-25">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-full bg-[#E5E5E6] p-4">
-                        <Radar size={36} color="#727272" />
-                      </div>
-                      <p className="text-[#122A48] font-bold">No barangay monthly reports in the system</p>
-                      <p className="text-[#727272] text-sm">
-                        No barangay monthly reports have been submitted yet.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginated.map(reports => (
+              <TableBody>
+                {!fetchError && filtered.length > 0 && paginated.map(reports => (
                   <TableRow key={reports.monthly_report_id} className="border-b border-[#C6C6C8] text-xs">
                     <TableCell className="text-[#122A48] text-left h-14">{formatReportMonth(reports.report_month)}</TableCell>
                     <TableCell className="text-[#122A48] text-left h-14">{reports.barangay_details?.barangay_name}</TableCell>
@@ -360,10 +344,29 @@ export default function BarangayReports() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {fetchError && (
+            <div className="flex-1 flex flex-col justify-center items-center gap-3">
+              <p className="text-[#D81010] font-semibold text-base">Failed to load barangay reports. Please try again later.</p>
+              <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+            </div>
+          )}
+
+          {!fetchError && filtered.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+              <div className="rounded-full bg-[#E5E5E6] p-3">
+                <Radar size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold">No barangay monthly reports in the system</p>
+              <p className="text-[#727272] text-xs">
+                No barangay monthly reports have been submitted yet.
+              </p>
+            </div>
+          )}
 
           <div className='mt-auto'>
             <TablePagination

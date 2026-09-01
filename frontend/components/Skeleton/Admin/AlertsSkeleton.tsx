@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { FaSearch } from "react-icons/fa"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 import { useState } from "react"
 
@@ -17,6 +18,11 @@ const ALERT_TYPES = [
 export function AlertsSkeleton() {
   const [barangay, setBarangay] = useState('All Barangay')
   const [dateFilter, setDateFilter] = useState('Today')
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 50.5,
+    initialRows: 9,
+  })
 
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
@@ -50,7 +56,7 @@ export function AlertsSkeleton() {
       </div>
 
       {/* notif list container */}
-      <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
+      <div ref={panelRef} className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
         <div className="flex w-full p-3 items-center justify-between flex-wrap gap-2">
           <p className="text-[#122A48] font-semibold">Notifications</p>
           <div className="flex gap-2 flex-wrap">
@@ -64,7 +70,7 @@ export function AlertsSkeleton() {
 
         <hr />
 
-        <div className="flex flex-col gap-3 flex-1">
+        <div ref={tableWrapRef} className="flex flex-col gap-3 flex-1">
           <Table>
             <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
               <TableRow>
@@ -75,7 +81,7 @@ export function AlertsSkeleton() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...Array(9)].map((_, i) => (
+              {[...Array(rows)].map((_, i) => (
                 <TableRow key={i} className="border-b border-[#C6C6C8]">
                   <TableCell className="h-[50.5px]"><Skeleton className="h-3.5 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-28 rounded-full" /></TableCell>

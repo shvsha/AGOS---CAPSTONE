@@ -16,6 +16,7 @@ import { ALERT_STYLE } from "@/lib/constant"
 import { SearchFilter } from "@/components/SearchFilter"
 import { AlertsSkeleton } from "@/components/Skeleton/Menro/AlertsSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // icons
 import { Siren, X } from "lucide-react"
@@ -24,6 +25,7 @@ import { Siren, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 
 type Alert = {
@@ -33,6 +35,7 @@ type Alert = {
   barangay_name: string | null
   timestamp: string
   is_read: boolean
+  alert_context: Record<string, any> 
 }
 
 type Barangay = {
@@ -111,7 +114,14 @@ export default function Alerts() {
       return true
     })
   }, [alerts, search, barangay, alertType, barangays])
-  const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, 9)
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 50.5,
+    initialRows: 9,
+    deps: [loading],
+  })
+
+  const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, rows)
 
   useEffect(() => {
     activeAlerts.refetch()
@@ -187,7 +197,7 @@ return (
         </div>
 
         {/* notif list container */}
-        <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
+        <div ref={panelRef} className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
           <div className="flex w-full p-3 items-center justify-between flex-wrap gap-2">
             <p className="text-[#122A48] font-semibold">Notifications</p>
             <div className="flex gap-2 flex-wrap">
@@ -210,7 +220,7 @@ return (
           <hr />
 
           {/* alert table */}
-          <div className="flex flex-col gap-3 flex-1">
+          <div ref={tableWrapRef}>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
@@ -221,30 +231,7 @@ return (
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {fetchError ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-40">
-                      <div className="flex flex-col gap-3 p-3 flex-1 justify-center items-center">
-                        <p className="text-[#D81010] font-semibold text-sm">Failed to load alerts. Please try again later.</p>
-                        <Button onClick={() => activeAlerts.refetch()} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredAlerts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-40">
-                      <div className="flex flex-col items-center justify-center gap-1 flex-1">
-                        <div className="rounded-full bg-[#E5E5E6] p-4 my-2">
-                          <Siren size={30} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold text-sm">No alerts today</p>
-                        <p className="text-[#727272] text-xs">
-                          No alerts have been added today.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
+              {!fetchError && filteredAlerts.length > 0 && (
                   paginated.map(alert => {
                     const meta = ALERT_META[alert.alert_type] ?? { label: alert.alert_type.replace(/_/g, " "), Icon: null }
                     const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
@@ -272,7 +259,27 @@ return (
             </Table>
           </div>
 
+          {fetchError && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <p className="text-[#D81010] font-semibold text-sm">Failed to load alerts. Please try again later.</p>
+              <Button onClick={() => activeAlerts.refetch()} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+            </div>
+          )}
+
+          {!fetchError && filteredAlerts.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-1">
+              <div className="rounded-full bg-[#E5E5E6] p-4 my-2">
+                <Siren size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold text-sm">No alerts today</p>
+              <p className="text-[#727272] text-xs">
+                No alerts have been added today.
+              </p>
+            </div>
+          )}
+
           {/* pagination */}
+          <div className="mt-auto">
             {!fetchError && alerts.length > 0 && (
               <TablePagination
                 totalItems={totalItems}
@@ -281,10 +288,66 @@ return (
                 onPageChange={setCurrentPage}
               />
             )}
+          </div>
           
         </div>
 
       </div>
+
+      {/* Alert Detail Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          {selectedAlert && (() => {
+            const meta = ALERT_META[selectedAlert.alert_type] ?? { label: selectedAlert.alert_type.replace(/_/g, " "), Icon: null }
+            const style = ALERT_STYLE[selectedAlert.alert_type] ?? ALERT_STYLE.default
+            const Icon = meta.Icon
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${style.icon}`}>
+                        {Icon && <Icon size={16} />}
+                      </div>
+                      <p className="font-bold text-sm">{meta.label}</p>
+                    </div>
+                    <button onClick={() => setDialogOpen(false)} className="cursor-pointer">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </DialogHeader>
+
+                <DialogTitle className="sr-only">Alert Details</DialogTitle>
+                <hr />
+
+                <div className="flex flex-col gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <p className="text-[#727272]">Node</p>
+                    <p className="font-medium">{selectedAlert.node_name ?? "—"}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p className="text-[#727272]">Barangay</p>
+                    <p className="font-medium">{selectedAlert.barangay_name ?? "—"}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p className="text-[#727272]">Detected</p>
+                    <p className="font-medium">
+                      {new Date(selectedAlert.timestamp).toLocaleString("en-PH", {
+                        month: "short", day: "numeric", year: "numeric",
+                        hour: "2-digit", minute: "2-digit", hour12: true
+                      })}
+                    </p>
+                  </div>
+
+                  <hr />
+                  <p className="font-semibold text-xs text-[#727272]">DETAILS</p>
+                  <ContextRow alertType={selectedAlert.alert_type} ctx={selectedAlert.alert_context} />
+                </div>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
      
      </>
    )

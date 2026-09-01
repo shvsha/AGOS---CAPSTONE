@@ -23,6 +23,7 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { NodeSkeleton } from "@/components/Skeleton/Admin/NodeSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -127,7 +128,13 @@ export default function NodeManagement() {
     .filter(n => n.node_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.node_id - a.node_id)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 4,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   const total     = sensorNodes.filter(n => n.availability_status !== 'Retired').length
   const available = sensorNodes.filter(n => n.availability_status === 'Available').length
@@ -376,183 +383,182 @@ export default function NodeManagement() {
 
         {/* Table */}
         <div className="flex gap-4 mt-2 flex-1 min-h-[528px] overflow-visible">
-          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
             <p className="p-2 text-sm font-bold text-[#122A48]">IoT Sensor Nodes</p>
-            <Table>
-              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-                <TableRow>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fetchError ? (
+            
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load nodes. Please try again.</p>
-                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                   </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <RadioTower size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No sensor nodes added</p>
-                        <p className="text-[#727272] text-sm">Add a node to start monitoring.</p>
-                        <Button
-                          onClick={() => setNodeFormDialog({ open: true, node: null })}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                        >
-                          + Add Node
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginated.map(node => (
-                    <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
-                      <TableCell className="text-left h-14 text-xs">
-                        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                          node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
-                          node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
-                          'bg-[#DBEAFE] text-[#1565BC]'
-                        }`}>
-                          <span className={`text-xs w-1.5 h-1.5 rounded-full ${
-                            node.availability_status === 'Available' ? 'bg-[#1D8104]' :
-                            node.availability_status === 'Retired'   ? 'bg-[#727272]' :
-                            'bg-[#1565BC]'
-                          }`} />
-                          <p className="text-xs">{node.availability_status}</p>
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-14 text-xs relative">
-                        {/* Available */}
-                        {node.availability_status === 'Available' && (
-                          <>
-                            <Button
-                              onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="text-xs flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3"
-                            >
-                              <SquarePen size={16} /> Edit
-                            </Button>
-
-                            <div className="relative">
+                </TableHeader>
+                <TableBody>
+                  {!fetchError && filtered.length > 0 && paginated.map(node => (
+                      <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
+                        <TableCell className="text-left h-14 text-xs">
+                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                            node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
+                            node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
+                            'bg-[#DBEAFE] text-[#1565BC]'
+                          }`}>
+                            <span className={`text-xs w-1.5 h-1.5 rounded-full ${
+                              node.availability_status === 'Available' ? 'bg-[#1D8104]' :
+                              node.availability_status === 'Retired'   ? 'bg-[#727272]' :
+                              'bg-[#1565BC]'
+                            }`} />
+                            <p className="text-xs">{node.availability_status}</p>
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-14 text-xs relative">
+                          {/* Available */}
+                          {node.availability_status === 'Available' && (
+                            <>
                               <Button
-                                id={`menu-btn-${node.node_id}`}
-                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                                className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
+                                onClick={() => setNodeFormDialog({ open: true, node })}
+                                className="text-xs flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3"
                               >
-                                <MoreVertical size={16} />
+                                <SquarePen size={16} /> Edit
                               </Button>
 
-                              {openMenuId === node.node_id && (
-                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
-                                  style={{
-                                    top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
-                                    right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
-                                  }}
+                              <div className="relative">
+                                <Button
+                                  id={`menu-btn-${node.node_id}`}
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                                  className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
                                 >
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
-                                  >
-                                    <History size={14} /> View Readings
-                                  </button>
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setDecommissionDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
-                                  >
-                                    <CircleOff size={14} /> Decommission
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
+                                  <MoreVertical size={16} />
+                                </Button>
 
-                        {/* Occupied */}
-                        {node.availability_status === 'Occupied' && (
-                          <>
-                            <Button
-                              onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
-                            >
-                              <SquarePen size={16} /> Edit
-                            </Button>
+                                {openMenuId === node.node_id && (
+                                  <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
+                                    style={{
+                                      top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                      right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                    >
+                                      <History size={14} /> View Readings
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setDecommissionDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                    >
+                                      <CircleOff size={14} /> Decommission
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
 
-                            <div className="relative">
+                          {/* Occupied */}
+                          {node.availability_status === 'Occupied' && (
+                            <>
                               <Button
-                                id={`menu-btn-${node.node_id}`}
-                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
+                                onClick={() => setNodeFormDialog({ open: true, node })}
+                                className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
                               >
-                                <MoreVertical size={16} />
+                                <SquarePen size={16} /> Edit
                               </Button>
 
-                              {openMenuId === node.node_id && (
-                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
-                                  style={{
-                                    top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
-                                    right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
-                                  }}
+                              <div className="relative">
+                                <Button
+                                  id={`menu-btn-${node.node_id}`}
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                                  className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
                                 >
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
-                                  >
-                                    <History size={14} /> View Readings
-                                  </button>
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
-                                  >
-                                    <Unplug size={14} /> Unassign
-                                  </button>
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setDecommissionGuardDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
-                                  >
-                                    <CircleOff size={14} /> Decommission
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
+                                  <MoreVertical size={16} />
+                                </Button>
 
-                        {/* Retired */}
-                        {node.availability_status === 'Retired' && (
-                          <>
-                            <Button
-                              onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
-                            >
-                              <SquarePen size={16} /> Edit
-                            </Button>
-                            <Button
-                              onClick={() => setReadingsDialog({ open: true, node })}
-                              className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
-                            >
-                              <History size={16} /> View Readings
-                            </Button>
-                          </>
-                        )}
+                                {openMenuId === node.node_id && (
+                                  <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
+                                    style={{
+                                      top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                      right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                    >
+                                      <History size={14} /> View Readings
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
+                                    >
+                                      <Unplug size={14} /> Unassign
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setDecommissionGuardDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                    >
+                                      <CircleOff size={14} /> Decommission
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
 
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                          {/* Retired */}
+                          {node.availability_status === 'Retired' && (
+                            <>
+                              <Button
+                                onClick={() => setNodeFormDialog({ open: true, node })}
+                                className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                              >
+                                <SquarePen size={16} /> Edit
+                              </Button>
+                              <Button
+                                onClick={() => setReadingsDialog({ open: true, node })}
+                                className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              >
+                                <History size={16} /> View Readings
+                              </Button>
+                            </>
+                          )}
+
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                <p className="text-[#D81010] font-semibold text-base">Failed to load nodes. Please try again.</p>
+                <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              </div>
+            )}
+
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <RadioTower size={30} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No sensor nodes added</p>
+                <p className="text-[#727272] text-xs">Add a node to start monitoring.</p>
+                <Button
+                  onClick={() => setNodeFormDialog({ open: true, node: null })}
+                  className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                >
+                  + Add Node
+                </Button>
+              </div>
+            )}
+
             <div className="mt-auto">
               <TablePagination
                 totalItems={totalItems}

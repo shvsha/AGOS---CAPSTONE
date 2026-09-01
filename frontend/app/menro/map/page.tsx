@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { ALERT_STYLE, WASTE_STYLE } from "@/lib/constant"
 import { MapSkeleton } from "@/components/Skeleton/Menro/MapSkeleton"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
@@ -218,7 +219,7 @@ export default function Map() {
 
     const health = allSensorHealth.find(h => h.node_details.node_id === nodeId)
 
-    setSelectedNode({ ...node, health })  // merge health in
+    setSelectedNode({ ...node, health })
     setNodeDialog({ open: true })
   }
 

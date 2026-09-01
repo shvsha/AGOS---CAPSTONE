@@ -4,7 +4,7 @@
 import { RadioTower, Trash2, TriangleAlert, BadgeCheck } from "lucide-react";
 
 // react
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useCallback } from "react"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/components/hooks/usePagination";
 import { ResourcesSkeleton } from "@/components/Skeleton/Menro/ResourcesSkeleton";
+import { useFillRows } from "@/components/hooks/useFillRows";
 
 // lib
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
@@ -115,10 +116,6 @@ type Clogs = {
   } | null
 }
 
-// Clog severity based on the node's actual clog_pct (water level/flow derived),
-// NOT trash weight. Thresholds match lib/constant.ts getClogClass and the
-// backend's clog_events/signals.py severity bands, so this stays consistent
-// with the rest of the app.
 const getClogSeverity = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "Unknown", barColor: "bg-[#9CA3AF]", textClass: "text-[#727272] font-semibold" }
@@ -132,11 +129,6 @@ const getClogSeverity = (clogPct: number | null) => {
   return { label: "Normal", barColor: "bg-[#1565BC]", textClass: "text-[#1565BC] font-semibold" }
 }
 
-// 4-tier ranking used by "Trash Accumulation Severity Ranking" and the
-// Priority Deployment Queue. Thresholds match the backend's clog_events
-// severity bands (High >=80, Medium >=60, Low >=30), so a node's rank here
-// always lines up with its ClogEvent severity and its row in the detailed
-// Waste Hotspots table below.
 const getClogRankLevel = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "UNKNOWN", color: "bg-[#9CA3AF]", action: "AWAITING CANAL DATA" }
@@ -209,9 +201,6 @@ export default function Resources() {
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
 
-  // Single source of truth for "how clogged is this node right now" — used by
-  // the ranking sort, the Priority Deployment Queue, and the detailed table,
-  // so all three always agree on the same node's number.
   const getLatestClogPct = (nodeId: number) => {
     const nodeReadings = allReadings
       .filter(r => r.node_details.node_id === nodeId)
@@ -225,6 +214,12 @@ export default function Resources() {
       latestReading,
     }
   }
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 3,
+    deps: [loading],
+  })
   
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 3)
   
