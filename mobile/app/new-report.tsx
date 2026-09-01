@@ -769,7 +769,7 @@ export default function NewReportScreen() {
               label="After"
               required
               photos={form.afterPhotos}
-              onAdd={() => onAddPhoto("beforePhotos")}
+              onAdd={() => onAddPhoto("afterPhotos")}
               onRemove={(index) => removePhoto("afterPhotos", index)}
             />
 
