@@ -75,3 +75,22 @@ class AlertUnreadCountView(APIView):
 
         unread = queryset.exclude(reads__user=user).count()
         return Response({'unread_count': unread})
+
+
+class AlertMarkAllReadView(APIView):
+    permission_classes = [IsAdminOrMENROOrBarangay]
+
+    def post(self, request):
+        user = request.user
+        if user.user_role == 'Barangay':
+            queryset = Alert.objects.filter(node__barangay=user.barangay)
+        else:
+            queryset = Alert.objects.all()
+
+        unread_ids = queryset.exclude(reads__user=user).values_list('alert_id', flat=True)
+
+        AlertRead.objects.bulk_create(
+            [AlertRead(alert_id=alert_id, user=user) for alert_id in unread_ids],
+            ignore_conflicts=True,
+        )
+        return Response({'detail': 'All alerts marked as read.'})
