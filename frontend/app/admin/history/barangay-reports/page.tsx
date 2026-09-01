@@ -153,7 +153,7 @@ export default function BarangayReports() {
     const q = search.toLowerCase()
     return barangay_reports
       .filter(b => filterBarangay === "All" || String(b.barangay_details?.barangay_id) === filterBarangay)
-      .filter(b => b.report_month.startsWith(selectedMonth))
+      .filter(b => selectedMonth === "All" || b.report_month.startsWith(selectedMonth))
       .filter(b =>
         [b.barangay_details?.barangay_name]
           .some(field => field?.toLowerCase().includes(q))
@@ -232,6 +232,7 @@ export default function BarangayReports() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" className="cursor-pointer text-xs p-2 w-40 min-w-0 !max-h-70 overflow-y-auto">
+                <SelectItem className="cursor-pointer text-xs p-2 text-[#122A48]" value="All">All Months</SelectItem>
                 {monthOptions.map(m => (
                   <SelectItem key={m.value} className="cursor-pointer text-xs p-2 cursor-pointer text-[#122A48]" value={m.value}>
                     {m.label}

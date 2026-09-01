@@ -101,11 +101,11 @@ export default function MonthlyReports() {
   }
   const monthOptions = getMonthOptions()
   const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
+  const [selectedMonth, setSelectedMonth] = useState<string>("All")
 
   const q = search.toLowerCase()
   const filteredReports = municipalReports
-    .filter(report => report.report_month.startsWith(selectedMonth))
+    .filter(report => selectedMonth === "All" || report.report_month.startsWith(selectedMonth))
     .sort((a, b) => b.municipal_report_id - a.municipal_report_id)
     .filter(report =>
       [report.generated_by_details?.first_name, report.generated_by_details?.last_name]
@@ -153,6 +153,7 @@ export default function MonthlyReports() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper" className=" text-xs cursor-pointer w-40 min-w-0 !max-h-70 overflow-y-auto">
+              <SelectItem className="p-2 text-xs cursor-pointer text-[#122A48]" value="All">All Months</SelectItem>
               {monthOptions.map(m => (
                 <SelectItem key={m.value} className="p-2 text-xs  cursor-pointer text-[#122A48]" value={m.value}>
                   {m.label}

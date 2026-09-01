@@ -14,10 +14,12 @@ import { useFillRows } from "@/components/hooks/useFillRows"
 export function ClogEventsSkeleton() {
   const [barangay, setBarangay] = useState<string>("All Barangay")
   const [severity, setSeverity] = useState<string>("All Severity")
+  const [status, setStatus] = useState<string>("All Status")
+  const [selectedMonth, setSelectedMonth] = useState<string>("All Months")
 
   const { panelRef, tableWrapRef, rows } = useFillRows({
     rowHeight: 52,
-    initialRows: 8,
+    initialRows: 9,
   })
 
   return (
@@ -46,6 +48,24 @@ export function ClogEventsSkeleton() {
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem className="text-xs p-2" value="All Severity">All Severity</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem className="text-xs p-2" value="All Status">All Status</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem className="text-xs p-2" value="All Months">All Months</SelectItem>
             </SelectContent>
           </Select>
         </div>

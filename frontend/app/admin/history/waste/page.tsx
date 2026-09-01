@@ -52,8 +52,8 @@ type WasteClassification = {
 }
 
 // fetch raw data
-const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+const fetchWasteRaw = async (month: string): Promise<WasteClassification[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?month=${month}`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
@@ -75,6 +75,20 @@ const fetchSensorNodesRaw = async () => {
 
 
 export default function Waste() {
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  )
+  const monthOptions = (() => {
+    const year = new Date().getFullYear()
+    return Array.from({ length: 12 }, (_, m) => {
+      const d = new Date(year, m, 1)
+      return {
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      }
+    })
+  })()
+
   // filter states
   const [search, setSearch] = useState<string>('')
   const [barangayFilterOpt, setBarangayFilterOpt] = useState<string>('All Barangay')
@@ -82,7 +96,7 @@ export default function Waste() {
   const [sensorNode, setSensorNode] = useState<string>('All Nodes')
 
   // waste classification state
-  const wasteCache = usePageCache('waste:classifications', fetchWasteRaw, [] as WasteClassification[], { autoFetch: false })
+  const wasteCache = usePageCache('waste:classifications', () => fetchWasteRaw(selectedMonth), [] as WasteClassification[], { autoFetch: false })
   const barangaysCache = usePageCache('waste:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
   const sensorNodesCache = usePageCache('waste:sensorNodes', fetchSensorNodesRaw, [] as { node_id: number; node_name: string }[], { autoFetch: false })
 
@@ -96,12 +110,13 @@ export default function Waste() {
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
-  function getFilteredWaste(waste: WasteClassification[], barangay: string, dominant_waste: string, node: string, search: string) {
+  function getFilteredWaste(waste: WasteClassification[], barangay: string, dominant_waste: string, node: string, month: string, search: string) {
     const q = search.toLowerCase()
     return waste
       .filter(b => barangay === "All Barangay" || b.node_details?.barangay_details?.barangay_name === barangay)
       .filter(b => dominant_waste === "All Waste" || b.dominant_waste_type === dominant_waste)
       .filter(b => node === "All Nodes" || b.node_details?.node_name === node)
+      .filter(b => month === "All" || b.timestamp?.startsWith(month))
       .filter(b =>
         [b.node_details?.node_name, b.node_details?.barangay_details?.barangay_name, b.dominant_waste_type]
           .some(field => field?.toLowerCase().includes(q))
@@ -109,7 +124,7 @@ export default function Waste() {
       .sort((a, b) => b.classification_id - a.classification_id)
     }
   
-    const filtered = getFilteredWaste(wasteClassification, barangayFilterOpt, dominantWaste, sensorNode, search)
+    const filtered = getFilteredWaste(wasteClassification, barangayFilterOpt, dominantWaste, sensorNode, selectedMonth, search)
 
     const { panelRef, tableWrapRef, rows } = useFillRows({
       rowHeight: 52,
@@ -133,9 +148,7 @@ export default function Waste() {
     ])
   }, [])
 
-  useEffect(() => {
-    refetchAll()
-  }, [])
+  useEffect(() => { refetchAll() }, [selectedMonth])
 
   usePolling(refetchAll, 30000)
 
@@ -223,6 +236,20 @@ export default function Waste() {
                       {n.node_name}
                     </SelectItem>
                   ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="text-xs p-2 w-35 min-w-0 !max-h-70 overflow-y-auto">
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Months</SelectItem>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} className="text-xs cursor-pointer p-2 text-[#122A48]" value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

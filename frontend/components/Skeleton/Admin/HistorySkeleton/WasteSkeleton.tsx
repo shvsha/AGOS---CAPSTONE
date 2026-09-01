@@ -16,6 +16,7 @@ export function WasteSkeleton() {
   const [barangayFilterOpt, setBarangayFilterOpt] = useState<string>("All Barangay")
   const [dominantWaste, setDominantWaste] = useState<string>("All Waste")
   const [sensorNode, setSensorNode] = useState<string>("All Nodes")
+  const [selectedMonth, setSelectedMonth] = useState<string>("All Months")
 
   const { panelRef, tableWrapRef, rows } = useFillRows({
     rowHeight: 52,
@@ -57,6 +58,15 @@ export function WasteSkeleton() {
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem className="text-xs p-2" value="All Nodes">All Nodes</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem className="text-xs p-2" value="All Months">All Months</SelectItem>
             </SelectContent>
           </Select>
         </div>

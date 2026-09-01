@@ -565,10 +565,10 @@ export default function HotspotManagement() {
 
         {/* Table */}
         <div className="flex gap-4 mt-2 flex-1 min-h-[528px]">
-          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full min-w-0 rounded-lg flex flex-col">
             <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Hotspot List</p>
 
-            <div ref={tableWrapRef}>
+            <div ref={tableWrapRef} className="w-full overflow-x-auto">
               <Table>
                 <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                   <TableRow>
@@ -619,13 +619,13 @@ export default function HotspotManagement() {
                                     barangayHotspots.map(hotspot => (
                                       <div
                                         key={hotspot.hotspot_id}
-                                        className="flex items-center gap-3 bg-white border border-[#C6C6C8] rounded-lg shadow-[0_2px_4px_-2px_rgba(0,0,0,0.1)] px-4 py-3 w-200"
+                                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-3 bg-white border border-[#C6C6C8] rounded-lg shadow-[0_2px_4px_-2px_rgba(0,0,0,0.1)] px-4 py-3 w-full"
                                       >
-                                        <div className="w-40 min-w-0">
-                                          <p className="font-bold text-xs text-[#122A48]">{hotspot.name}</p>
-                                          <p className="text-[#727272] text-xs capitalize">{hotspot.canal_shape}</p>
+                                        <div className="min-w-0">
+                                          <p className="font-bold text-xs text-[#122A48] truncate">{hotspot.name}</p>
+                                          <p className="text-[#727272] text-xs capitalize truncate">{hotspot.canal_shape}</p>
                                         </div>
-                                        <div className="w-40 min-w-0 text-[#727272] text-xs truncate">
+                                        <div className="min-w-0 text-[#727272] text-xs truncate">
                                           {hotspot.description || "—"}
                                         </div>
                                         <div className="flex-shrink-0">

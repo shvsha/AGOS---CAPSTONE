@@ -81,8 +81,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 // fetch raw data
-const fetchClogsRaw = async (): Promise<Clogs[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/`)
+const fetchClogsRaw = async (month: string): Promise<Clogs[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/clog-events/?month=${month}`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
@@ -97,6 +97,20 @@ const fetchBarangaysRaw = async () => {
 
 
 export default function ClogEvents() {
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  )
+  const monthOptions = (() => {
+    const year = new Date().getFullYear()
+    return Array.from({ length: 12 }, (_, m) => {
+      const d = new Date(year, m, 1)
+      return {
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      }
+    })
+  })()
+
   // filter states
   const [search, setSearch] = useState<string>('')
   const [barangay, setBarangay] = useState<string>('All Barangay')
@@ -104,7 +118,7 @@ export default function ClogEvents() {
   const [status, setStatus] = useState<string>('All Status')
 
   // table state
-  const clogsCache = usePageCache('clogEvents:clogs', fetchClogsRaw, [] as Clogs[], { autoFetch: false })
+  const clogsCache = usePageCache('clogs:events', () => fetchClogsRaw(selectedMonth), [] as Clogs[], { autoFetch: false })
   const barangaysCache = usePageCache('clogEvents:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
 
   const clogs = clogsCache.data
@@ -119,12 +133,13 @@ export default function ClogEvents() {
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
-  function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, status: string, search: string) {
+  function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, status: string, month: string, search: string) {
     const q = search.toLowerCase()
     return clogs
       .filter(b => severity === "All Severity" || b.severity === severity)
       .filter(b => barangay === "All Barangay" || b.barangay_details?.barangay_name === barangay)
       .filter(b => status === "All Status" || b.status === status)
+      .filter(b => month === "All" || b.detected_at?.startsWith(month))
       .filter(b =>
         [b.node_details?.node_name, b.barangay_details?.barangay_name, b.severity]
           .some(field => field?.toLowerCase().includes(q))
@@ -132,11 +147,11 @@ export default function ClogEvents() {
     .sort((a, b) => b.event_id - a.event_id)
   }
 
-  const filtered = getFilteredClogs(clogs, severity, barangay, status, search)
+  const filtered = getFilteredClogs(clogs, severity, barangay, status, selectedMonth, search)
 
   const { panelRef, tableWrapRef, rows } = useFillRows({
     rowHeight: 52,
-    initialRows: 8,
+    initialRows: 9,
     deps: [loading],
   })
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
@@ -191,9 +206,7 @@ export default function ClogEvents() {
     setCurrentPage(1)
   }, [])
 
-  useEffect(() => {
-    refetchAll()
-  }, [])
+  useEffect(() => { refetchAll() }, [selectedMonth])
 
   usePolling(refetchAll, 30000)
 
@@ -271,6 +284,20 @@ export default function ClogEvents() {
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Status">All Status</SelectItem>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Detected">Detected</SelectItem>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Cleared">Cleared</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="text-xs p-2 w-35 min-w-0 !max-h-70 overflow-y-auto">
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Months</SelectItem>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} className="text-xs cursor-pointer p-2 text-[#122A48]" value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

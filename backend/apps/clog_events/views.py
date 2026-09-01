@@ -30,13 +30,25 @@ class ClogEventListView(generics.ListCreateAPIView):
         return [IsAdmin()]
 
     def get_queryset(self):
+        from datetime import datetime
         from django.utils import timezone
-        now = timezone.now()
-        qs = ClogEvent.objects.select_related(
-            'node', 'node__barangay', 'node__hotspot'
-        ).filter(
-            detected_at__year=now.year, detected_at__month=now.month
-        )
+
+        month_param = self.request.query_params.get('month')
+        qs = ClogEvent.objects.select_related('node', 'node__barangay', 'node__hotspot')
+
+        if month_param == 'All':
+            pass
+        elif month_param:
+            try:
+                target = datetime.strptime(month_param, '%Y-%m')
+                qs = qs.filter(detected_at__year=target.year, detected_at__month=target.month)
+            except ValueError:
+                now = timezone.now()
+                qs = qs.filter(detected_at__year=now.year, detected_at__month=now.month)
+        else:
+            now = timezone.now()
+            qs = qs.filter(detected_at__year=now.year, detected_at__month=now.month)
+
         user = self.request.user
         if user.user_role == 'Barangay':
             qs = qs.filter(barangay=user.barangay)
