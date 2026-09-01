@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Calendar as CalendarIcon, ChevronDown, FileDown } from "lucide-react"
 import { FaSearch } from "react-icons/fa"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function AuditSkeleton() {
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 33,
+    initialRows: 14,
+  })
   return (
     <div className="w-full h-full flex flex-col gap-2 max-w-full box-border">
 
@@ -37,10 +43,10 @@ export function AuditSkeleton() {
       </div>
 
       {/* Audit Table Card */}
-      <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 flex-1 min-h-[596px]">
+      <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 flex-1 min-h-[596px]">
         <Skeleton className="h-4 w-40 m-2" />
 
-        <div className="w-full overflow-x-auto">
+        <div ref={tableWrapRef} className="w-full overflow-x-auto">
           <Table className="w-full min-w-[700px]">
             <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
               <TableRow>
@@ -52,13 +58,13 @@ export function AuditSkeleton() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...Array(10)].map((_, i) => (
+              {[...Array(rows)].map((_, i) => (
                 <TableRow key={i} className="border-b border-[#C6C6C8]">
-                  <TableCell className="px-2 py-3"><Skeleton className="h-3.5 w-28 mx-auto" /></TableCell>
-                  <TableCell className="px-2 py-3"><Skeleton className="h-3.5 w-24 mx-auto" /></TableCell>
-                  <TableCell className="px-2 py-3"><Skeleton className="h-3.5 w-20 mx-auto" /></TableCell>
-                  <TableCell className="px-2 py-3"><Skeleton className="h-3.5 w-24 mx-auto" /></TableCell>
-                  <TableCell className="px-4 py-3"><Skeleton className="h-3.5 w-48" /></TableCell>
+                  <TableCell className="px-2 py-3"><Skeleton className="h-2 w-28 mx-auto" /></TableCell>
+                  <TableCell className="px-2 py-3"><Skeleton className="h-2 w-24 mx-auto" /></TableCell>
+                  <TableCell className="px-2 py-3"><Skeleton className="h-2 w-20 mx-auto" /></TableCell>
+                  <TableCell className="px-2 py-3"><Skeleton className="h-2 w-24 mx-auto" /></TableCell>
+                  <TableCell className="px-4 py-3"><Skeleton className="h-2 w-48" /></TableCell>
                 </TableRow>
               ))}
             </TableBody>

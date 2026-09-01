@@ -19,6 +19,7 @@ import { DialogModal } from "@/components/DialogModal"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // lib
 import { api } from "@/lib/api"
@@ -281,9 +282,8 @@ function ViewBarangayReportInner() {
   const beforePhotos = report?.media.filter(m => m.media_category === "Before_Clearing") ?? []
   const afterPhotos = report?.media.filter(m => m.media_category === "After_Clearing") ?? []
 
-  const handleExport = async () => {
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     if (!report) return
-    setExporting(true)
     try {
       await exportPdf(
         `/api/barangay-reports/${report.monthly_report_id}/export/`,
@@ -291,11 +291,9 @@ function ViewBarangayReportInner() {
         "barangay-mrf-report.pdf"
       )
     } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExporting(false)
+      addToast("Failed to export barangay MRF report.", "error")
     }
-  }
+  }, { description: "Are you sure you want to export the barangay MRF report?" })
 
   if (loading) {
     return (
@@ -339,7 +337,7 @@ function ViewBarangayReportInner() {
 
           <div className="flex items-center gap-2">
             <Button
-              onClick={handleExport}
+              onClick={() => requestExport()}
               disabled={exporting}
               className="cursor-pointer bg-[#727272] hover:bg-[#5c5c5c] text-white"
             >
@@ -401,6 +399,8 @@ function ViewBarangayReportInner() {
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
 
     </>
   )

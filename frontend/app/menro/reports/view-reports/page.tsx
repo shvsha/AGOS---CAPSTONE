@@ -8,7 +8,7 @@ import RosLogo from '@/public/ROS-logo.jpg'
 import Image from "next/image"
 
 // icons
-import { ArrowLeft, FileText, FileDown } from "lucide-react"
+import { ArrowLeft, FileDown } from "lucide-react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // lib
 import { api } from "@/lib/api"
@@ -213,21 +214,18 @@ function ViewMunicipalReportInner() {
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
-  const handleExport = async () => {
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     if (!report) return
-    setExporting(true)
     try {
       await exportPdf(
         `/api/municipal-reports/${report.municipal_report_id}/export/`,
         {},
-        "municipal-mrf-report.pdf"
+        "compiled-mrf-report.pdf"
       )
     } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExporting(false)
+      addToast("Failed to export compiled MRF report.", "error")
     }
-  }
+  }, { description: "Are you sure you want to export the compiled MRF report?" })
 
   const fetchData = async () => {
     if (!id) {
@@ -295,7 +293,7 @@ function ViewMunicipalReportInner() {
             </p>
           </div>
           <Button
-            onClick={handleExport}
+            onClick={() => requestExport()}
             disabled={exporting}
             className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
           >
@@ -308,6 +306,8 @@ function ViewMunicipalReportInner() {
 
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
 
     </>
   )

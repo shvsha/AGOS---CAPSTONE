@@ -10,6 +10,7 @@ import { MonthlyReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkele
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
 import { useFillRows } from "@/components/hooks/useFillRows"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -125,16 +126,20 @@ export default function MonthlyReports() {
   const totalBiodegredable = municipalReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
   const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + (r.total_special_waste_kg ?? 0), 0)
 
-  const handleExport = async (reportId: number) => {
-    setExportingId(reportId)
-    try {
-      await exportPdf(`/api/municipal-reports/${reportId}/export/`, {}, "municipal-mrf-report.pdf")
-    } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExportingId(null)
+  const { requestExport, ExportDialogs } = useExportDialog<{ id: number; reportMonth: string }>(
+    async ({ id }) => {
+      try {
+        await exportPdf(`/api/municipal-reports/${id}/export/`, {}, "municipal-mrf-report.pdf")
+      } catch {
+        addToast("Failed to export report.", "error")
+      }
+    },
+    {
+      description: ({ reportMonth }) => (
+        <>Are you sure you want to export this compiled MRF report for <strong>{formatReportMonth(reportMonth)}</strong>?</>
+      ),
     }
-  }
+  )
   
   if (loading) return <MonthlyReportsSkeleton/>
   
@@ -214,12 +219,16 @@ export default function MonthlyReports() {
                         </Button>
 
                         <Button
-                          onClick={() => handleExport(report.municipal_report_id)}
-                          disabled={exportingId === report.municipal_report_id}
+                          onClick={() =>
+                            requestExport({
+                              id: report.municipal_report_id,
+                              reportMonth: report.report_month,
+                            })
+                          }
                           className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
                         >
                           <FileDown size={16} className="mr-1" />
-                          {exportingId === report.municipal_report_id ? "Exporting..." : "Export PDF"}
+                          Export PDF
                         </Button>
                       </TableCell>
                   </TableRow>
@@ -259,6 +268,8 @@ export default function MonthlyReports() {
 
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
     </>
   )
 }

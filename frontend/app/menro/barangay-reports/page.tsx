@@ -23,7 +23,7 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
 import { useFillRows } from "@/components/hooks/useFillRows"
-import { table } from "console"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 
 // types
@@ -179,16 +179,20 @@ export default function BarangayReports() {
     refetchAll()
   }, [])
 
-  const handleExport = async (reportId: number) => {
-    setExportingId(reportId)
-    try {
-      await exportPdf(`/api/barangay-reports/${reportId}/export/`, {}, "barangay-mrf-report.pdf")
-    } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExportingId(null)
+  const { requestExport, ExportDialogs } = useExportDialog<{ id: number; barangay: string }>(
+    async ({ id }) => {
+      try {
+        await exportPdf(`/api/barangay-reports/${id}/export/`, {}, "barangay-mrf-report.pdf")
+      } catch {
+        addToast("Failed to export report.", "error")
+      }
+    },
+    {
+      description: ({ barangay }) => (
+        <>Are you sure you want to export the MRF report for <strong>{barangay}</strong>?</>
+      ),
     }
-  }
+  )
 
   if (loading) return <BarangayReportsSkeleton/>    
 
@@ -322,12 +326,16 @@ export default function BarangayReports() {
                           </Button>
 
                           <Button
-                            onClick={() => handleExport(reports.monthly_report_id)}
-                            disabled={exportingId === reports.monthly_report_id}
+                            onClick={() =>
+                              requestExport({
+                                id: reports.monthly_report_id,
+                                barangay: reports.barangay_details?.barangay_name ?? "this barangay",
+                              })
+                            }
                             className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
                           >
                             <FileDown size={16} className="mr-1" />
-                            {exportingId === reports.monthly_report_id ? "Exporting..." : "Export PDF"}
+                            Export PDF
                           </Button>
                           
                         </TableCell>
@@ -384,6 +392,7 @@ export default function BarangayReports() {
       </div>
 
       <Toast toasts={toasts} onRemove={removeToast} />
+      {ExportDialogs}
     </>
   )
 }

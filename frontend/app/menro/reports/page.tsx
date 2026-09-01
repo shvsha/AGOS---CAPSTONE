@@ -22,6 +22,7 @@ import { ReportsSkeleton } from "@/components/Skeleton/Menro/ReportsSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 import { useFillRows } from "@/components/hooks/useFillRows"
 
 
@@ -83,10 +84,10 @@ export default function Reports() {
   const monthOptions = getMonthOptions()
   const currentMonthValue = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 
-  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
+  const [selectedMonth, setSelectedMonth] = useState<string>("All")
 
   const filteredReports = municipalReports
-    .filter(report => report.report_month.startsWith(selectedMonth))
+    .filter(report => selectedMonth === "All" || report.report_month.startsWith(selectedMonth))
     .sort((a, b) => b.municipal_report_id - a.municipal_report_id)
 
   const { panelRef, tableWrapRef, rows } = useFillRows({
@@ -105,16 +106,20 @@ export default function Reports() {
     reportsCache.refetch()
   }, [])
 
-  const handleExport = async (reportId: number) => {
-    setExportingId(reportId)
-    try {
-      await exportPdf(`/api/municipal-reports/${reportId}/export/`, {}, "municipal-mrf-report.pdf")
-    } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExportingId(null)
+  const { requestExport, ExportDialogs } = useExportDialog<{ id: number; reportMonth: string }>(
+    async ({ id }) => {
+      try {
+        await exportPdf(`/api/municipal-reports/${id}/export/`, {}, "municipal-mrf-report.pdf")
+      } catch {
+        addToast("Failed to export report.", "error")
+      }
+    },
+    {
+      description: ({ reportMonth }) => (
+        <>Are you sure you want to export this compiled MRF report for <strong>{formatReportMonth(reportMonth)}</strong>?</>
+      ),
     }
-  }
+  )
 
   if (loading) return <ReportsSkeleton/>
 
@@ -131,6 +136,7 @@ export default function Reports() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper" className='w-40 min-w-0 !max-h-70 overflow-y-auto'>
+                <SelectItem className="p-2 py-1 cursor-pointer text-[#122A48]" value="All">All Months</SelectItem>
                 {monthOptions.map(m => (
                   <SelectItem key={m.value} className="p-2 py-1 cursor-pointer text-[#122A48]" value={m.value}>
                     {m.label}
@@ -178,12 +184,16 @@ export default function Reports() {
                           </Button>
 
                           <Button
-                            onClick={() => handleExport(report.municipal_report_id)}
-                            disabled={exportingId === report.municipal_report_id}
+                            onClick={() =>
+                              requestExport({
+                                id: report.municipal_report_id,
+                                reportMonth: report.report_month,
+                              })
+                            }
                             className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
                           >
                             <FileDown size={16} className="mr-1" />
-                            {exportingId === report.municipal_report_id ? "Exporting..." : "Export PDF"}
+                            Export PDF
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -236,6 +246,8 @@ export default function Reports() {
 
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
     </>
   )
 }
