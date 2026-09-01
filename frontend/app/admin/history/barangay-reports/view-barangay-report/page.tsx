@@ -18,6 +18,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // lib
 import { fetchWithAuth } from "@/lib/auth"
@@ -258,10 +259,9 @@ function ViewBarangayReportAdminInner() {
 
   const beforePhotos = report?.media.filter(m => m.media_category === "Before_Clearing") ?? []
   const afterPhotos = report?.media.filter(m => m.media_category === "After_Clearing") ?? []
-
-  const handleExport = async () => {
+  
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     if (!report) return
-    setExporting(true)
     try {
       await exportPdf(
         `/api/barangay-reports/${report.monthly_report_id}/export/`,
@@ -269,11 +269,9 @@ function ViewBarangayReportAdminInner() {
         "barangay-mrf-report.pdf"
       )
     } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExporting(false)
+      addToast("Failed to export barangay MRF report.", "error")
     }
-  }
+  }, { description: "Are you sure you want to export the barangay MRF report?" })
 
   if (loading) {
     return (
@@ -315,7 +313,7 @@ function ViewBarangayReportAdminInner() {
             </div>
           </div>
           <Button
-            onClick={handleExport}
+            onClick={() => requestExport()}
             disabled={exporting}
             className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
           >
@@ -352,6 +350,8 @@ function ViewBarangayReportAdminInner() {
       </div>
 
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
     </>
   )
 }

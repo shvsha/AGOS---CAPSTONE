@@ -16,6 +16,7 @@ import { Toast } from "@/components/Toast"
 import { AuditSkeleton } from "@/components/Skeleton/Admin/AuditSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { useFillRows } from "@/components/hooks/useFillRows"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 
 const affectedTableLabels: Record<string, string> = {
@@ -78,7 +79,6 @@ const fetchAuditsRaw = async (): Promise<AuditLog[]> => {
   return Array.isArray(data) ? data : []
 }
 
-
 export default function Audit() {
   const auditsCache = usePageCache('audit:audits', fetchAuditsRaw, [] as AuditLog[], { autoFetch: false })
 
@@ -101,8 +101,7 @@ export default function Audit() {
   
   const { toasts, addToast, removeToast } = useToast()
 
-  const handleExport = async () => {
-    setExporting(true)
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     try {
       await exportPdf(
         "/api/audit-logs/export/",
@@ -111,10 +110,8 @@ export default function Audit() {
       )
     } catch {
       addToast("Failed to export audit logs.", "error")
-    } finally {
-      setExporting(false)
     }
-  }
+  }, { description: "Are you sure you want to export the audit logs shown here as a PDF?" })
   
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -160,7 +157,7 @@ export default function Audit() {
   }, [audits, search, startDate, endDate])
 
   const { panelRef, tableWrapRef, rows } = useFillRows({
-    rowHeight: 56,
+    rowHeight: 33,
     initialRows: 14,
     deps: [loading],
   })
@@ -207,7 +204,7 @@ export default function Audit() {
             <ChevronDown size={14} className="text-[#999999]" />
           </button>
 
-          <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer py-[17px]">
+          <Button onClick={() => requestExport()} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer py-[17px]">
             <FileDown size={16}/>
             {exporting ? "Exporting..." : "Export PDF"}
           </Button>
@@ -273,13 +270,13 @@ export default function Audit() {
             <TableBody>
               {!fetchError && filteredAudits.length > 0 && paginated.map((a) => (
                 <TableRow key={a.audit_id} className="border-b border-[#C6C6C8]">
-                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{new Date(a.timestamp).toLocaleString()}</TableCell>
-                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">
+                  <TableCell className="text-[#122A48] text-left text-[12px] px-2 h-7 whitespace-nowrap">{new Date(a.timestamp).toLocaleString()}</TableCell>
+                  <TableCell className="text-[#122A48] text-left text-[12px] px-2 h-7 whitespace-nowrap">
                     {a.user_details ? `${a.user_details.first_name} ${a.user_details.last_name}` : '—'}
                   </TableCell>
-                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{a.action}</TableCell>
-                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{formatAffectedTableLabel(a.affected_table)}</TableCell>
-                  <TableCell className="text-[#122A48] text-left text-[12px] max-w-xs px-4 truncate">{formatAuditDetails(a)}</TableCell>
+                  <TableCell className="text-[#122A48] text-left text-[12px] px-2 h-7 whitespace-nowrap">{a.action}</TableCell>
+                  <TableCell className="text-[#122A48] text-left text-[12px] px-2 h-7 whitespace-nowrap">{formatAffectedTableLabel(a.affected_table)}</TableCell>
+                  <TableCell className="text-[#122A48] text-left text-[12px] max-w-xs px-4 h-7 truncate">{formatAuditDetails(a)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -319,6 +316,8 @@ export default function Audit() {
       </div>
 
     <Toast toasts={toasts} onRemove={removeToast} />
+
+    {ExportDialogs}
 
     </div>
   )

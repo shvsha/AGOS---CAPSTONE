@@ -3,6 +3,26 @@ import { triggerForceLogout } from './authEvents'
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.6:8000'
 export const ACCOUNT_INACTIVE_MESSAGE = 'Your account is not active. Please contact your administrator.'
+export const SERVER_UNREACHABLE_MESSAGE =
+  'Cannot connect to the server. Please check your connection and try again.'
+  
+async function safeFetch(url: string, options: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, options)
+  } catch {
+    throw { error: SERVER_UNREACHABLE_MESSAGE }
+  }
+}
+
+async function safeJson(res: Response) {
+  const text = await res.text()
+  if (!text) return {}
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw { error: `Something went wrong on the server (status ${res.status}). Please try again later.` }
+  }
+}
 
 // token storage
 export async function getAccessToken() {
@@ -54,13 +74,13 @@ async function buildHeaders(token?: string): Promise<HeadersInit> {
 
 // fetch with auto retry
 async function fetchWithRefresh(url: string, options: RequestInit): Promise<Response> {
-  let res = await fetch(url, options)
+  let res = await safeFetch(url, options)
 
   if (res.status === 401) {
     const newToken = await refreshAccessToken()
     if (!newToken) throw { detail: 'Session expired.' }
 
-    res = await fetch(url, {
+    res = await safeFetch(url, {
       ...options,
       headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
     })
@@ -89,7 +109,7 @@ export const api = {
       headers: await buildHeaders(token),
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -99,7 +119,7 @@ export const api = {
       method: 'GET',
       headers: await buildHeaders(token),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -110,7 +130,7 @@ export const api = {
       headers: await buildHeaders(token),
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -121,7 +141,7 @@ export const api = {
       headers: await buildHeaders(token),
     })
     if (!res.ok) {
-      const result = await res.json()
+      const result = await safeJson(res)
       throw result
     }
     return true
@@ -134,7 +154,7 @@ export const api = {
       headers: t ? { Authorization: `Bearer ${t}` } : {},
       body: formData,
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },

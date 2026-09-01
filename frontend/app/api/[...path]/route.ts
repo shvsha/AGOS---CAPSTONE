@@ -25,7 +25,16 @@ async function proxy(request: NextRequest, path: string[]) {
   } else if (!["GET", "HEAD"].includes(request.method)) {
     init.body = await request.text()
   }
-  const backendRes = await fetch(targetUrl, init)
+
+  let backendRes: Response
+  try {
+    backendRes = await fetch(targetUrl, init)
+  } catch {
+    return NextResponse.json(
+      { error: "Cannot connect to the server. Please check your connection and try again." },
+      { status: 502 }
+    )
+  }
 
   const responseHeaders = new Headers()
   backendRes.headers.forEach((value, key) => {

@@ -10,6 +10,7 @@ import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { ClogEventsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/ClogEventsSkeleton"
 import { useFillRows } from "@/components/hooks/useFillRows"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // react
 import { useState, useEffect, useCallback } from "react"
@@ -130,7 +131,6 @@ export default function ClogEvents() {
   const [selectedClog, setSelectedClog] = useState<Clogs | null>(null)
   const [clogMedia, setClogMedia] = useState<ClogMedia[]>([])
 
-  const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
   function getFilteredClogs(clogs: Clogs[], severity: string, barangay: string, status: string, month: string, search: string) {
@@ -210,24 +210,17 @@ export default function ClogEvents() {
 
   usePolling(refetchAll, 30000)
 
-  const handleExport = async () => {
-    setExporting(true)
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     try {
       await exportPdf(
         "/api/clog-events/export/",
-        {
-          search,
-          barangay: barangay !== "All Barangay" ? barangay : undefined,
-          severity: severity !== "All Severity" ? severity : undefined,
-        },
+        { search, barangay: barangay !== "All Barangay" ? barangay : undefined, severity: severity !== "All Severity" ? severity : undefined },
         "clog-events.pdf"
       )
     } catch {
       addToast("Failed to export clog events.", "error")
-    } finally {
-      setExporting(false)
     }
-  }
+  }, { description: "Are you sure you want to export the clog events shown here as a PDF?" })
 
   useWebSocket({
     path: "/ws/clog-events/",
@@ -303,9 +296,9 @@ export default function ClogEvents() {
           </div>
 
           <div>
-            <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+            <Button onClick={() => requestExport()} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
               <FileDown size={16} className="mr-1" />
-              {exporting ? "Exporting..." : "Export PDF"}
+              Export PDF
             </Button>
           </div>
 
@@ -524,6 +517,7 @@ export default function ClogEvents() {
 
         </div>
         <Toast toasts={toasts} onRemove={removeToast} />
+        {ExportDialogs}
 
       </div>
     </>

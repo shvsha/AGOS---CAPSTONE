@@ -9,6 +9,7 @@ import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { WasteSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/WasteSkeleton"
 import { useFillRows } from "@/components/hooks/useFillRows"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // lib
 import { exportPdf } from "@/lib/exportPDF"
@@ -152,8 +153,7 @@ export default function Waste() {
 
   usePolling(refetchAll, 30000)
 
-  const handleExport = async () => {
-    setExporting(true)
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     try {
       await exportPdf(
         "/api/waste-classifications/export/",
@@ -166,11 +166,9 @@ export default function Waste() {
         "waste-classification.pdf"
       )
     } catch {
-      addToast("Failed to export waste classification data.", "error")
-    } finally {
-      setExporting(false)
+      addToast("Failed to export waste classification.", "error")
     }
-  }
+  }, { description: "Are you sure you want to export the waste classification shown here as a PDF?" })
 
   useWebSocket({
     path: "/ws/waste-classification/",
@@ -255,7 +253,7 @@ export default function Waste() {
           </div>
 
           <div>
-            <Button onClick={handleExport} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+            <Button onClick={() => requestExport()} disabled={exporting} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
               <FileDown size={16} className="mr-1" />
               {exporting ? "Exporting..." : "Export PDF"}
             </Button>
@@ -483,6 +481,8 @@ export default function Waste() {
         </div>
 
         <Toast toasts={toasts} onRemove={removeToast} />
+
+        {ExportDialogs}
 
       </div>
     

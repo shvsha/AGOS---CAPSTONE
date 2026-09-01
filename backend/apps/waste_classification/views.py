@@ -44,7 +44,7 @@ class WasteClassificationListView(generics.ListCreateAPIView):
 
         user = self.request.user
         if user.user_role == 'Barangay':
-            qs = qs.filter(barangay=user.barangay)
+            qs = qs.filter(node__barangay=user.barangay)
         return qs
 
 
