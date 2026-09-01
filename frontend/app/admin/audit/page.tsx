@@ -15,6 +15,7 @@ import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { AuditSkeleton } from "@/components/Skeleton/Admin/AuditSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 
 const affectedTableLabels: Record<string, string> = {
@@ -158,7 +159,13 @@ export default function Audit() {
     })
   }, [audits, search, startDate, endDate])
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, 14)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 14,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredAudits, rows)
 
   useEffect(() => {
     setCurrentPage(1)
@@ -178,10 +185,10 @@ export default function Audit() {
   if (loading) return <AuditSkeleton/>
 
   return (
-    <div className="w-full flex flex-col gap-2 max-w-full box-border">
+    <div className="w-full h-full flex flex-col gap-2 max-w-full box-border">
 
       {/* Toolbar */}
-      <div className="w-full flex gap-2 items-end items-center justify-between ">
+      <div className="w-full flex gap-2 items-center justify-between ">
         <SearchFilter value={search} onChange={setSearch} placeholder='Search audit logs...' width="w-150" height="h-9" />
         
         {/* Dropdown Container */}
@@ -248,10 +255,10 @@ export default function Audit() {
       </div>
 
       {/* Audit Table Card */}
-      <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 h-149'>
+      <div ref={panelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col overflow-hidden min-w-0 mt-2 flex-1 min-h-[596px]'>
         <p className='p-2 font-bold text-[#122A48] text-sm'>Audit Logs and Activities</p>
 
-        <div className="w-full overflow-x-auto">
+        <div ref={tableWrapRef} className="w-full overflow-x-auto">
           <Table className="w-full min-w-[700px]"> 
             <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
               <TableRow>
@@ -264,47 +271,41 @@ export default function Audit() {
             </TableHeader>
 
             <TableBody>
-              {fetchError ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-3">
-                      <p className="text-[#D81010] font-semibold">Failed to load audit logs.</p>
-                      <Button
-                        onClick={() => auditsCache.refetch()}
-                        className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                      >
-                        Retry
-                      </Button>
-                    </div>
+              {!fetchError && filteredAudits.length > 0 && paginated.map((a) => (
+                <TableRow key={a.audit_id} className="border-b border-[#C6C6C8]">
+                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{new Date(a.timestamp).toLocaleString()}</TableCell>
+                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">
+                    {a.user_details ? `${a.user_details.first_name} ${a.user_details.last_name}` : '—'}
                   </TableCell>
+                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{a.action}</TableCell>
+                  <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{formatAffectedTableLabel(a.affected_table)}</TableCell>
+                  <TableCell className="text-[#122A48] text-left text-[12px] max-w-xs px-4 truncate">{formatAuditDetails(a)}</TableCell>
                 </TableRow>
-              ) : filteredAudits.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-5">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="rounded-full bg-[#E5E5E6] p-1">
-                        <RadioTower size={36} color="#727272" />
-                      </div>
-                      <p className="text-[#122A48] font-bold">No audit logs available</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginated.map((a) => (
-                  <TableRow key={a.audit_id} className="border-b border-[#C6C6C8]">
-                    <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{new Date(a.timestamp).toLocaleString()}</TableCell>
-                    <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">
-                      {a.user_details ? `${a.user_details.first_name} ${a.user_details.last_name}` : '—'}
-                    </TableCell>
-                    <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{a.action}</TableCell>
-                    <TableCell className="text-[#122A48] text-center text-[12px] px-2 whitespace-nowrap">{formatAffectedTableLabel(a.affected_table)}</TableCell>
-                    <TableCell className="text-[#122A48] text-left text-[12px] max-w-xs px-4 truncate">{formatAuditDetails(a)}</TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
         </div>
+
+        {fetchError && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-[#D81010] font-semibold">Failed to load audit logs.</p>
+            <Button
+              onClick={() => auditsCache.refetch()}
+              className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!fetchError && filteredAudits.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2">
+            <div className="rounded-full bg-[#E5E5E6] p-1">
+              <RadioTower size={36} color="#727272" />
+            </div>
+            <p className="text-[#122A48] font-bold">No audit logs available</p>
+          </div>
+        )}
 
         <div className='mt-auto border-t border-[#00000015]'>
           <TablePagination

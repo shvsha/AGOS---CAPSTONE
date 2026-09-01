@@ -259,7 +259,7 @@ function FormInner() {
   return (
     <>
 
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
         
         {/* header */}
         <div className="flex justify-between w-full">

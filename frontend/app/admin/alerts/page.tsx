@@ -21,6 +21,7 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 // component
 import { usePagination } from "@/components/hooks/usePagination"
 import { TablePagination } from "@/components/TablePagination"
+import { useFillRows } from "@/components/hooks/useFillRows"
 import { usePolling } from "@/components/hooks/usePolling"
 import { ALERT_META, ContextRow } from "@/components/Alerts/AlertCard"
 import { ALERT_STYLE } from "@/lib/constant"
@@ -85,7 +86,6 @@ const ALERT_TYPES = [
 
 export default function Alerts() {
   // filter states
-  // filter states
   const [search, setSearch] = useState<string>('')
   const [barangay, setBarangay] = useState<string>('All Barangay')
   const [alertType, setAlertType] = useState<string>('All Alert')
@@ -125,7 +125,13 @@ export default function Alerts() {
     })
   }, [alerts, search, barangay, alertType, barangays])
 
-  const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, 9)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 50.5,
+    initialRows: 9,
+    deps: [loading],
+  })
+
+  const { currentPage, setCurrentPage, totalPages, paginated, totalItems, itemsPerPage } = usePagination(filteredAlerts, rows)
 
   useEffect(() => {
     setCurrentPage(1)
@@ -165,7 +171,7 @@ export default function Alerts() {
 
    return (
      <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* filter container */}
         <div className="flex justify-between">
@@ -203,7 +209,7 @@ export default function Alerts() {
         </div>
 
         {/* notif list container */}
-        <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col h-151">
+        <div ref={panelRef} className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
           <div className="flex w-full p-3 items-center justify-between flex-wrap gap-2">
             <p className="text-[#122A48] font-semibold">Notifications</p>
             <div className="flex gap-2 flex-wrap">
@@ -226,7 +232,7 @@ export default function Alerts() {
           <hr />
 
           {/* alert table */}
-          <div className="flex flex-col gap-3 flex-1">
+          <div ref={tableWrapRef}>
             <Table>
               <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                 <TableRow>
@@ -237,30 +243,7 @@ export default function Alerts() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {fetchError ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-40">
-                      <div className="flex flex-col gap-3 p-3 flex-1 justify-center items-center">
-                        <p className="text-[#D81010] font-semibold text-sm">Failed to load alerts. Please try again later.</p>
-                        <Button onClick={() => activeAlerts.refetch()} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredAlerts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-40">
-                      <div className="flex flex-col items-center justify-center gap-1 flex-1">
-                        <div className="rounded-full bg-[#E5E5E6] p-4 my-2">
-                          <Siren size={30} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold text-sm">No alerts today</p>
-                        <p className="text-[#727272] text-xs">
-                          No alerts have been added today.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
+                {!fetchError && filteredAlerts.length > 0 && (
                   paginated.map(alert => {
                     const meta = ALERT_META[alert.alert_type] ?? { label: alert.alert_type.replace(/_/g, " "), Icon: null }
                     const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
@@ -285,10 +268,30 @@ export default function Alerts() {
                   })
                 )}
               </TableBody>
-            </Table>
-          </div>
+             </Table>
+           </div>
+
+          {fetchError && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <p className="text-[#D81010] font-semibold text-sm">Failed to load alerts. Please try again later.</p>
+              <Button onClick={() => activeAlerts.refetch()} className="text-sm cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+            </div>
+          )}
+
+          {!fetchError && filteredAlerts.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-1">
+              <div className="rounded-full bg-[#E5E5E6] p-4 my-2">
+                <Siren size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold text-sm">No alerts today</p>
+              <p className="text-[#727272] text-xs">
+                No alerts have been added today.
+              </p>
+            </div>
+          )}
 
           {/* pagination */}
+          <div className="mt-auto">
             {!fetchError && alerts.length > 0 && (
               <TablePagination
                 totalItems={totalItems}
@@ -297,8 +300,9 @@ export default function Alerts() {
                 onPageChange={setCurrentPage}
               />
             )}
-          
-        </div>
+          </div>
+
+      </div>
 
       </div>
 

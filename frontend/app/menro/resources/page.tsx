@@ -4,7 +4,7 @@
 import { RadioTower, Trash2, TriangleAlert, BadgeCheck } from "lucide-react";
 
 // react
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useCallback } from "react"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { TablePagination } from "@/components/TablePagination";
 import { usePagination } from "@/components/hooks/usePagination";
 import { ResourcesSkeleton } from "@/components/Skeleton/Menro/ResourcesSkeleton";
+import { useFillRows } from "@/components/hooks/useFillRows";
 
 // lib
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
@@ -115,10 +116,6 @@ type Clogs = {
   } | null
 }
 
-// Clog severity based on the node's actual clog_pct (water level/flow derived),
-// NOT trash weight. Thresholds match lib/constant.ts getClogClass and the
-// backend's clog_events/signals.py severity bands, so this stays consistent
-// with the rest of the app.
 const getClogSeverity = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "Unknown", barColor: "bg-[#9CA3AF]", textClass: "text-[#727272] font-semibold" }
@@ -132,11 +129,6 @@ const getClogSeverity = (clogPct: number | null) => {
   return { label: "Normal", barColor: "bg-[#1565BC]", textClass: "text-[#1565BC] font-semibold" }
 }
 
-// 4-tier ranking used by "Trash Accumulation Severity Ranking" and the
-// Priority Deployment Queue. Thresholds match the backend's clog_events
-// severity bands (High >=80, Medium >=60, Low >=30), so a node's rank here
-// always lines up with its ClogEvent severity and its row in the detailed
-// Waste Hotspots table below.
 const getClogRankLevel = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "UNKNOWN", color: "bg-[#9CA3AF]", action: "AWAITING CANAL DATA" }
@@ -209,9 +201,6 @@ export default function Resources() {
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
 
-  // Single source of truth for "how clogged is this node right now" — used by
-  // the ranking sort, the Priority Deployment Queue, and the detailed table,
-  // so all three always agree on the same node's number.
   const getLatestClogPct = (nodeId: number) => {
     const nodeReadings = allReadings
       .filter(r => r.node_details.node_id === nodeId)
@@ -225,6 +214,12 @@ export default function Resources() {
       latestReading,
     }
   }
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 3,
+    deps: [loading],
+  })
   
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 3)
   
@@ -331,17 +326,17 @@ export default function Resources() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* total cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
           { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Sensor Nodes" },
           { icon: <Trash2 size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste (kg)" },
           { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAreas, label: "Critical Areas" },
           { icon: <BadgeCheck size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: clearedAreas, label: "Cleared Areas" },
         ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -354,7 +349,7 @@ export default function Resources() {
         {/* waste hotspot, trash accumulated, priority */}
           <div className="flex gap-3 text-[#122A48] mt-2 h-70">
           {/* waste hotspot */}
-            <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD]">
+            <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-[2] min-w-[320px]">
             <div className="w-full">
               <p className="font-bold p-2 text-sm">WASTE HOTSPOT STATUS</p>
             </div>
@@ -429,7 +424,7 @@ export default function Resources() {
           </div>
 
           {/* trash accumulated */}
-          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD]">
+          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1 min-w-[240px]">
             <div className="w-full">
               <p className="font-bold text-sm p-2">TRASH ACCUMULATION SEVERITY RANKING</p>
             </div>
@@ -565,7 +560,7 @@ export default function Resources() {
           </div>
 
           {/* priority */}
-          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1">
+          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1 min-w-[220px]">
   
             <div className="p-2 border-b">
               <p className="font-bold text-sm">PRIORITY DEPLOYMENT QUEUE</p>
@@ -638,7 +633,7 @@ export default function Resources() {
         </div>
 
         {/* all waste hotspots */}
-        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-71 ">
+        <div className="mt-2 bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg flex-1 min-h-[284px] flex flex-col">
           <div className="flex gap-2 w-full p-3 items-center">
             <p className="font-bold text-sm">WASTE HOTSPOTS</p> <p className="text-[11px]">&#40;DETAILED LIST&#41;</p>
           </div>
@@ -675,7 +670,7 @@ export default function Resources() {
                   ) : rankedWaste.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={3}
+                        colSpan={6}
                         className="text-center text-sm text-[#727272] py-20"
                       >
                         No waste hotspots data available.

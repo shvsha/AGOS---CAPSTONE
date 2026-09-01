@@ -9,14 +9,21 @@ import { Button } from "@/components/ui/button"
 import { FaSearch } from "react-icons/fa"
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 const ALERT_TYPE_LABELS = ["All", "Water Level Rising", "Low Clog Alert", "Moderate Clog Alert", "Critical Clog"]
 
 export function AlertsSkeleton() {
   const [barangay, setBarangay] = useState<string>("All Barangay")
   const [dateFilter, setDateFilter] = useState<string>("Today")
 
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 50.5,
+    initialRows: 9,
+  })
+
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* filter container */}
       <div className="flex justify-between">
@@ -47,7 +54,7 @@ export function AlertsSkeleton() {
       </div>
 
       {/* notif list container */}
-      <div className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col h-151">
+      <div ref={panelRef} className="bg-[#F8F9FA] rounded-lg mt-2 shadow-[0_0_8px_rgba(0,0,0,0.15)] flex flex-col flex-1 min-h-[604px]">
         <div className="flex w-full p-3 items-center justify-between flex-wrap gap-2">
           <Skeleton className="h-4 w-28" />
           <div className="flex gap-2 flex-wrap">
@@ -62,7 +69,7 @@ export function AlertsSkeleton() {
         <hr />
 
         {/* alert table */}
-        <div className="flex flex-col gap-3 flex-1">
+        <div ref={tableWrapRef} className="flex flex-col gap-3 flex-1">
           <Table>
             <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12">
               <TableRow>
@@ -73,7 +80,7 @@ export function AlertsSkeleton() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...Array(9)].map((_, i) => (
+              {[...Array(rows)].map((_, i) => (
                 <TableRow key={i} className="border-b border-[#C6C6C8]">
                   <TableCell className="h-[50.5px]"><Skeleton className="h-3.5 w-24" /></TableCell>
                   <TableCell className="h-[50.5px]"><Skeleton className="h-5 w-28 rounded-full" /></TableCell>

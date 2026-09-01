@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
+import { HealthSkeleton } from "@/components/Skeleton/Admin/HealthSkeleton";
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -153,21 +154,21 @@ export default function Health() {
     }
   }
 
-
+  if (loading) return <HealthSkeleton/>
 
    return (
      <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
         
         {/* header cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
             { icon: <Radar size={17} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalOnline, label: "Online Nodes" },
             { icon: <BatteryMedium   size={17} color="#E4B600" />, bg: "bg-[#F0FBB2]", count: avg_battery,  label: "Average Battery" },
             { icon: <Signal size={17} color="#582579" />, bg: "bg-[#E5EAFF]", count: avg_signal, label: "Average Signal" },
             { icon: <ScanSearch size={17} color="#D81010" />, bg: "bg-[#D8101059]", count: sensor/5,  label: "Sensor" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold leading-tight">{card.count}</span>
@@ -178,9 +179,9 @@ export default function Health() {
         </div>
 
         {/* map and preview node */}
-        <div className="flex gap-3 mt-2 h-[450px]"> 
+        <div className="flex gap-3 mt-2 flex-1 min-h-0">
           {/* map */}
-          <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] w-300 h-full flex flex-col">
+          <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex-[3] min-w-0 h-full flex flex-col">
               <p className="text-[#122A48] font-bold mb-1">Canal Network Map - Rosario, La Union</p>
             <div className="flex-1 rounded-lg overflow-hidden">
               <AgosMapWrapper
@@ -200,15 +201,15 @@ export default function Health() {
           </div>
 
           {/* preview node */}
-          <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px]">
             {!selectedNode ? (
-              <div className="flex justify-center items-center h-full flex-col gap-2 border border-[#C9C9C9] w-95 rounded-lg">
+              <div className="flex justify-center items-center h-full flex-col gap-2 border border-[#C9C9C9] w-full rounded-lg">
                   <FileSearch size={50} className="text-[#1565BC80]"/>
                 <p className="font-semibold text-[#122A488F]">No node selected</p>
                 <p className="text-[#122A4873] text-xs text-center">Select a node from the network <br /> map to view its hardware status <br /> and sensor information</p>
               </div>
             ) : (
-             <div className="flex flex-col text-[#122A48] w-95">
+             <div className="flex flex-col text-[#122A48] w-full">
                 {/* Hardware details */}
                 <div className="w-full p-3 -mb-4">
                   <p className="font-semibold">Hardware Details</p>
@@ -291,10 +292,10 @@ export default function Health() {
         </div>
         
         {/* node health cards */}
-        <div className="flex justify-between gap-3 mt-2 w-full h-32.5">
+        <div className="grid grid-cols-3 gap-3 mt-2 w-full min-h-[130px]">
 
           {/* Battery Voltage */}
-          <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] w-100 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] w-full bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             
             <div className="flex justify-between items-center mb-1">
               <div className="flex gap-2 items-center">
@@ -342,7 +343,7 @@ export default function Health() {
           </div>
 
           {/* 4G Signal */}
-          <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] w-100 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] w-full bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
 
             <div className="flex justify-between items-center mb-1">
               <div className="flex gap-2 items-center">
@@ -390,7 +391,7 @@ export default function Health() {
           </div>
 
           {/* Sensor Continuity */}
-          <div className="border border-[#C6C6C8] rounded-lg p-3 text-[#122A48] w-100 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] w-full bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
 
             <div className="flex justify-between items-center mb-1">
               <div className="flex gap-2 items-center">

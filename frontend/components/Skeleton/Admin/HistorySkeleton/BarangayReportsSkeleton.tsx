@@ -9,12 +9,19 @@ import { FaSearch } from "react-icons/fa"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { useState } from "react"
 
+import { useFillRows } from "@/components/hooks/useFillRows"
+
 export function BarangayReportsSkeleton() {
   const [filterBarangay, setFilterBarangay] = useState<string>("All")
   const [selectedMonth, setSelectedMonth] = useState<string>("current")
 
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+  })
+
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* filters */}
       <div className="flex justify-between">
@@ -45,9 +52,9 @@ export function BarangayReportsSkeleton() {
       </div>
 
       {/* summary cards */}
-      <div className="flex justify-between w-full text-[#122A48] mt-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-2">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
             <div className="flex flex-col gap-1.5">
               <Skeleton className="h-5 w-8" />
@@ -59,7 +66,7 @@ export function BarangayReportsSkeleton() {
 
       {/* monthly report progress */}
       <div className="mt-2 flex gap-2 w-full">
-        <div className="w-250">
+        <div className="flex-[3]">
           <div className="bg-[#FAFCFD] border border-[#C2C1C1] rounded-lg p-4 flex flex-col gap-4">
             <Skeleton className="h-4 w-48" />
             <div className="flex items-center gap-3 -mt-2">
@@ -79,7 +86,7 @@ export function BarangayReportsSkeleton() {
           </div>
         </div>
 
-        <div className="bg-[#58D07159] rounded-lg flex justify-center flex-1">
+        <div className="bg-[#58D07159] rounded-lg flex justify-center flex-1 min-w-[240px]">
           <div className="flex gap-4.5 items-center">
             <CalendarIcon color="#2C7B3C" size={32} />
             <div>
@@ -91,34 +98,36 @@ export function BarangayReportsSkeleton() {
       </div>
 
       {/* table */}
-      <div className="h-103 mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col">
-        <Table>
-          <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg">
-            <TableRow>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-              <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {[...Array(6)].map((_, i) => (
-              <TableRow key={i} className="border-b border-[#C6C6C8]">
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-20" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
-                <TableCell className="h-14"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                <TableCell className="h-14">
-                  <div className="flex gap-3">
-                    <Skeleton className="h-9 w-16 rounded-lg" />
-                    <Skeleton className="h-9 w-26 rounded-lg" />
-                  </div>
-                </TableCell>
+      <div ref={panelRef} className="flex-1 min-h-[412px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col">
+        <div ref={tableWrapRef}>
+          <Table>
+            <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC] h-12 rounded-lg">
+              <TableRow>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">DATE</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">SUBMITTED BY</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {[...Array(rows)].map((_, i) => (
+                <TableRow key={i} className="border-b border-[#C6C6C8]">
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-20" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-24" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
+                  <TableCell className="h-14"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                  <TableCell className="h-14">
+                    <div className="flex gap-3">
+                      <Skeleton className="h-9 w-16 rounded-lg" />
+                      <Skeleton className="h-9 w-26 rounded-lg" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

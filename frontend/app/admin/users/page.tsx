@@ -15,6 +15,7 @@ import { UsersSkeleton } from "@/components/Skeleton/Admin/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
 import { SearchFilter } from "@/components/SearchFilter";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
+import { useFillRows } from "@/components/hooks/useFillRows";
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -128,7 +129,13 @@ export default function Users() {
   const [adminReactivatedDialog, setAdminReactivatedDialog] = useState<DialogState>({ open: false, user: null })
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 7)
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, rows)
 
   // summary cards
   const total    = users.length
@@ -229,7 +236,7 @@ export default function Users() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* title and filter container */}
         <div className="flex justify-between w-full mb-2">
@@ -280,14 +287,14 @@ export default function Users() {
         </div>
 
         {/* header total cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
             { icon: <FaUsers size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Users" },
             { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active, label: "Active" },
             { icon: <CircleOff size={20} color="#FF0101" />, bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
             { icon: <ShieldCheck size={20} color="#582579" />, bg: "bg-[#DACDE3]", count: barangay, label: "Barangay Officer" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -298,10 +305,10 @@ export default function Users() {
         </div>
         
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-133">
+        <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
           <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">User Accounts</p>
 
-          <div>
+          <div ref={tableWrapRef}>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
@@ -313,114 +320,103 @@ export default function Users() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                
-                {/* fetch error state */}
-                {fetchError ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load users. Please try again later.</p>
-                        <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                {!fetchError && filteredUsers.length > 0 && paginated.map(user => (
+                  <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
+                    <TableCell className="text-[#122A48] text-left h-14 text-xs !min-w-20 ">{user.user_id}</TableCell>
 
-                  // no user state
-                  ) : filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <UserRound size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No users found</p>
-                        <p className="text-[#727272] text-sm">
-                          No user have been added yet. <br/> Click the button below to start adding users.
-                        </p>
-                        <Button
-                          onClick={() => router.push('/admin/users/form')}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                    <TableCell className="text-[#122A48] h-14 text-xs">
+                      <div className="flex gap-3 items-left">
+                        <div
+                          className="rounded-full w-8 h-8 flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
+                          style={{ backgroundColor: getAvatarColor(user.user_role) }}
                         >
-                          + Add User
-                        </Button>
+                          {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                        </div>
+                        <div className="flex flex-col text-left text-xs">
+                          <p className="font-semibold">{user.first_name} {user.last_name}</p>
+                          <p className="underline">{user.email}</p>
+                        </div>
                       </div>
                     </TableCell>
+
+                    <TableCell className="text-[#122A48] h-14 text-xs">
+                      <div className="mx-auto text-left">
+                        {ROLE_DISPLAY[user.user_role] ?? user.user_role}
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-left h-14 text-xs">
+                      <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                        user.status === 'Active'
+                          ? 'bg-[#B2FBC173] text-[#2C7B3C]'
+                          : 'bg-[#FFE5E5] text-[#D81010]'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          user.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
+                        }`}/>
+                        {user.status}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-14 text-xs">
+                      <Button 
+                        onClick={() => router.push(`/admin/users/form?id=${user.user_id}`)}
+                        className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
+                      >
+                        <SquarePen size={16} />
+                        Edit
+                      </Button>
+
+                      {user.status === 'Active' ? (
+                        <Button 
+                          onClick={() => handleDeactivateClick(user)}
+                          className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
+                        >
+                          <UserMinus size={16} />
+                          Deactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => setReactivateDialog({ open: true, user: user })}
+                          className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
+                        >
+                          <UserPlus size={16} />
+                          Activate
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
-
-                  // with user state
-                  ) : (
-                    paginated.map(user => (
-                      <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
-                        <TableCell className="text-[#122A48] text-left h-14 text-xs !min-w-20 ">{user.user_id}</TableCell>
-
-                        <TableCell className="text-[#122A48] h-14 text-xs">
-                          <div className="flex gap-3 items-left">
-                            <div
-                              className="rounded-full w-8 h-8 flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
-                              style={{ backgroundColor: getAvatarColor(user.user_role) }}
-                            >
-                              {user.first_name.charAt(0)}{user.last_name.charAt(0)}
-                            </div>
-                            <div className="flex flex-col text-left text-xs">
-                              <p className="font-semibold">{user.first_name} {user.last_name}</p>
-                              <p className="underline">{user.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="text-[#122A48] h-14 text-xs">
-                          <div className="mx-auto text-left">
-                            {ROLE_DISPLAY[user.user_role] ?? user.user_role}
-                          </div>
-                        </TableCell>
-                        
-                        <TableCell className="text-left h-14 text-xs">
-                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                            user.status === 'Active'
-                              ? 'bg-[#B2FBC173] text-[#2C7B3C]'
-                              : 'bg-[#FFE5E5] text-[#D81010]'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              user.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
-                            }`}/>
-                            {user.status}
-                          </span>
-                        </TableCell>
-
-                        <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-14 text-xs">
-                          <Button 
-                            onClick={() => router.push(`/admin/users/form?id=${user.user_id}`)}
-                            className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
-                          >
-                            <SquarePen size={16} />
-                            Edit
-                          </Button>
-
-                          {user.status === 'Active' ? (
-                            <Button 
-                              onClick={() => handleDeactivateClick(user)}
-                              className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
-                            >
-                              <UserMinus size={16} />
-                              Deactivate
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => setReactivateDialog({ open: true, user: user })}
-                              className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
-                            >
-                              <UserPlus size={16} />
-                              Activate
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                  
+                ))}
               </TableBody>
             </Table>
           </div>
+
+          {/* fetch error state */}
+          {fetchError && (
+            <div className="flex-1 flex flex-col justify-center items-center gap-3">
+              <p className="text-[#D81010] font-semibold text-base">Failed to load users. Please try again later.</p>
+              <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+            </div>
+          )}
+
+          {/* no user state */}
+          {!fetchError && filteredUsers.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+              <div className="rounded-full bg-[#E5E5E6] p-3">
+                <UserRound size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold">No users found</p>
+              <p className="text-[#727272] text-xs">
+                No user have been added yet. <br/> Click the button below to start adding users.
+              </p>
+              <Button
+                onClick={() => router.push('/admin/users/form')}
+                className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+              >
+                + Add User
+              </Button>
+            </div>
+          )}
   
           <div className="mt-auto">
             <TablePagination

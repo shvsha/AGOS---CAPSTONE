@@ -401,10 +401,10 @@ export default function Page() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col gap-3">
+      <div className="hidden md:flex md:flex-col md:h-full gap-3 md:pb-4">
 
         {/* Alert Sound section */}
-        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex flex-col gap-3">
+        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex flex-col gap-3 flex-1">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-[#58D07159]">
               <Bell className="w-4 h-4" color="#2C7B3C" />
@@ -649,9 +649,9 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-1 min-h-[456px]">
                 {/* Restore Points */}
-                <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2 flex-1 h-114 overflow-auto-y">
+                <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2 flex-1 h-full overflow-auto-y">
                   <h3 className="font-semibold text-[#122A48] text-sm">Restore Points</h3>
                   <p className="text-[#727272] text-xs">
                     Snapshots available on the server, from scheduled and manual backups.
@@ -691,7 +691,7 @@ export default function Page() {
                 </div>
 
                 {/* Backup History */}
-                <div className="border border-[#C6C6C8] rounded-lg flex-1">
+                <div className="border border-[#C6C6C8] rounded-lg flex-1 flex flex-col h-full">
                   <h3 className="font-semibold text-[#122A48] text-sm p-3">Recent Backup Activity</h3>
                   <Table>
                     <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
@@ -724,14 +724,6 @@ export default function Page() {
                               </span>
                             </TableCell>
                             <TableCell className="text-xs">{log.triggered_by_name}</TableCell>
-                            <TableCell className="text-xs flex justify-center">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${
-                                log.status === 'failed'   ? 'bg-[#FFE5E5] text-[#D81010]' :
-                                'bg-[#B2FBC173] text-[#2C7B3C]'
-                              }`}>
-                                {log.status === 'failed' ? 'Failed' : 'Success'}
-                              </span>
-                            </TableCell>
                             <TableCell className="text-xs">
                               {log.status === 'failed' && log.error_message ? (
                                 <span className="text-[#D81010] max-w-50 block truncate" title={log.error_message}>

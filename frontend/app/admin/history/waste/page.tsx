@@ -8,6 +8,7 @@ import { usePolling } from "@/components/hooks/usePolling"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { WasteSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/WasteSkeleton"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // lib
 import { exportPdf } from "@/lib/exportPDF"
@@ -51,8 +52,8 @@ type WasteClassification = {
 }
 
 // fetch raw data
-const fetchWasteRaw = async (): Promise<WasteClassification[]> => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/`)
+const fetchWasteRaw = async (month: string): Promise<WasteClassification[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/waste-classifications/?month=${month}`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
@@ -74,6 +75,20 @@ const fetchSensorNodesRaw = async () => {
 
 
 export default function Waste() {
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  )
+  const monthOptions = (() => {
+    const year = new Date().getFullYear()
+    return Array.from({ length: 12 }, (_, m) => {
+      const d = new Date(year, m, 1)
+      return {
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      }
+    })
+  })()
+
   // filter states
   const [search, setSearch] = useState<string>('')
   const [barangayFilterOpt, setBarangayFilterOpt] = useState<string>('All Barangay')
@@ -81,7 +96,7 @@ export default function Waste() {
   const [sensorNode, setSensorNode] = useState<string>('All Nodes')
 
   // waste classification state
-  const wasteCache = usePageCache('waste:classifications', fetchWasteRaw, [] as WasteClassification[], { autoFetch: false })
+  const wasteCache = usePageCache('waste:classifications', () => fetchWasteRaw(selectedMonth), [] as WasteClassification[], { autoFetch: false })
   const barangaysCache = usePageCache('waste:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
   const sensorNodesCache = usePageCache('waste:sensorNodes', fetchSensorNodesRaw, [] as { node_id: number; node_name: string }[], { autoFetch: false })
 
@@ -95,12 +110,13 @@ export default function Waste() {
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
-  function getFilteredWaste(waste: WasteClassification[], barangay: string, dominant_waste: string, node: string, search: string) {
+  function getFilteredWaste(waste: WasteClassification[], barangay: string, dominant_waste: string, node: string, month: string, search: string) {
     const q = search.toLowerCase()
     return waste
       .filter(b => barangay === "All Barangay" || b.node_details?.barangay_details?.barangay_name === barangay)
       .filter(b => dominant_waste === "All Waste" || b.dominant_waste_type === dominant_waste)
       .filter(b => node === "All Nodes" || b.node_details?.node_name === node)
+      .filter(b => month === "All" || b.timestamp?.startsWith(month))
       .filter(b =>
         [b.node_details?.node_name, b.node_details?.barangay_details?.barangay_name, b.dominant_waste_type]
           .some(field => field?.toLowerCase().includes(q))
@@ -108,8 +124,14 @@ export default function Waste() {
       .sort((a, b) => b.classification_id - a.classification_id)
     }
   
-    const filtered = getFilteredWaste(wasteClassification, barangayFilterOpt, dominantWaste, sensorNode, search)
-    const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 8)
+    const filtered = getFilteredWaste(wasteClassification, barangayFilterOpt, dominantWaste, sensorNode, selectedMonth, search)
+
+    const { panelRef, tableWrapRef, rows } = useFillRows({
+      rowHeight: 52,
+      initialRows: 8,
+      deps: [loading],
+    })
+    const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
   
     // summary cards
     const total = wasteClassification.length
@@ -126,9 +148,7 @@ export default function Waste() {
     ])
   }, [])
 
-  useEffect(() => {
-    refetchAll()
-  }, [])
+  useEffect(() => { refetchAll() }, [selectedMonth])
 
   usePolling(refetchAll, 30000)
 
@@ -164,7 +184,7 @@ export default function Waste() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* filter */}
         <div className="flex w-full justify-between">
@@ -218,6 +238,20 @@ export default function Waste() {
                   ))}
               </SelectContent>
             </Select>
+
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="text-xs cursor-pointer w-35 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper" className="text-xs p-2 w-35 min-w-0 !max-h-70 overflow-y-auto">
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Months</SelectItem>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} className="text-xs cursor-pointer p-2 text-[#122A48]" value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -230,14 +264,14 @@ export default function Waste() {
         </div>
 
         {/* summary header cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-3">
           {[
             { icon: <LayoutGrid size={20} color="#582579" />, bg: "bg-[#E1CDE3]", count: total,label: "Total Clasifications" },
             { icon: <Leaf size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: biodegradable,  label: "Biodegradable"},
             { icon: <Recycle size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: recyclable, label: "Recyclable" },
             { icon: <Trash2 size={20} color="#D48A00" />, bg: "bg-[#EED7AA]", count: residual_others,  label: "Residual/Others" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -248,99 +282,90 @@ export default function Waste() {
         </div>
 
         {/* table and preview data */}
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 mt-2 flex-1 min-h-[524px]">
           
           {/* TABLE  */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] h-131 w-250 rounded-lg flex flex-col'>
-            <Table>
-              <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
-                <TableRow>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLASSIFICATION ID</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DOMINANT WASTE TYPE</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>TIMESTAMP</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION  </TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>READING ID</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONFIDENCE</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* fetch error state */}
-                {fetchError ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-15">
-                        <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-base">Failed to load waste classifications. Please try again later.</p>
-                          <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  
-                  // no node state
-                  ) : filtered.length === 0 ? (
+          <div ref={panelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col'>
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-12'>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-33">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <Trash2  size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No waste classifications in the system</p>
-                        <p className="text-[#727272] text-sm">
-                          No waste classifications have been added yet.
-                        </p>
-                      </div>
-                    </TableCell>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLASSIFICATION ID</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>DOMINANT WASTE TYPE</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>TIMESTAMP</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION  </TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>READING ID</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONFIDENCE</TableHead>
                   </TableRow>
-                
-                  // with clog event states
-                  ) : (
-                    paginated.map(waste => (
-                      <TableRow
-                        key={waste.classification_id}
-                        className={`border-b border-[#C6C6C8] cursor-pointer ${
-                          selectedWaste?.classification_id === waste.classification_id
-                            ? 'bg-[#CDE3DE45]'
-                            : 'hover:bg-[#f5f5f5]'
-                        }`}
-                        onClick={() => setSelectedWaste(waste)}
-                      >
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">WCL-2026-{waste.classification_id}</TableCell>
-                        <TableCell className="text-left h-13 text-xs">
-                          <span className="inline-flex items-center gap-2">
-                            <span className={`rounded-full p-1.5 flex items-center justify-center ${
-                              waste.dominant_waste_type === 'Biodegradable' ? 'bg-[#51C96A]' :
-                              waste.dominant_waste_type === 'Recyclable'    ? 'bg-[#1565BC]' :
-                              waste.dominant_waste_type === 'Residual'      ? 'bg-[#D89210]' :
-                              waste.dominant_waste_type === 'Special Waste' ? 'bg-[#D81010]' :
-                              'bg-gray-400'
-                            }`}>
-                              {waste.dominant_waste_type === 'Biodegradable' && <Leaf size={16} color="white" />}
-                              {waste.dominant_waste_type === 'Recyclable'    && <Recycle size={16} color="white" />}
-                              {waste.dominant_waste_type === 'Residual'      && <Trash2 size={16} color="white" />}
-                              {waste.dominant_waste_type === 'Special Waste' && <Trash2 size={16} color="white" />}
-                            </span>
-                            <span className="text-[#122A48] ">{waste.dominant_waste_type}</span>
+                </TableHeader>
+                <TableBody>
+                  {!fetchError && filtered.length > 0 && paginated.map(waste => (
+                    <TableRow
+                      key={waste.classification_id}
+                      className={`border-b border-[#C6C6C8] cursor-pointer ${
+                        selectedWaste?.classification_id === waste.classification_id
+                          ? 'bg-[#CDE3DE45]'
+                          : 'hover:bg-[#f5f5f5]'
+                      }`}
+                      onClick={() => setSelectedWaste(waste)}
+                    >
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">WCL-2026-{waste.classification_id}</TableCell>
+                      <TableCell className="text-left h-13 text-xs">
+                        <span className="inline-flex items-center gap-2">
+                          <span className={`rounded-full p-1.5 flex items-center justify-center ${
+                            waste.dominant_waste_type === 'Biodegradable' ? 'bg-[#51C96A]' :
+                            waste.dominant_waste_type === 'Recyclable'    ? 'bg-[#1565BC]' :
+                            waste.dominant_waste_type === 'Residual'      ? 'bg-[#D89210]' :
+                            waste.dominant_waste_type === 'Special Waste' ? 'bg-[#D81010]' :
+                            'bg-gray-400'
+                          }`}>
+                            {waste.dominant_waste_type === 'Biodegradable' && <Leaf size={16} color="white" />}
+                            {waste.dominant_waste_type === 'Recyclable'    && <Recycle size={16} color="white" />}
+                            {waste.dominant_waste_type === 'Residual'      && <Trash2 size={16} color="white" />}
+                            {waste.dominant_waste_type === 'Special Waste' && <Trash2 size={16} color="white" />}
                           </span>
-                        </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
-                          {waste.timestamp
-                            ? new Date(waste.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">
-                          {waste.node_details?.node_name ?? '—'}
-                        </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{waste.node_details?.barangay_details?.barangay_name ?? '—'}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">RDG-0{waste.reading ?? '—'}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-13 text-xs">{waste.confidence ?? '—'}%</TableCell>
-                      </TableRow>
-                    ))
+                          <span className="text-[#122A48] ">{waste.dominant_waste_type}</span>
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">
+                        {waste.timestamp
+                          ? new Date(waste.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">
+                        {waste.node_details?.node_name ?? '—'}
+                      </TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">{waste.node_details?.barangay_details?.barangay_name ?? '—'}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">RDG-0{waste.reading ?? '—'}</TableCell>
+                      <TableCell className="text-[#122A48] text-left h-13 text-xs">{waste.confidence ?? '—'}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
+            {/* fetch error state */}
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                <p className="text-[#D81010] font-semibold text-base">Failed to load waste classifications. Please try again later.</p>
+                <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              </div>
+            )}
 
-                  )}
+            {/* no node state */}
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <Trash2 size={30} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No waste classifications in the system</p>
+                <p className="text-[#727272] text-xs">
+                  No waste classifications have been added yet.
+                </p>
+              </div>
+            )}
 
-              </TableBody>
-            </Table>
             <div className='mt-auto'>
               <TablePagination
                 totalItems={totalItems}
@@ -353,7 +378,7 @@ export default function Waste() {
 
 
           {/* preview waste container */}
-          <div className="border border-[#C6C6C8] rounded-lg bg-[#F8F9FA] w-85">
+          <div className="border border-[#C6C6C8] rounded-lg bg-[#F8F9FA] flex-1 min-w-[240px]">
             {!selectedWaste ? (
               <div className="flex flex-col gap-3 justify-center items-center h-full">
                 <FileSearch size={60} className="text-[#1565BC80]"/>
