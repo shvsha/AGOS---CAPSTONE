@@ -105,7 +105,7 @@ export default function Header() {
 
     fetchUnread()
     // poll every 30 seconds for live updates
-    const interval = setInterval(fetchUnread, 30000)
+    const interval = setInterval(fetchUnread, 60000)
     return () => clearInterval(interval)
   }, [])
 
@@ -161,7 +161,7 @@ export default function Header() {
     }
 
     checkNewAlert()
-    const interval = setInterval(checkNewAlert, 30000)
+    const interval = setInterval(checkNewAlert, 60000)
     return () => clearInterval(interval)
   }, [])
 
