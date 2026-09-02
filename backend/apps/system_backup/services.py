@@ -4,6 +4,7 @@ import zipfile
 import tempfile
 from datetime import datetime
 from django.conf import settings
+from .supabase_backup import _get_s3_client 
 
 MAX_BACKUP_UNCOMPRESSED_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
 MAX_BACKUP_ENTRY_COUNT = 20_000
@@ -82,8 +83,18 @@ def create_backup_archive(output_dir):
         with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.write(dump_path, arcname='database.sql')
 
-            media_root = settings.MEDIA_ROOT
-            report_media_dir = os.path.join(media_root, 'report_media')
+            s3 = _get_s3_client()
+            bucket = settings.AWS_STORAGE_BUCKET_NAME
+            paginator = s3.get_paginator('list_objects_v2')
+            for page in paginator.paginate(Bucket=bucket, Prefix='report_media/'):
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    if key.endswith('/'):
+                        continue
+                    tmp_file = os.path.join(tmp_dir, os.path.basename(key))
+                    s3.download_file(bucket, key, tmp_file)
+                    zf.write(tmp_file, arcname=os.path.join('media', key))
+                    os.remove(tmp_file)
             
             # 3. Add AI model weights (if present)
             classifier_path = os.path.join(settings.BASE_DIR, 'apps', 'ai_inference', 'saved_model', 'waste_classifier.tflite')
@@ -98,13 +109,6 @@ def create_backup_archive(output_dir):
                 zf.write(yolo_path, arcname='models/waste_yolo.onnx')
             else:
                 print("Warning: YOLO ONNX weights not found, skipping.")
-
-            if os.path.exists(report_media_dir):
-                for root, dirs, files in os.walk(report_media_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, media_root)
-                        zf.write(file_path, arcname=os.path.join('media', arcname))
 
     return archive_path
 
@@ -151,11 +155,11 @@ def restore_backup_archive(zip_path):
         # Restore media files
         extracted_media = os.path.join(tmp_dir, 'media')
         if os.path.exists(extracted_media):
-            import shutil
+            s3 = _get_s3_client()
+            bucket = settings.AWS_STORAGE_BUCKET_NAME
             for root, dirs, files in os.walk(extracted_media):
                 for file in files:
                     src = os.path.join(root, file)
                     rel_path = os.path.relpath(src, extracted_media)
-                    dest = os.path.join(settings.MEDIA_ROOT, rel_path)
-                    os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    shutil.copy2(src, dest)
+                    key = rel_path.replace(os.sep, '/')
+                    s3.upload_file(src, bucket, key, ExtraArgs={'ACL': 'public-read'})

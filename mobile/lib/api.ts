@@ -40,6 +40,19 @@ export async function clearAuth() {
   await SecureStore.deleteItemAsync('refresh_token')
 }
 
+export const publicApi = {
+  post: async (endpoint: string, data?: unknown) => {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const result = await res.json()
+    if (!res.ok) throw result
+    return result
+  },
+}
+
 // silent refresh
 async function refreshAccessToken(): Promise<string | null> {
   try {
