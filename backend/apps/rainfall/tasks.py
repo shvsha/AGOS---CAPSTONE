@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+import time
 
 import requests
 
@@ -10,6 +11,9 @@ from .services import mm_per_hour_to_condition
 logger = logging.getLogger(__name__)
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+BATCH_SIZE = 8
+BATCH_DELAY_SECONDS = 60
 
 
 def fetch_rainfall_for_barangay(barangay):
@@ -65,6 +69,11 @@ def fetch_rainfall_for_barangay(barangay):
 
 
 def fetch_all_barangays():
-    barangays = Barangay.objects.all()
-    for barangay in barangays:
-        fetch_rainfall_for_barangay(barangay)
+    barangays = list(Barangay.objects.all())
+    for i in range(0, len(barangays), BATCH_SIZE):
+        batch = barangays[i:i + BATCH_SIZE]
+        for barangay in batch:
+            fetch_rainfall_for_barangay(barangay)
+        if i + BATCH_SIZE < len(barangays):
+            logger.info(f"Rainfall batch done, waiting {BATCH_DELAY_SECONDS}s before next batch...")
+            time.sleep(BATCH_DELAY_SECONDS)
