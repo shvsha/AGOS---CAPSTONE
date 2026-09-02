@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { api, setTokens, clearAuth, getAccessToken, getRefreshToken } from './api'
+import { api, setTokens, clearAuth, getAccessToken, getRefreshToken, publicApi } from './api'
 import { User } from '../types/user'
 import { setForceLogoutListener } from './authEvents'
 
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    const data = await api.post('/api/auth/mobile-login/', { email, password })
+    const data = await publicApi.post('/api/auth/mobile-login/', { email, password })
     await setTokens(data.access, data.refresh)
     setUser(data.user)
     return data.user as User

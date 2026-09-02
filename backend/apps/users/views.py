@@ -87,7 +87,7 @@ class LoginView(APIView):
             return response
 
         return Response(
-            {'error': 'Invalid credentials'},
+            {'error': 'Email or password is incorrect. Check your credentials and try again.'},
             status=status.HTTP_401_UNAUTHORIZED
         )
 
@@ -399,13 +399,13 @@ class MobileLoginView(APIView):
 
         if not user:
             return Response(
-                {'error': 'Invalid credentials'},
+                {'error': 'Email or password is incorrect. Check your credentials and try again.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
         if user.status == 'Inactive':
             return Response(
-                {'error': 'Account is inactive'},
+                {'error': 'This account is inactive. Please try another account.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 

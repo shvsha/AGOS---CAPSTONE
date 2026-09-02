@@ -47,7 +47,7 @@ export default function Login() {
         router.replace('/(tabs)')
       }
     } catch (err: any) {
-      setLoginError(err?.error ?? (err?.message ? `Connection error: ${err.message}` : 'Invalid credentials.'))
+      setLoginError(err?.error ?? (err?.message ? `Connection error: ${err.message}` : 'Email or password is incorrect. Check your credentials and try again.'))
     } finally {
       setLoading(false)
     } 
