@@ -5,12 +5,23 @@ export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.6:8
 export const ACCOUNT_INACTIVE_MESSAGE = 'Your account is not active. Please contact your administrator.'
 export const SERVER_UNREACHABLE_MESSAGE =
   'Cannot connect to the server. Please check your connection and try again.'
+
+export const REQUEST_TIMEOUT_MESSAGE = 'Took too long to respond. Please try again.'
+const DEFAULT_TIMEOUT_MS = 30000
   
-async function safeFetch(url: string, options: RequestInit): Promise<Response> {
+async function safeFetch(url: string, options: RequestInit, timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
   try {
-    return await fetch(url, options)
-  } catch {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw { error: REQUEST_TIMEOUT_MESSAGE }
+    }
     throw { error: SERVER_UNREACHABLE_MESSAGE }
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
@@ -42,12 +53,12 @@ export async function clearAuth() {
 
 export const publicApi = {
   post: async (endpoint: string, data?: unknown) => {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
+    const res = await safeFetch(`${BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },

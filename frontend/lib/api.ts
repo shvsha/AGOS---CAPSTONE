@@ -5,11 +5,22 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 export const SERVER_UNREACHABLE_MESSAGE =
   'Cannot connect to the server. Please check your connection and try again.'
 
-async function safeFetch(url: string, options: RequestInit): Promise<Response> {
+export const REQUEST_TIMEOUT_MESSAGE = 'Took too long to respond. Please try again.'
+const DEFAULT_TIMEOUT_MS = 30000
+
+async function safeFetch(url: string, options: RequestInit, timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
   try {
-    return await fetch(url, options)
-  } catch {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw { error: REQUEST_TIMEOUT_MESSAGE }
+    }
     throw { error: SERVER_UNREACHABLE_MESSAGE }
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
