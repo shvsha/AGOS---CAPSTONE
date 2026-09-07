@@ -1,7 +1,7 @@
 "use client"
 
 // icons
-import { BatteryMedium, Signal, ScanSearch, Radar, FileSearch, Battery  } from "lucide-react";
+import { BatteryMedium, Signal, ScanSearch, Radar, FileSearch, Battery, FileDown  } from "lucide-react";
 
 // react
 import { useEffect, useState } from "react";
@@ -9,6 +9,11 @@ import { useEffect, useState } from "react";
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { HealthSkeleton } from "@/components/Skeleton/Admin/HealthSkeleton";
+import { Button } from "@/components/ui/button"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog";
+import { exportPdf } from "@/lib/exportPDF";
+import { useToast } from "@/components/hooks/useToast";
+import { Toast } from "@/components/Toast";
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -118,6 +123,8 @@ function getPMUStatus(battery_voltage?: number) {
 
 
 export default function Health() {
+  const { toasts, addToast, removeToast } = useToast()
+
   // node data states
   const [allNodes, setAllNodes] = useState<SensorNode[]>([])
   const [healthAlert, setHealthAlert] = useState<HealthAlerts[]>([])
@@ -215,11 +222,33 @@ export default function Health() {
     }
   }
 
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
+    try {
+      await exportPdf(
+        "/api/system-health/export/",
+        {},
+        "system-health.pdf"
+      )
+    } catch {
+      addToast("Failed to export system health.", "error")
+    }
+  }, { description: "Are you sure you want to export the current system health summary as a PDF?" })
+
   if (loading) return <HealthSkeleton/>
 
    return (
      <>
       <div className="hidden md:flex md:flex-col md:h-full">
+
+        {/* title */}
+        <div className="flex w-full mb-2 justify-between items-center">
+          <p className="text-[#122A48] font-bold text-[15px]">Sensor Nodes Health</p>
+
+          <Button onClick={() => requestExport()} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+            <FileDown size={16} className="mr-1" />
+            Export PDF
+          </Button>
+        </div>
         
         {/* header cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
@@ -492,6 +521,9 @@ export default function Health() {
 
         </div>      
       </div>
+
+      <Toast toasts={toasts} onRemove={removeToast} />
+      {ExportDialogs}
      </>
    )
  }

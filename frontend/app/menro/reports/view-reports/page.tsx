@@ -210,6 +210,7 @@ function ViewMunicipalReportInner() {
   const [barangayReports, setBarangayReports] = useState<BarangayMonthlyReport[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  const [retrying, setRetrying] = useState(false)
 
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
@@ -227,13 +228,14 @@ function ViewMunicipalReportInner() {
     }
   }, { description: "Are you sure you want to export the compiled MRF report?" })
 
-  const fetchData = async () => {
+  const fetchData = async (isRetry = false) => {
     if (!id) {
       setFetchError(true)
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (isRetry) setRetrying(true)
+    else setLoading(true)
     setFetchError(false)
     try {
       const municipalReport: MunicipalReport = await api.get(`/api/municipal-reports/${id}/`)
@@ -249,7 +251,8 @@ function ViewMunicipalReportInner() {
     } catch {
       setFetchError(true)
     } finally {
-      setLoading(false)
+      if (isRetry) setRetrying(false)
+      else setLoading(false)
     }
   }
 
@@ -272,8 +275,20 @@ function ViewMunicipalReportInner() {
   if (fetchError || !report) {
     return (
       <div className="hidden md:flex flex-col items-center justify-center h-150 gap-3">
-        <p className="text-[#D81010] font-semibold text-base">Failed to load this report.</p>
-        <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+        {retrying ? (
+          <>
+            <SpinnerIcon size={32} color="#D81010" />
+            <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+          </>
+        ) : (
+          <>
+            <div className="text-[#D81010] text-center">
+              <p className="font-semibold">Failed to load this compiled barangay reports</p>
+              <p className="text-sm">Please try again later</p>
+            </div>
+            <Button onClick={() => fetchData(true)} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+          </>
+        )}
       </div>
     )
   }

@@ -23,6 +23,7 @@ import { useFillRows } from "@/components/hooks/useFillRows";
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePolling } from "@/components/hooks/usePolling"
 import { usePageCache } from "@/components/hooks/usePageCache";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
 
 
 type Hotspots = {
@@ -198,6 +199,7 @@ export default function Resources() {
 
   const loading = sensorNodesCache.loading || readingsCache.loading || hotspotsCache.loading || wasteCache.loading || clogsCache.loading
   const fetchError = sensorNodesCache.error || readingsCache.error || hotspotsCache.error || wasteCache.error || clogsCache.error
+  const retrying = sensorNodesCache.retrying || readingsCache.retrying || hotspotsCache.retrying || wasteCache.retrying || clogsCache.retrying
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
 
@@ -323,6 +325,29 @@ export default function Resources() {
 
   if (loading) return <ResourcesSkeleton/>
 
+  if (fetchError) {
+    return (
+      <div className="hidden md:flex md:flex-col md:h-full items-center justify-center gap-3">
+        {retrying ? (
+          <>
+            <SpinnerIcon size={32} color="#D81010" />
+            <p className="text-[#D81010] font-semibold">Retrying...</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[#D81010] font-semibold">Failed to load resource optimization data. Please try again later.</p>
+            <Button
+              onClick={fetchAllResourceData}
+              className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100"
+            >
+              Retry
+            </Button>
+          </>
+        )}
+      </div>
+    )
+  }
+
 
   return (
     <>
@@ -440,24 +465,7 @@ export default function Resources() {
                 </TableHeader>
 
                 <TableBody>
-                  {fetchError ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-15">
-                        <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-sm">
-                            Failed to load trash accumulation. Please try again later.
-                          </p>
-
-                          <Button
-                            onClick={fetchAllResourceData}
-                            className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                          >
-                            Retry
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : rankedWaste.length === 0 ? (
+                  {rankedWaste.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={3}
@@ -650,105 +658,88 @@ export default function Resources() {
             </TableHeader>
 
             <TableBody>
-              {fetchError ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-15">
-                        <div className="flex flex-col justify-center items-center gap-3 py-20">
-                          <p className="text-[#D81010] font-semibold text-sm">
-                            Failed to load waste hotspots. Please try again later.
-                          </p>
+              {rankedWaste.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-sm text-[#727272] py-20"
+                  >
+                    No waste hotspots data available.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rankedWaste.map((waste, index) => {
+                  const { clogPct, latestReading } = getLatestClogPct(waste.node_details.node_id)
+                  const clogSeverity = getClogSeverity(clogPct)
 
-                          <Button
-                            onClick={fetchAllResourceData}
-                            className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                          >
-                            Retry
-                          </Button>
+                  return (
+                    <TableRow
+                      key={waste.classification_id}
+                      className="border-b-0"
+                    >
+
+                      
+                      {/* Rank */}
+                      <TableCell className="text-left text-xs">
+                        {waste.node_details.node_id}
+                      </TableCell>
+
+                      {/* Barangay */}
+                      <TableCell className="text-left text-xs">
+                        {
+                          waste.node_details
+                            .barangay_details
+                            .barangay_name
+                        }
+                      </TableCell>
+
+                      {/* Severity Index (clog_pct based) */}
+                      <TableCell className="flex justify-left">
+                        <div className="flex items-center gap-3">
+                          <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
+                            <div
+                              className={`${clogSeverity.barColor} h-full rounded-full`}
+                              style={{
+                                width: `${clogPct ?? 0}%`
+                              }}
+                            />
+                          </div>
+
+                          <span className="text-xs min-w-[40px]">
+                            {clogPct === null ? "—" : `${Math.round(clogPct)}%`}
+                          </span>
                         </div>
                       </TableCell>
-                    </TableRow>
-                  ) : rankedWaste.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-sm text-[#727272] py-20"
-                      >
-                        No waste hotspots data available.
+                      
+                      <TableCell className="text-left text-xs">
+                        {waste.estimated_volume.toFixed(2)} kg
+                      </TableCell>
+
+                      {/* Status — derived from the same clog_pct as the Severity Index above,
+                          so the two columns can never disagree in the same row. */}
+                      <TableCell className="text-left text-xs">
+                        <span className={`text-xs inline-flex items-center gap-1.5 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}>
+                          {clogSeverity.label}
+                        </span> 
+                      </TableCell>
+
+                      <TableCell className="text-left text-xs">
+                        {latestReading
+                          ? new Date(latestReading.timestamp).toLocaleString("en-PH", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: true,
+                            })
+                          : "—"}
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    rankedWaste.map((waste, index) => {
-                      const { clogPct, latestReading } = getLatestClogPct(waste.node_details.node_id)
-                      const clogSeverity = getClogSeverity(clogPct)
-
-                      return (
-                        <TableRow
-                          key={waste.classification_id}
-                          className="border-b-0"
-                        >
-
-                          
-                          {/* Rank */}
-                          <TableCell className="text-left text-xs">
-                            {waste.node_details.node_id}
-                          </TableCell>
-
-                          {/* Barangay */}
-                          <TableCell className="text-left text-xs">
-                            {
-                              waste.node_details
-                                .barangay_details
-                                .barangay_name
-                            }
-                          </TableCell>
-
-                          {/* Severity Index (clog_pct based) */}
-                          <TableCell className="flex justify-left">
-                            <div className="flex items-center gap-3">
-                              <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
-                                <div
-                                  className={`${clogSeverity.barColor} h-full rounded-full`}
-                                  style={{
-                                    width: `${clogPct ?? 0}%`
-                                  }}
-                                />
-                              </div>
-
-                              <span className="text-xs min-w-[40px]">
-                                {clogPct === null ? "—" : `${Math.round(clogPct)}%`}
-                              </span>
-                            </div>
-                          </TableCell>
-                          
-                          <TableCell className="text-left text-xs">
-                            {waste.estimated_volume.toFixed(2)} kg
-                          </TableCell>
-
-                          {/* Status — derived from the same clog_pct as the Severity Index above,
-                              so the two columns can never disagree in the same row. */}
-                          <TableCell className="text-left text-xs">
-                            <span className={`text-xs inline-flex items-center gap-1.5 py-1 rounded-full font-semibold ${clogSeverity.textClass}`}>
-                              {clogSeverity.label}
-                            </span> 
-                          </TableCell>
-
-                          <TableCell className="text-left text-xs">
-                            {latestReading
-                              ? new Date(latestReading.timestamp).toLocaleString("en-PH", {
-                                  year: "numeric",
-                                  month: "2-digit",
-                                  day: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                  hour12: true,
-                                })
-                              : "—"}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  )}
+                  )
+                })
+              )}
             </TableBody>
           </Table>
             <div className='mt-auto'>
@@ -760,15 +751,6 @@ export default function Resources() {
               />
             </div>
         </div>
-
-        {/* recommend resource allocation
-        <div className="rounded-lg bg-[#FAFCFD] border border-[#C6C6C8] p-3 mt-2">
-
-          div
-          
-        </div> */}
-
-
       </div>
     
     </>

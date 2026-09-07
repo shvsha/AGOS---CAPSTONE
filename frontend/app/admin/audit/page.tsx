@@ -17,6 +17,7 @@ import { AuditSkeleton } from "@/components/Skeleton/Admin/AuditSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { useFillRows } from "@/components/hooks/useFillRows"
 import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
+import { SpinnerIcon } from "@/components/SpinnerIcon"
 
 
 const affectedTableLabels: Record<string, string> = {
@@ -285,13 +286,25 @@ export default function Audit() {
 
         {fetchError && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
-            <p className="text-[#D81010] font-semibold">Failed to load audit logs.</p>
-            <Button
-              onClick={() => auditsCache.refetch()}
-              className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-            >
-              Retry
-            </Button>
+            {auditsCache.retrying ? (
+              <div className="flex flex-col items-center gap-3">
+                <SpinnerIcon size={32} color="#D81010" />
+                <p className="text-[#D81010] font-semibold">Retrying...</p>
+              </div>
+            ) : (
+              <>
+                <div className="text-[#D81010] text-center">
+                  <p className="font-semibold">Failed to load audit logs</p>
+                  <p className="text-sm">Please try again later</p>
+                </div>
+                <Button
+                  onClick={() => auditsCache.refetch()}
+                  className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100"
+                >
+                  Retry
+                </Button>
+              </>
+            )}
           </div>
         )}
 
