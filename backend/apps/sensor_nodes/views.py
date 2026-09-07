@@ -273,7 +273,7 @@ class SystemHealthLogListView(generics.ListCreateAPIView):
         return SystemHealthLog.objects.select_related(
             'node', 'node__barangay', 'node__hotspot'
         ).filter(
-            timestamp__year=now.year, timestamp__month=now.month
+            checked_at__year=now.year, checked_at__month=now.month
         ).order_by('-checked_at')
 
     def get_permissions(self):

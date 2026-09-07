@@ -91,21 +91,67 @@ function getSignalLabel(dbm: number) {
   return 'Poor signal, check antenna'
 }
 
+function getMicrocontrollerStatus(status?: string) {
+  if (status === 'Critical') return 'Critical Fault'
+  if (status === 'Warning') return 'Needs Attention'
+  if (status === 'Normal') return 'Operating Normally'
+  return '—'
+}
+
+function getWaterSensorStatus(sensor_continuity?: boolean) {
+  if (sensor_continuity == null) return '—'
+  return sensor_continuity ? 'Distance Reading OK' : 'No Echo Detected'
+}
+
+function getPowerStorageStatus(battery_voltage?: number) {
+  if (battery_voltage == null) return '—'
+  return `${getBatteryPct(battery_voltage)}% Capacity`
+}
+
+function getPMUStatus(battery_voltage?: number) {
+  if (battery_voltage == null) return '—'
+  const pct = getBatteryPct(battery_voltage)
+  if (pct >= 60) return 'Stable'
+  if (pct >= 30) return 'Monitor'
+  return 'Low Power'
+}
+
 
 export default function Health() {
   // node data states
   const [allNodes, setAllNodes] = useState<SensorNode[]>([])
   const [healthAlert, setHealthAlert] = useState<HealthAlerts[]>([])
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
   const [selectedNode, setSelectedNode] = useState<NodeHealth | null>(null)
+  const [healthLogs, setHealthLogs] = useState<NodeHealth[]>([])
 
+  const emptyStateText = selectedNodeId === null ? 'No node selected' : 'No health data yet'
+  
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
 
-  // summary cards
+  // summary cards — derived from the latest health log per node (this month)
   const totalOnline = allNodes.filter(n => n.status === 'Active').length
-  const avg_battery = 0
-  const avg_signal = 0
-  const sensor = 0
+
+  const latestHealthByNode = new Map<number, NodeHealth>()
+  for (const log of healthLogs) {
+    if (!latestHealthByNode.has(log.node_details.node_id)) {
+      latestHealthByNode.set(log.node_details.node_id, log)
+    }
+  }
+  const latestLogs = Array.from(latestHealthByNode.values())
+
+  const batteryReadings = latestLogs.filter(l => l.battery_voltage != null).map(l => l.battery_voltage!)
+  const avg_battery = batteryReadings.length
+    ? (batteryReadings.reduce((a, b) => a + b, 0) / batteryReadings.length).toFixed(1)
+    : '—'
+
+  const signalReadings = latestLogs.filter(l => l.signal_strength != null).map(l => l.signal_strength!)
+  const avg_signal = signalReadings.length
+    ? Math.round(signalReadings.reduce((a, b) => a + b, 0) / signalReadings.length)
+    : '—'
+
+  const sensorFailing = latestLogs.filter(l => l.sensor_continuity === false).length
 
   const fetchNodes = async () => {
     try {
@@ -119,6 +165,19 @@ export default function Health() {
   useEffect(() => {
     fetchNodes()
   }, [])
+
+  const fetchHealthLogs = async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/system-health/`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setHealthLogs(data.results ?? data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchHealthLogs()
+  }, [])  
 
   const fetchAlerts = async () => {
     setLoading(true)
@@ -143,6 +202,8 @@ export default function Health() {
 
   // handlers
   const handleSelectNode = async (nodeId: number) => {
+    setSelectedNodeId(nodeId)
+    setSelectedNode(null)
     try {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/system-health/node/${nodeId}/`)
       if (!res.ok) throw new Error()
@@ -164,9 +225,9 @@ export default function Health() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
             { icon: <Radar size={17} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalOnline, label: "Online Nodes" },
-            { icon: <BatteryMedium   size={17} color="#E4B600" />, bg: "bg-[#F0FBB2]", count: avg_battery,  label: "Average Battery" },
-            { icon: <Signal size={17} color="#582579" />, bg: "bg-[#E5EAFF]", count: avg_signal, label: "Average Signal" },
-            { icon: <ScanSearch size={17} color="#D81010" />, bg: "bg-[#D8101059]", count: sensor/5,  label: "Sensor" },
+            { icon: <BatteryMedium size={17} color="#E4B600" />, bg: "bg-[#F0FBB2]", count: avg_battery === '—' ? '—' : `${avg_battery}V`, label: "Average Battery" },
+            { icon: <Signal size={17} color="#582579" />, bg: "bg-[#E5EAFF]", count: avg_signal === '—' ? '—' : `${avg_signal} dBm`, label: "Average Signal" },
+            { icon: <ScanSearch size={17} color="#D81010" />, bg: "bg-[#D8101059]", count: sensorFailing, label: "Sensors Failing" },
           ].map(card => (
             <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-6 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
@@ -202,11 +263,19 @@ export default function Health() {
 
           {/* preview node */}
           <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px]">
-            {!selectedNode ? (
+            {selectedNodeId === null ? (
               <div className="flex justify-center items-center h-full flex-col gap-2 border border-[#C9C9C9] w-full rounded-lg">
-                  <FileSearch size={50} className="text-[#1565BC80]"/>
+                <FileSearch size={50} className="text-[#1565BC80]"/>
                 <p className="font-semibold text-[#122A488F]">No node selected</p>
                 <p className="text-[#122A4873] text-xs text-center">Select a node from the network <br /> map to view its hardware status <br /> and sensor information</p>
+              </div>
+            ) : !selectedNode ? (
+              <div className="flex justify-center items-center h-full flex-col gap-2 border border-[#C9C9C9] w-full rounded-lg">
+                <Radar size={50} className="text-[#1565BC80]"/>
+                <p className="font-semibold text-[#122A488F]">No health data yet</p>
+                <p className="text-[#122A4873] text-xs text-center">
+                  {allNodes.find(n => n.node_id === selectedNodeId)?.node_name ?? 'This node'} hasn't reported <br /> any hardware status yet
+                </p>
               </div>
             ) : (
              <div className="flex flex-col text-[#122A48] w-full">
@@ -253,38 +322,23 @@ export default function Health() {
 
                 {/* Sensor and modules */}
                 <div className="flex flex-col gap-1.5 p-3">
-                  <div className="w-full mb-1">
-                    <p className="font-semibold">Sensor & Modules</p>
+                  <div className="flex justify-between items-center text-xs">
+                    <p>Microcontroller</p>
+                    <p className="text-[#727272] text-[10px]">{getMicrocontrollerStatus(selectedNode.status)}</p>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <p>Microcontroller</p>
-                      <p className="text-[#727272] text-[10px]">Operating Normally</p>
-                    </div>
-                    <p></p>
+                  <div className="flex justify-between items-center text-xs">
+                    <p>Water-level sensor</p>
+                    <p className="text-[#727272] text-[10px]">{getWaterSensorStatus(selectedNode.sensor_continuity)}</p>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <p>Water-level sensor</p>
-                      <p className="text-[#727272] text-[10px]">Distance Reading</p>
-                    </div>
-                    <p></p>
+                  <div className="flex justify-between items-center text-xs">
+                    <p>Power Storage Reservoir</p>
+                    <p className="text-[#727272] text-[10px]">{getPowerStorageStatus(selectedNode.battery_voltage)}</p>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <p>Power Storage Reservoir</p>
-                      <p className="text-[#727272] text-[10px]">Capacity</p>
-                    </div>
-                    <p></p>
+                  <div className="flex justify-between items-center text-xs">
+                    <p>Power Management Unit</p>
+                    <p className="text-[#727272] text-[10px]">{getPMUStatus(selectedNode.battery_voltage)}</p>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="flex flex-col">
-                      <p>Power Management Unit</p>
-                      <p className="text-[#727272] text-[10px]">Charge state</p>
-                    </div>
-                    <p></p>
-                  </div>
-                </div>
+                </div>  
 
              </div>
             )}
@@ -312,7 +366,7 @@ export default function Health() {
             {/* empty state vs data */}
             {!selectedNode ? (
               <div className="flex justify-center items-center py-8">
-                <p className="text-xs text-[#727272]">No node selected</p>
+                <p className="text-xs text-[#727272]">{emptyStateText}</p>
               </div>
             ) : (
               <>

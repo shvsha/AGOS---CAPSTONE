@@ -273,21 +273,36 @@ export default function Dashboard() {
   const resolvedClog = barangays.data.filter(b => !b.is_registered).length
 
   // health helpers
-  const activeHealth = nodeHealth.data.filter(n => n.node_details.status === "Active")
+  const latestHealthByNode = new Map<number, NodeHealth>()
+  for (const log of nodeHealth.data) {
+    // nodeHealth.data is ordered -checked_at by the API, so first hit per node is latest
+    if (!latestHealthByNode.has(log.node_details.node_id)) {
+      latestHealthByNode.set(log.node_details.node_id, log)
+    }
+  }
+  const latestHealthLogs = Array.from(latestHealthByNode.values())
+
+  const activeHealth = latestHealthLogs.filter(n => n.node_details.status === "Active")
 
   const voltages = activeHealth.map(n => n.battery_voltage).filter((v): v is number => v != null)
   const signals  = activeHealth.map(n => n.signal_strength).filter((v): v is number => v != null)
-  const continuityList = activeHealth.map(n => n.sensor_continuity).filter((v): v is boolean => v != null)
 
-  const avgVoltage   = voltages.length   ? voltages.reduce((a, b) => a + b, 0) / voltages.length   : null
-  const avgSignal    = signals.length    ? signals.reduce((a, b) => a + b, 0) / signals.length     : null
-  const passingCount = continuityList.filter(Boolean).length
-  const allPassing = continuityList.length
-    ? (passingCount / continuityList.length) >= 0.5
-    : null
+  const avgVoltage = voltages.length ? voltages.reduce((a, b) => a + b, 0) / voltages.length : null
+  const avgSignal  = signals.length  ? signals.reduce((a, b) => a + b, 0) / signals.length   : null
 
   const batteryPct = avgVoltage != null ? getBatteryPct(avgVoltage) : null
   const signalPct  = avgSignal  != null ? getSignalPct(avgSignal)   : null
+
+  // continuity — denominator is deployed nodes, not just nodes that happened to report
+  const assignedNodeIds = new Set(
+    sensorNodes.data.filter(n => n.hotspot_details?.hotspot_id).map(n => n.node_id)
+  )
+  const passingCount = latestHealthLogs.filter(
+    n => n.sensor_continuity === true && assignedNodeIds.has(n.node_details.node_id)
+  ).length
+  const allPassing = totalSensorNodes > 0
+    ? (passingCount / totalSensorNodes) >= 0.5
+    : null
 
   const todayWaste = wasteClassification.data.filter(waste => {
     const wasteDate = new Date(waste.timestamp)
@@ -574,18 +589,18 @@ export default function Dashboard() {
                 </p>
                 <p className="text-xs text-[#727272] mb-2">Continuity</p>
                 <div className="w-full bg-[#E5E5E6] rounded-full h-1.5">
-                  {continuityList.length > 0 && (
+                  {totalSensorNodes > 0 && (
                     <div className="h-1.5 rounded-full transition-all duration-500"
                       style={{
-                        width: `${(passingCount / continuityList.length) * 100}%`,
+                        width: `${(passingCount / totalSensorNodes) * 100}%`,
                         backgroundColor: allPassing ? '#4ADE80' : '#F87171'
                       }} />
                   )}
                 </div>
                 <p className="text-[10px] text-[#727272] mt-1">
-                  {continuityList.length === 0
+                  {totalSensorNodes === 0
                     ? 'No data'
-                    : `${passingCount} of ${continuityList.length} sensors passing continuity`}
+                    : `${passingCount} of ${totalSensorNodes} sensors passing continuity`}
                 </p>
               </div>
 
