@@ -7,7 +7,7 @@ import { FaUsers } from "react-icons/fa";
 import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle, ShieldAlert  } from "lucide-react";
 
 // react
-import { useState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
 // component
@@ -92,6 +92,8 @@ export default function Users() {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
   const usersCache = usePageCache('users:users', fetchUsersRaw, [] as User[], { autoFetch: false })
+
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     usersCache.refetch()
@@ -377,8 +379,9 @@ export default function Users() {
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => setReactivateDialog({ open: true, user: user })}
-                          className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
+                          onClick={() => startTransition(() => setReactivateDialog({ open: true, user: user }))}
+                          disabled={isPending}
+                          className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           <UserPlus size={16} />
                           Activate
