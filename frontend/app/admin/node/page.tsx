@@ -538,8 +538,20 @@ export default function NodeManagement() {
 
             {fetchError && (
               <div className="flex-1 flex flex-col justify-center items-center gap-3">
-                <p className="text-[#D81010] font-semibold text-base">Failed to load nodes. Please try again.</p>
-                <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                {nodesCache.retrying ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon size={32} color="#D81010" />
+                    <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-[#D81010] text-center">
+                      <p className="font-semibold">Failed to load sensor nodes</p>
+                      <p className="text-sm">Please try again later</p>
+                    </div>
+                    <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                  </>
+                )}
               </div>
             )}
 

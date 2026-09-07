@@ -11,6 +11,8 @@ from apps.rainfall.services import get_effective_condition, AlertThreshold
 from apps.audit_logs.utils import log_action
 import secrets
 from django.contrib.auth.hashers import make_password
+from agos_backend.pdf_utils import render_to_pdf
+from apps.audit_logs.utils import log_action
 
 
 class SensorNodeListView(generics.ListCreateAPIView):
@@ -295,3 +297,52 @@ class SystemHealthLogByNodeView(generics.ListAPIView):
     def get_queryset(self):
         node_id = self.kwargs['node_id']
         return SystemHealthLog.objects.filter(node__node_id=node_id).order_by('-checked_at')
+
+
+class SystemHealthLogExportView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        nodes = SensorNode.objects.select_related('barangay').all().order_by('node_name')
+
+        columns = ["Node", "Barangay", "Status", "Battery (V)", "Battery %", "Signal (dBm)", "Sensor", "Last Checked"]
+        rows = []
+        for node in nodes:
+            latest = SystemHealthLog.objects.filter(node=node).order_by('-checked_at').first()
+            if latest:
+                if latest.battery_voltage is not None:
+                    pct = round(min(100, max(0, ((latest.battery_voltage - 3.0) / (4.2 - 3.0)) * 100)))
+                    battery_v = f"{latest.battery_voltage:.1f}"
+                    battery_pct = f"{pct}%"
+                else:
+                    battery_v = "—"
+                    battery_pct = "—"
+
+                rows.append([
+                    node.node_name,
+                    node.barangay.barangay_name if node.barangay else "—",
+                    node.status,
+                    battery_v,
+                    battery_pct,
+                    f"{latest.signal_strength}" if latest.signal_strength is not None else "—",
+                    "OK" if latest.sensor_continuity else ("FAIL" if latest.sensor_continuity is False else "—"),
+                    latest.checked_at.strftime("%b %d, %Y %I:%M %p"),
+                ])
+            else:
+                rows.append([node.node_name, node.barangay.barangay_name if node.barangay else "—", node.status, "—", "—", "—", "—", "No data yet"])
+
+        log_action(
+            user=request.user,
+            action='Exported System Health',
+            affected_table='tbl_sensor_nodes',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return render_to_pdf(
+            report_title="System Health Summary",
+            columns=columns,
+            rows=rows,
+            generated_by=f"{request.user.first_name} {request.user.last_name}",
+            orientation="landscape",
+            filename="system-health.pdf",
+        )

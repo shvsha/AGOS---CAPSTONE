@@ -1,11 +1,22 @@
 "use client"
 
 import { Skeleton } from "@/components/ui/skeleton"
-import { Battery, Signal, ScanSearch, FileSearch } from "lucide-react"
+import { Battery, Signal, ScanSearch, FileSearch, FileDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export function HealthSkeleton() {
   return (
     <div className="hidden md:flex md:flex-col md:h-full">
+
+      {/* title */}
+      <div className="flex w-full mb-2 justify-between items-center">
+        <p className="text-[#122A48] font-bold text-[15px]">Sensor Nodes Health</p>
+
+        <Button disabled className="bg-[#2fd45b] opacity-60">
+          <FileDown size={16} className="mr-1" />
+          Export PDF
+        </Button>
+      </div>
 
       {/* header cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">

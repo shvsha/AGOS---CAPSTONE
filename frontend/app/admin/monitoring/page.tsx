@@ -23,6 +23,7 @@ import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePageCache } from '@/components/hooks/usePageCache'
+import { SpinnerIcon } from "@/components/SpinnerIcon"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -315,13 +316,25 @@ export default function Monitoring() {
 
             {fetchError && (
               <div className="flex-1 flex flex-col items-center justify-center gap-3">
-                <p className="text-[#D81010] font-semibold">Failed to load node devices. Please try again later.</p>
-                <Button
-                  onClick={refetchAll}
-                  className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                >
-                  Retry
-                </Button>
+                {(nodes.retrying || alerts.retrying) ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon size={32} color="#D81010" />
+                    <p className="text-[#D81010] font-semibold">Retrying...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-[#D81010] text-center">
+                      <p className="font-semibold">Failed to load node devices</p>
+                      <p className="text-sm">Please try again later</p>
+                    </div>
+                    <Button
+                      onClick={refetchAll}
+                      className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100"
+                    >
+                      Retry
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 
