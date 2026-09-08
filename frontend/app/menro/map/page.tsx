@@ -128,6 +128,11 @@ type WasteClassification = {
   dominant_waste_type: string
   timestamp: string
   confidence: number
+  estimated_volume: number
+  recyclable_pct: number
+  biodegradable_pct: number
+  residual_pct: number
+  special_waste_pct: number
 }
 
 type Dialog = {
@@ -184,6 +189,9 @@ export default function Map() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
+  const [selectedWaste, setSelectedWaste] = useState<WasteClassification | null>(null)
+  const [wasteDialog, setWasteDialog] = useState(false)
+
   const loading = nodesCache.loading || healthCache.loading || wasteCache.loading || alertsCache.loading
 
   // helpers
@@ -233,15 +241,17 @@ export default function Map() {
     )
   })
 
-  const todayWaste = allWasteClassification.filter(waste => {
-    const wasteDate = new Date(waste.timestamp)
-    const today = new Date()
-    return (
-      wasteDate.getFullYear() === today.getFullYear() &&
-      wasteDate.getMonth() === today.getMonth() &&
-      wasteDate.getDate() === today.getDate()
-    )
-  })
+  const todayWaste = allWasteClassification
+    .filter(waste => {
+      const wasteDate = new Date(waste.timestamp)
+      const today = new Date()
+      return (
+        wasteDate.getFullYear() === today.getFullYear() &&
+        wasteDate.getMonth() === today.getMonth() &&
+        wasteDate.getDate() === today.getDate()
+      )
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   useWebSocket({
     path: "/ws/alerts/",
@@ -301,12 +311,12 @@ export default function Map() {
           </div>
 
           {/* waste */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col min-h-0'>
             <div className='flex justify-between items-center p-2'>
               <p className='font-semibold text-[#122A48] text-xs'>Live Waste Classification</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-3 p-2 overflow-y-auto'>
+            <div className='flex flex-col gap-3 p-2 overflow-y-auto flex-1 min-h-0'>
               {todayWaste.length === 0 ? (
                 <div className='flex flex-col items-center justify-center h-full py-60 gap-2'>
                   <Trash2 size={28} color="#C6C6C8" />
@@ -318,7 +328,8 @@ export default function Map() {
                   return (
                     <div
                       key={waste.classification_id}
-                      className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} bg-white`}
+                      onClick={() => { setSelectedWaste(waste); setWasteDialog(true) }}
+                      className={`flex items-center gap-3 p-1 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} bg-white`}
                     >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {WASTE_ICONS[waste.dominant_waste_type] ?? <Trash2 size={18} />}
@@ -344,7 +355,7 @@ export default function Map() {
               <p className='font-semibold text-[#122A48]'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-3 p-2 overflow-y-auto'>
+            <div className='flex flex-col gap-3 p-2 overflow-y-auto flex-1 min-h-0'>
               {todayAlerts.length === 0 ? (
                 <div className='flex flex-col items-center justify-center h-full py-60 gap-2'>
                   <Siren size={28} color="#C6C6C8" />
@@ -527,6 +538,78 @@ export default function Map() {
                   })}
                 </>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Waste Classification Detail Dialog */}
+      <Dialog open={wasteDialog} onOpenChange={setWasteDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[350px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg ${WASTE_STYLE[selectedWaste?.dominant_waste_type ?? '']?.icon ?? WASTE_STYLE.None.icon}`}>
+                  {WASTE_ICONS[selectedWaste?.dominant_waste_type ?? ''] ?? <Trash2 size={16} />}
+                </div>
+                <p className="font-bold text-sm">{selectedWaste?.dominant_waste_type}</p>
+              </div>
+              <button onClick={() => setWasteDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Waste Classification Details</DialogTitle>
+          <hr />
+
+          {selectedWaste && (
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Node</p>
+                <p className="font-medium">{selectedWaste.node_details?.node_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Barangay</p>
+                <p className="font-medium">{selectedWaste.node_details?.barangay_details?.barangay_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Detected</p>
+                <p className="font-medium">
+                  {new Date(selectedWaste.timestamp).toLocaleString('en-PH', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                  })}
+                </p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Confidence</p>
+                <p className="font-medium">{selectedWaste.confidence.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Est. Volume</p>
+                <p className="font-medium">{selectedWaste.estimated_volume} kg</p>
+              </div>
+
+              <hr />
+
+              <p className="font-semibold text-xs text-[#727272]">COMPOSITION</p>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Recyclable</p>
+                <p className="font-medium">{selectedWaste.recyclable_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Biodegradable</p>
+                <p className="font-medium">{selectedWaste.biodegradable_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Residual</p>
+                <p className="font-medium">{selectedWaste.residual_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Special Waste</p>
+                <p className="font-medium">{selectedWaste.special_waste_pct.toFixed(1)}%</p>
+              </div>
             </div>
           )}
         </DialogContent>

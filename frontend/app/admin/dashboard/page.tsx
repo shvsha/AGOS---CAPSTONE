@@ -60,6 +60,11 @@ type SensorNodes = {
 type ClogEvents = {
   event_id: number
   severity: string
+  status: string
+  detected_at: string
+  resolved_at: string | null
+  node_details: { node_id: number; node_name: string } | null
+  barangay_details: { barangay_id: number; barangay_name: string } | null
 }
 
 type Barangay = {
@@ -173,6 +178,20 @@ export default function Dashboard() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
+  // summary cards dialog state
+  const [assignedNodesDialog, setAssignedNodesDialog] = useState(false)
+  const [criticalClogsDialog, setCriticalClogsDialog] = useState(false)
+  const [registeredBarangayDialog, setRegisteredBarangayDialog] = useState(false)
+  const [resolvedClogsDialog, setResolvedClogsDialog] = useState(false)
+
+  const [selectedWaste, setSelectedWaste] = useState<WasteClassification | null>(null)
+  const [wasteDialog, setWasteDialog] = useState(false)
+  const [reportProgressDialog, setReportProgressDialog] = useState(false)
+
+  const [batteryDialog, setBatteryDialog] = useState(false)
+  const [signalDialog, setSignalDialog] = useState(false)
+  const [continuityDialog, setContinuityDialog] = useState(false)
+
   const now = new Date()
   const getMonthOptions = () => {
     const months = []
@@ -267,10 +286,22 @@ export default function Dashboard() {
     || nodeHealth.loading || clogEvents.loading || barangays.loading || wasteClassification.loading
 
   // summary cards
-  const totalSensorNodes = sensorNodes.data.filter(b => b.hotspot_details?.hotspot_id).length
-  const criticalAlerts = clogEvents.data.filter(b => b.severity === 'High').length
-  const registeredBarangay = barangays.data.filter(b => b.is_registered).length
-  const resolvedClog = barangays.data.filter(b => !b.is_registered).length
+  const assignedNodes = sensorNodes.data.filter(b => b.hotspot_details?.hotspot_id)
+  const totalSensorNodes = assignedNodes.length
+  const criticalClogs = clogEvents.data.filter(b => b.severity === 'High')
+  const criticalAlerts = criticalClogs.length
+  const registeredBarangays = barangays.data.filter(b => b.is_registered)
+  const registeredBarangay = registeredBarangays.length
+  const resolvedClogsThisMonth = clogEvents.data.filter(c => {
+    if (c.status !== 'Cleared' || !c.resolved_at) return false
+    const resolvedDate = new Date(c.resolved_at)
+    return resolvedDate.getFullYear() === now.getFullYear() && resolvedDate.getMonth() === now.getMonth()
+  })
+  const resolvedClog = resolvedClogsThisMonth.length
+
+  const reviewedReportsThisMonth = barangayReports.data.filter(
+    r => r.report_month.startsWith(selectedMonth) && r.status === 'Reviewed'
+  )
 
   // health helpers
   const latestHealthByNode = new Map<number, NodeHealth>()
@@ -314,17 +345,21 @@ export default function Dashboard() {
     )
   })
 
-  const recentWaste = todayWaste.slice(0, 7)
+  const recentWaste = [...todayWaste]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 7)
 
-  const todayAlerts = alerts.data.filter(alert => {
-    const alertDate = new Date(alert.timestamp)
-    const today = new Date()
-    return (
-      alertDate.getFullYear() === today.getFullYear() &&
-      alertDate.getMonth() === today.getMonth() &&
-      alertDate.getDate() === today.getDate()
-    )
-  })
+  const todayAlerts = alerts.data
+    .filter(alert => {
+      const alertDate = new Date(alert.timestamp)
+      const today = new Date()
+      return (
+        alertDate.getFullYear() === today.getFullYear() &&
+        alertDate.getMonth() === today.getMonth() &&
+        alertDate.getDate() === today.getDate()
+      )
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   const refetchAll = useCallback(() => {
     return Promise.all([
@@ -389,12 +424,16 @@ export default function Dashboard() {
         {/* total cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
-            { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Assigned Sensor Nodes" },
-            { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAlerts, label: "Critical Clogs" },
-            { icon: <MapPinned   size={20} color="#1f518f" />, bg: "bg-[#CDE3DE]", count: registeredBarangay, label: "Registered Barangay" },
-            { icon: <Droplets size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: resolvedClog, label: "Resolved this Month" },
+            { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Assigned Sensor Nodes", onClick: () => setAssignedNodesDialog(true) },
+            { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAlerts, label: "Critical Clogs", onClick: () => setCriticalClogsDialog(true) },
+            { icon: <MapPinned   size={20} color="#1f518f" />, bg: "bg-[#CDE3DE]", count: registeredBarangay, label: "Registered Barangay", onClick: () => setRegisteredBarangayDialog(true) },
+            { icon: <Droplets size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: resolvedClog, label: "Resolved this Month", onClick: () => setResolvedClogsDialog(true) },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div
+              key={card.label}
+              onClick={card.onClick}
+              className={`rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] ${card.onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+            >
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -430,9 +469,9 @@ export default function Dashboard() {
             </div>
 
             {/* monthly report progress */}
-            <div>
+            <div onClick={() => setReportProgressDialog(true)} className="cursor-pointer hover:opacity-80">
               <ReportProgressBar
-                reports={barangayReports.data.filter(r => r.report_month.startsWith(selectedMonth))}
+                reports={reviewedReportsThisMonth}
                 totalBarangays={barangays.data.length}
                 month={monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth}
               />
@@ -457,7 +496,8 @@ export default function Dashboard() {
                   return (
                     <div
                       key={waste.classification_id}
-                      className={`flex items-center gap-3 p-1 h-14 rounded-lg border ${style.border} ${style.shadow} bg-white`}
+                      onClick={() => { setSelectedWaste(waste); setWasteDialog(true) }}
+                      className={`flex items-center gap-3 p-1 h-14 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} bg-white`}
                     >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {WASTE_ICONS[waste.dominant_waste_type] ?? <Trash2 size={18} />}
@@ -532,7 +572,7 @@ export default function Dashboard() {
             <div className="flex gap-3">
 
               {/* Battery Voltage */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div onClick={() => setBatteryDialog(true)} className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] cursor-pointer hover:opacity-80">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Battery size={15} />
@@ -554,7 +594,7 @@ export default function Dashboard() {
               </div>
 
               {/* 4G Signal */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div onClick={() => setSignalDialog(true)} className="cursor-pointer hover:opacity-80 border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <Signal size={15} />
@@ -576,7 +616,7 @@ export default function Dashboard() {
               </div>
 
               {/* Sensor Continuity */}
-              <div className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+              <div onClick={() => setContinuityDialog(true)} className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 text-[#122A48] flex-1 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] cursor-pointer hover:opacity-80">
                 <div className="flex justify-between items-center mb-1">
                   <div className="flex gap-2 items-center">
                     <ScanSearch size={15} />
@@ -691,6 +731,415 @@ export default function Dashboard() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Assigned Sensor Nodes Dialog */}
+      <Dialog open={assignedNodesDialog} onOpenChange={setAssignedNodesDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[420px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#CDE3DE]">
+                  <RadioTower size={16} color="#2C7B3C" />
+                </div>
+                <p className="font-bold text-sm">Assigned Sensor Nodes ({assignedNodes.length})</p>
+              </div>
+              <button onClick={() => setAssignedNodesDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Assigned Sensor Nodes</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {assignedNodes.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No assigned sensor nodes.</p>
+            ) : (
+              assignedNodes.map(node => (
+                <div key={node.node_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                  <div className="flex flex-col">
+                    <p className="text-xs font-semibold">{node.node_name}</p>
+                    <p className="text-[11px] text-[#727272]">{node.hotspot_details?.name ?? '—'}</p>
+                  </div>
+                  <p className="text-[11px] text-[#727272] text-right">{node.barangay_details?.barangay_name ?? '—'}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Critical Clogs Dialog */}
+      <Dialog open={criticalClogsDialog} onOpenChange={setCriticalClogsDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[420px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#FFE5E5]">
+                  <TriangleAlert size={16} color="#D81010" />
+                </div>
+                <p className="font-bold text-sm">Critical Clogs ({criticalClogs.length})</p>
+              </div>
+              <button onClick={() => setCriticalClogsDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Critical Clogs</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {criticalClogs.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No critical clogs.</p>
+            ) : (
+              criticalClogs.map(clog => (
+                <div key={clog.event_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                  <div className="flex flex-col">
+                    <p className="text-xs font-semibold">{clog.node_details?.node_name ?? 'Unknown Node'}</p>
+                    <p className="text-[11px] text-[#727272]">{clog.barangay_details?.barangay_name ?? '—'}</p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFE5E5] text-[#D81010]">{clog.status}</span>
+                    <p className="text-[10px] text-[#727272] mt-1">
+                      {new Date(clog.detected_at).toLocaleString('en-PH', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Registered Barangay Dialog */}
+      <Dialog open={registeredBarangayDialog} onOpenChange={setRegisteredBarangayDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#CDE3DE]">
+                  <MapPinned size={16} color="#1f518f" />
+                </div>
+                <p className="font-bold text-sm">Registered Barangay ({registeredBarangays.length})</p>
+              </div>
+              <button onClick={() => setRegisteredBarangayDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Registered Barangay</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {registeredBarangays.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No registered barangays.</p>
+            ) : (
+              registeredBarangays.map(barangay => (
+                <div key={barangay.barangay_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                  <p className="text-xs font-semibold">{barangay.barangay_name}</p>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#CDE3DE] text-[#1f518f]">Registered</span>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resolved Clogs This Month Dialog */}
+      <Dialog open={resolvedClogsDialog} onOpenChange={setResolvedClogsDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[420px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#1565BC29]">
+                  <Droplets size={16} color="#1565BC" />
+                </div>
+                <p className="font-bold text-sm">Resolved this Month ({resolvedClogsThisMonth.length})</p>
+              </div>
+              <button onClick={() => setResolvedClogsDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Resolved Clogs This Month</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {resolvedClogsThisMonth.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No clogs resolved this month.</p>
+            ) : (
+              resolvedClogsThisMonth.map(clog => (
+                <div key={clog.event_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                  <div className="flex flex-col">
+                    <p className="text-xs font-semibold">{clog.node_details?.node_name ?? 'Unknown Node'}</p>
+                    <p className="text-[11px] text-[#727272]">{clog.barangay_details?.barangay_name ?? '—'}</p>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534]">Cleared</span>
+                    <p className="text-[10px] text-[#727272] mt-1">
+                      {clog.resolved_at && new Date(clog.resolved_at).toLocaleString('en-PH', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Waste Classification Detail Dialog */}
+      <Dialog open={wasteDialog} onOpenChange={setWasteDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[350px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg ${WASTE_STYLE[selectedWaste?.dominant_waste_type ?? '']?.icon ?? WASTE_STYLE.None.icon}`}>
+                  {WASTE_ICONS[selectedWaste?.dominant_waste_type ?? ''] ?? <Trash2 size={16} />}
+                </div>
+                <p className="font-bold text-sm">{selectedWaste?.dominant_waste_type}</p>
+              </div>
+              <button onClick={() => setWasteDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Waste Classification Details</DialogTitle>
+          <hr />
+
+          {selectedWaste && (
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Node</p>
+                <p className="font-medium">{selectedWaste.node_details?.node_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Barangay</p>
+                <p className="font-medium">{selectedWaste.node_details?.barangay_details?.barangay_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Detected</p>
+                <p className="font-medium">
+                  {new Date(selectedWaste.timestamp).toLocaleString('en-PH', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                  })}
+                </p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Confidence</p>
+                <p className="font-medium">{selectedWaste.confidence.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Est. Volume</p>
+                <p className="font-medium">{selectedWaste.estimated_volume} kg</p>
+              </div>
+
+              <hr />
+
+              <p className="font-semibold text-xs text-[#727272]">COMPOSITION</p>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Recyclable</p>
+                <p className="font-medium">{selectedWaste.recyclable_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Biodegradable</p>
+                <p className="font-medium">{selectedWaste.biodegradable_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Residual</p>
+                <p className="font-medium">{selectedWaste.residual_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Special Waste</p>
+                <p className="font-medium">{selectedWaste.special_waste_pct.toFixed(1)}%</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Report Progress Dialog */}
+      <Dialog open={reportProgressDialog} onOpenChange={setReportProgressDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[420px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#2C7B3C29]">
+                  <MapPinned size={16} color="#2C7B3C" />
+                </div>
+                <p className="font-bold text-sm">
+                  Reviewed Reports — {monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth} ({reviewedReportsThisMonth.length})
+                </p>
+              </div>
+              <button onClick={() => setReportProgressDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Reviewed Barangay Reports</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {reviewedReportsThisMonth.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No reviewed reports yet this month.</p>
+            ) : (
+              reviewedReportsThisMonth.map(report => (
+                <div key={report.monthly_report_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                  <p className="text-xs font-semibold">{report.barangay_details?.barangay_name ?? '—'}</p>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534]">Reviewed</span>
+                    <p className="text-[10px] text-[#727272] mt-1">
+                      {new Date(report.submitted_at).toLocaleString('en-PH', {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Battery Voltage Dialog */}
+      <Dialog open={batteryDialog} onOpenChange={setBatteryDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#E5E5E6]">
+                  <Battery size={16} />
+                </div>
+                <p className="font-bold text-sm">Battery Voltage ({activeHealth.length})</p>
+              </div>
+              <button onClick={() => setBatteryDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Battery Voltage per Node</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {activeHealth.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No active sensor nodes.</p>
+            ) : (
+              activeHealth.map(n => {
+                const pct = n.battery_voltage != null ? getBatteryPct(n.battery_voltage) : null
+                return (
+                  <div key={n.node_details.node_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                    <div className="flex flex-col">
+                      <p className="text-xs font-semibold">{n.node_details.node_name}</p>
+                      <p className="text-[11px] text-[#727272]">{n.node_details.barangay_details?.barangay_name ?? '—'}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${pct != null ? getDotColor(pct) : 'bg-[#C6C6C8]'}`} />
+                      <p className="text-xs font-medium">{n.battery_voltage != null ? `${n.battery_voltage.toFixed(1)}V` : '—'}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Signal Strength Dialog */}
+      <Dialog open={signalDialog} onOpenChange={setSignalDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#E5E5E6]">
+                  <Signal size={16} />
+                </div>
+                <p className="font-bold text-sm">4G Signal ({activeHealth.length})</p>
+              </div>
+              <button onClick={() => setSignalDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Signal Strength per Node</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {activeHealth.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No active sensor nodes.</p>
+            ) : (
+              activeHealth.map(n => {
+                const pct = n.signal_strength != null ? getSignalPct(n.signal_strength) : null
+                return (
+                  <div key={n.node_details.node_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                    <div className="flex flex-col">
+                      <p className="text-xs font-semibold">{n.node_details.node_name}</p>
+                      <p className="text-[11px] text-[#727272]">{n.node_details.barangay_details?.barangay_name ?? '—'}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${pct != null ? getDotColor(pct) : 'bg-[#C6C6C8]'}`} />
+                      <p className="text-xs font-medium">{n.signal_strength != null ? `${n.signal_strength} dBm` : '—'}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sensor Continuity Dialog */}
+      <Dialog open={continuityDialog} onOpenChange={setContinuityDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#E5E5E6]">
+                  <ScanSearch size={16} />
+                </div>
+                <p className="font-bold text-sm">Sensor Continuity ({passingCount}/{totalSensorNodes})</p>
+              </div>
+              <button onClick={() => setContinuityDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Sensor Continuity per Node</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {latestHealthLogs.filter(n => assignedNodeIds.has(n.node_details.node_id)).length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No assigned sensor nodes reporting.</p>
+            ) : (
+              latestHealthLogs
+                .filter(n => assignedNodeIds.has(n.node_details.node_id))
+                .map(n => (
+                  <div key={n.node_details.node_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                    <div className="flex flex-col">
+                      <p className="text-xs font-semibold">{n.node_details.node_name}</p>
+                      <p className="text-[11px] text-[#727272]">{n.node_details.barangay_details?.barangay_name ?? '—'}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${n.sensor_continuity ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#FFE5E5] text-[#D81010]'}`}>
+                      {n.sensor_continuity ? 'PASS' : 'FAIL'}
+                    </span>
+                  </div>
+                ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

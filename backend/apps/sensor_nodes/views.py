@@ -12,6 +12,7 @@ from apps.audit_logs.utils import log_action
 import secrets
 from django.contrib.auth.hashers import make_password
 from agos_backend.pdf_utils import render_to_pdf
+from .utils import send_device_key_email 
 from apps.audit_logs.utils import log_action
 
 
@@ -185,9 +186,9 @@ class SensorNodeRetireView(APIView):
 class SensorNodeGenerateKeyView(APIView):
     """
     Generates a new device credential for a node. The plaintext key is
-    returned ONLY in this response — it's never stored or recoverable
-    again, only the hash. Calling this again for the same node
-    invalidates whatever key it had before.
+    emailed to the requesting admin — it's never returned in the API
+    response, stored, or recoverable again, only the hash. Calling this
+    again for the same node invalidates whatever key it had before.
     """
     permission_classes = [IsAdmin]
 
@@ -201,6 +202,9 @@ class SensorNodeGenerateKeyView(APIView):
         node.device_key_hash = make_password(secret)
         node.save()
 
+        device_key = f"{node.node_id}.{secret}"
+        send_device_key_email(request.user, node, device_key)
+
         log_action(
             user=request.user,
             action='Generated Device Key',
@@ -211,8 +215,8 @@ class SensorNodeGenerateKeyView(APIView):
 
         return Response({
             'node_id': node.node_id,
-            'device_key': f"{node.node_id}.{secret}",
-            'warning': 'This key will not be shown again. Copy it into the device firmware now.',
+            'email': request.user.email,
+            'message': 'Device key generated and sent to your email.',
         }, status=status.HTTP_200_OK)
 
 
