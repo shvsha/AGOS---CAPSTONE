@@ -2,10 +2,11 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Copy, BadgeCheck } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Mail, BadgeCheck } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -62,6 +63,8 @@ type SensorReading = {
 
 
 export default function NodeManagement() {
+  const router = useRouter()
+
   // fetch raw data
   const fetchNodesRaw = async (): Promise<SensorNode[]> => {
     const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
@@ -112,10 +115,9 @@ export default function NodeManagement() {
   const [decommissionDialog, setDecommissionDialog] = useState<DialogState>({ open: false, node: null })
   const [decommissionGuardDialog, setDecommissionGuardDialog] = useState<DialogState>({ open: false, node: null })
 
-  const [keyModal, setKeyModal] = useState<{ open: boolean; deviceKey: string; nodeName: string; fromAdd: boolean }>({ open: false, deviceKey: '', nodeName: '', fromAdd: false })
+  const [keyModal, setKeyModal] = useState<{ open: boolean; email: string; nodeName: string; fromAdd: boolean }>({ open: false, email: '', nodeName: '', fromAdd: false })
   const [regenerateConfirmDialog, setRegenerateConfirmDialog] = useState<DialogState>({ open: false })
   const [generatingKey, setGeneratingKey] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   const isEdit = !!nodeFormDialog.node
 
@@ -223,7 +225,7 @@ export default function NodeManagement() {
     setGeneratingKey(true)
     try {
       const result = await api.post(`/api/sensor-nodes/${node.node_id}/generate-key/`, {})
-      setKeyModal({ open: true, deviceKey: result.device_key, nodeName: node.node_name, fromAdd })
+      setKeyModal({ open: true, email: result.email, nodeName: node.node_name, fromAdd })
     } catch (err: any) {
       setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? 'Failed to generate device key.' })
       if (fromAdd) {
@@ -237,8 +239,7 @@ export default function NodeManagement() {
 
   const handleKeyModalDone = () => {
     const wasFromAdd = keyModal.fromAdd
-    setKeyModal({ open: false, deviceKey: '', nodeName: '', fromAdd: false })
-    setCopied(false)
+    setKeyModal({ open: false, email: '', nodeName: '', fromAdd: false })
     if (wasFromAdd) {
       setNodeFormDialog({ open: false, node: null })
       resetForm()
@@ -267,14 +268,18 @@ export default function NodeManagement() {
         resetForm()
         setLoadingDialog({ open: false })
         setSuccessDialog({ open: true })
-      } else {
-        const created = await api.post('/api/sensor-nodes/', payload)
-        nodesCache.setData(prev => [created, ...prev])
-        setActionResult({ name: created.node_name, action: 'added' })
-        setLoadingDialog({ open: false })
-        await generateKeyForNode(created, true)
-        // form closes + success dialog fires inside handleKeyModalDone, once the key's been shown
-      }
+        } else {
+          const created = await api.post('/api/sensor-nodes/', payload)
+          nodesCache.setData(prev => [created, ...prev])
+          setActionResult({ name: created.node_name, action: 'added' })
+          setLoadingMessage({
+            title: "Generating Device Key",
+            description: "Creating a secure key and emailing it to you. Please wait.",
+          })
+          await generateKeyForNode(created, true)
+          setLoadingDialog({ open: false })
+          // form closes + success dialog fires inside handleKeyModalDone, once the key's been shown
+        }
     } catch (err: any) {
       setLoadingDialog({ open: false })
       if (err?.node_code) {
@@ -325,8 +330,12 @@ export default function NodeManagement() {
   }
 
   const handleSuccessConfirm = () => {
+    const wasAdd = actionResult?.action === 'added'
     setSuccessDialog({ open: false })
     setActionResult(null)
+    if (wasAdd) {
+      router.push('/admin/assign')
+    }
   }
 
   if (loading) return <NodeSkeleton/>
@@ -805,32 +814,18 @@ export default function NodeManagement() {
         confirmLabel="Generate Key"
       />
 
-      {/* Device key reveal modal */}
+      {/* Device key generated — sent via email */}
       <DialogModal
         open={keyModal.open}
         color={DIALOG_COLOR.lightgreen}
-        icon={KeyRound}
+        icon={Mail}
         iconColor={DIALOG_COLOR.green}
         title="Device Key Generated"
         description={
           <span className="flex flex-col gap-2">
             <span className="block">
-              Copy this key into <strong>{keyModal.nodeName}</strong>&apos;s firmware now — it will not be shown again.
-            </span>
-            <span className="flex items-center gap-2 rounded-lg border border-[#C6C6C8] bg-[#1565BC05] px-3 py-2">
-              <code className="flex-1 text-[11px] sm:text-xs break-all font-mono text-[#122A48]">
-                {keyModal.deviceKey}
-              </code>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(keyModal.deviceKey)
-                  setCopied(true)
-                }}
-                className="flex-shrink-0 cursor-pointer text-[#1565BC] hover:text-[#12569f]"
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </button>
+              A new device key for <strong>{keyModal.nodeName}</strong> has been sent to{" "}
+              <strong>{keyModal.email}</strong>. Check your inbox to copy it into the device firmware.
             </span>
             <span className="block text-[#FF0000] text-[11px] sm:text-xs font-medium">
               If lost, you&apos;ll need to generate a new key and reflash the device.

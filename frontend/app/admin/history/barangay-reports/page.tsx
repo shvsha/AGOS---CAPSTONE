@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback} from "react"
 import { useRouter } from "next/navigation"
 
 // icons
-import { Calendar as CalendarIcon, Share, Leaf, Recycle, Blocks, Radar, Eye, FileDown, Trash2 } from "lucide-react"
+import { Calendar as CalendarIcon, X, Leaf, Recycle, Blocks, Radar, Eye, FileDown, Trash2 } from "lucide-react"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -26,6 +26,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // lib
 import { fetchWithAuth } from "@/lib/auth"
@@ -106,6 +107,13 @@ const fetchBarangayReportsRaw = async (): Promise<BarangayReports[]> => {
   return data.results ?? data
 }
 
+const fetchAllStatusReportsRaw = async (): Promise<BarangayReports[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`)
+  if (!res.ok) throw new Error()
+  const data = await res.json()
+  return data.results ?? data
+}
+
 
 const formatReportMonth = (date: string) =>
   new Date(date).toLocaleDateString("en-US", { month: "long", year: "numeric" })
@@ -138,12 +146,15 @@ export default function BarangayReports() {
   const monthOptions = getMonthOptions()
   const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
+  const [reportProgressDialog, setReportProgressDialog] = useState(false)
 
   // data states
   const reportsCache = usePageCache('barangayReports:reports', fetchBarangayReportsRaw, [] as BarangayReports[], { autoFetch: false })
   const barangayReports = reportsCache.data
-  const loading = barangaysCache.loading || reportsCache.loading
-  const fetchError = barangaysCache.error || reportsCache.error
+  const allStatusReportsCache = usePageCache('barangayReports:allStatus', fetchAllStatusReportsRaw, [] as BarangayReports[], { autoFetch: false })
+  const allStatusReports = allStatusReportsCache.data
+  const loading = barangaysCache.loading || reportsCache.loading || allStatusReportsCache.loading
+  const fetchError = barangaysCache.error || reportsCache.error || allStatusReportsCache.error
 
   function getFilteredBarangayReports(
     barangay_reports: BarangayReports[],
@@ -164,6 +175,18 @@ export default function BarangayReports() {
 
   const filtered = getFilteredBarangayReports(barangayReports, filterBarangay, selectedMonth, search)
 
+  const barangayReportStatus = allBarangays.map(b => {
+    const report = allStatusReports.find(
+      r => r.barangay_details?.barangay_id === b.barangay_id && r.report_month.startsWith(selectedMonth)
+    )
+    return {
+      barangay_id: b.barangay_id,
+      barangay_name: b.barangay_name,
+      status: report?.status ?? null, // null = not submitted at all
+      submitted_at: report?.submitted_at ?? null,
+    }
+  })
+
   const { panelRef, tableWrapRef, rows } = useFillRows({
     rowHeight: 56,
     initialRows: 5,
@@ -181,6 +204,7 @@ export default function BarangayReports() {
     await Promise.allSettled([
       barangaysCache.refetch(),
       reportsCache.refetch(),
+      allStatusReportsCache.refetch(),
     ])
   }, [])
 
@@ -268,7 +292,7 @@ export default function BarangayReports() {
 
         {/* monthly report progress */}
         <div className="mt-2 flex gap-2 w-full">
-          <div className="flex-[3]">
+          <div onClick={() => setReportProgressDialog(true)} className="flex-[3] cursor-pointer hover:opacity-80">
             <ReportProgressBar
               reports={barangayReports.filter(r => r.report_month.startsWith(selectedMonth))}
               totalBarangays={allBarangays.length}
@@ -404,6 +428,51 @@ export default function BarangayReports() {
       <Toast toasts={toasts} onRemove={removeToast} />
 
       {ExportDialogs}
+
+      {/* Barangay Reporting Status Dialog */}
+      <Dialog open={reportProgressDialog} onOpenChange={setReportProgressDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[420px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-[#58D07159]">
+                  <CalendarIcon size={16} color="#2C7B3C" />
+                </div>
+                <p className="font-bold text-sm">
+                  Barangay Reporting Status — {monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth}
+                </p>
+              </div>
+              <button onClick={() => setReportProgressDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Barangay Reporting Status</DialogTitle>
+          <hr />
+
+          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+            {barangayReportStatus.length === 0 ? (
+              <p className="text-xs text-[#727272] text-center py-6">No barangays registered.</p>
+            ) : (
+              barangayReportStatus.map(b => (
+                <div key={b.barangay_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
+                  <p className="text-xs font-semibold">{b.barangay_name}</p>
+                  {b.status === "Reviewed" ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#B2FBC173] text-[#2C7B3C]">Reviewed</span>
+                  ) : b.status === "Pending" ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DBEAFE] text-[#1565BC]">Pending</span>
+                  ) : b.status === "Draft" ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E5E5E6] text-[#727272]">Draft</span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFE5E5] text-[#D81010]">Not Submitted</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
