@@ -147,6 +147,14 @@ export default function Monitoring() {
     deps: [loading],
   })
 
+  const { panelRef: alertsPanelRef, tableWrapRef: alertsWrapRef, rows: alertRows } = useFillRows({
+    rowHeight: 53,
+    itemGap: 8,
+    minRows: 3,
+    reservePaginationSpace: false,
+    deps: [loading],
+  })
+
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   // summary cards
@@ -154,10 +162,14 @@ export default function Monitoring() {
     .filter(n => n.hotspot_details != null)
     .filter(n => n.availability_status === 'Occupied')
 
-  const total    = occupiedNodes.length
+  const total = occupiedNodes.length
   const critical = occupiedNodes.filter(n => n.condition === 'Critical').length
-  const warning  = occupiedNodes.filter(n => n.condition === 'Warning').length
-  const normal   = occupiedNodes.filter(n => n.condition === 'Normal').length
+  const warning = occupiedNodes.filter(n => n.condition === 'Warning').length
+  const normal = occupiedNodes.filter(n => n.condition === 'Normal').length
+
+  const activeCount = nodes.data.filter(n => n.status === 'Active').length
+  const inactiveCount = nodes.data.filter(n => n.status === 'Inactive').length
+  const maintenanceCount = nodes.data.filter(n => n.status === 'Maintenance').length
 
   // clock
   useEffect(() => {
@@ -361,19 +373,19 @@ export default function Monitoring() {
           </div>
 
           {/* live alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full'>
-            <div className='flex justify-between items-center justify-between p-2'>
+          <div ref={alertsPanelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full'>
+            <div className='flex justify-between items-center p-2'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-2 p-3 overflow-y-auto flex-1 min-h-0'>
+            <div ref={alertsWrapRef} className='flex flex-col gap-2 p-1.5 overflow-y-auto flex-1 min-h-0'>
               {todayAlerts.length === 0 ? (
                 <div className='flex-1 flex flex-col items-center justify-center gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 8).map(alert => {
+                todayAlerts.slice(0, alertRows).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div
@@ -382,7 +394,7 @@ export default function Monitoring() {
                         setSelectedAlert(alert)
                         setAlertDialog(true)
                       }}
-                      className={`flex items-center gap-3 p-1 h-14 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
+                      className={`flex items-center gap-3 p-1 h-[53px] rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
                     >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
@@ -405,7 +417,7 @@ export default function Monitoring() {
           {/* device and clog level legend */}
           <div className='flex flex-col gap-3'>
             {/* device status */}
-            {/* <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
+            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
                 <p className='font-semibold text-[#122A48]'>Device Status</p>
                 <hr />
@@ -416,12 +428,12 @@ export default function Monitoring() {
                   { color: 'text-[#727272]', dotColor: 'bg-[#727272]', count: inactiveCount,  label: "Inactive" },
                   { color: 'text-[#582579]', dotColor: 'bg-[#582579]', count: maintenanceCount, label: "Maintenance" },
                 ].map(status => (
-                  <div key={status.label} className="flex justify-between items-center py-3.5 px-3 bg-[#FAFCFD] -mt-2">
+                  <div key={status.label} className="flex justify-between items-center py-3 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">
                       <span className={`w-2 h-2 rounded-full ${status.dotColor} `}/>
-                      <p className={`text-sm font-semibold ${status.color}`}>{status.label}</p>
+                      <p className={`text-xs font-semibold ${status.color}`}>{status.label}</p>
                     </div>
-                    <span className={`text-sm font-bold leading-tight ${status.color}`}>{status.count}</span>
+                    <span className={`text-xs font-bold leading-tight ${status.color}`}>{status.count}</span>
                   </div>
                 ))}
 
@@ -434,7 +446,7 @@ export default function Monitoring() {
                 </div>
 
               </div>
-            </div> */}
+            </div>
            
 
             {/* clog level legend */}

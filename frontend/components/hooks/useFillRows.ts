@@ -33,11 +33,9 @@ export function useFillRows({ rowHeight, itemGap = 0, initialRows, minRows = 3, 
       const paginationReserve = reservePaginationSpace ? RESERVED_PAGINATION_HEIGHT : 0
 
       const availableForRows =
-        panelRect.bottom - tableTop - headerHeight - RESERVED_PAGINATION_HEIGHT
+        panelRect.bottom - tableTop - headerHeight - paginationReserve
 
-      const nextRows = Math.max(minRows, Math.floor(availableForRows / (rowHeight + itemGap)))
-
-      console.log({ panelBottom: panelRect.bottom, tableTop, headerHeight, availableForRows, nextRows })
+      const nextRows = Math.max(minRows, Math.floor((availableForRows + itemGap) / (rowHeight + itemGap)))
 
       setRows(prev => (prev === nextRows ? prev : nextRows))
     }
