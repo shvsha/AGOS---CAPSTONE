@@ -448,7 +448,7 @@ export default function Dashboard() {
             <div
               key={card.label}
               onClick={card.onClick}
-              className={`rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] ${card.onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+              className={`rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] cursor-pointer hover:opacity-80`}
             >
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
