@@ -117,7 +117,7 @@ export default function Alerts() {
   }, [alerts, search, barangay, alertType, barangays])
 
   const { panelRef, tableWrapRef, rows } = useFillRows({
-    rowHeight: 50.5,
+    rowHeight: 49.3,
     initialRows: 9,
     deps: [loading],
   })
@@ -242,14 +242,14 @@ return (
                         className={`border-b border-[#C6C6C8] cursor-pointer ${alert.is_read ? "opacity-60" : ""} hover:bg-[#f5f5f5]`}
                         onClick={() => handleRowClick(alert)}
                       >
-                        <TableCell className="text-[#122A48] text-left h-[50.5px] text-xs">{alert.node_name ?? "—"}</TableCell>
-                        <TableCell className="text-left h-[50.5px] text-xs">
+                        <TableCell className="text-[#122A48] text-left h-[49.3px] text-xs">{alert.node_name ?? "—"}</TableCell>
+                        <TableCell className="text-left h-[49.3px] text-xs">
                           <span className={`inline-flex items-center gap-1.5 px-2 text-[11px] py-1 rounded-full font-semibold ${style.icon}`}>
                             {meta.label}
                           </span>
                         </TableCell>
-                        <TableCell className="text-[#122A48] text-left h-[50.5px] text-xs">{alert.barangay_name ?? "—"}</TableCell>
-                        <TableCell className="text-[#122A48] text-left h-[50.5px] text-xs">
+                        <TableCell className="text-[#122A48] text-left h-[49.3px] text-xs">{alert.barangay_name ?? "—"}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-[49.3px] text-xs">
                           {new Date(alert.timestamp).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </TableCell>
                       </TableRow>

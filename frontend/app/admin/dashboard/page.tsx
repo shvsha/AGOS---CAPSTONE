@@ -16,6 +16,7 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import ReportProgressBar from "@/components/MonthlyReportProgressBar"
 import { ALERT_STYLE, WASTE_STYLE } from '@/lib/constant'
 import { usePolling } from "@/components/hooks/usePolling"
+import { useFillRows } from "@/components/hooks/useFillRows"
 import { DashboardSkeleton } from "@/components/Skeleton/Admin/DashboardSkeleton"
 
 // auth
@@ -285,6 +286,21 @@ export default function Dashboard() {
   const loading = sensorNodes.loading || barangayReports.loading || alerts.loading
     || nodeHealth.loading || clogEvents.loading || barangays.loading || wasteClassification.loading
 
+  const { panelRef: wastePanelRef, tableWrapRef: wasteWrapRef, rows: wasteRows } = useFillRows({
+    rowHeight: 56,
+    itemGap: 8,
+    minRows: 3,
+    reservePaginationSpace: false,
+    deps: [loading],
+  })
+  const { panelRef: alertsPanelRef, tableWrapRef: alertsWrapRef, rows: alertRows } = useFillRows({
+    rowHeight: 56,
+    itemGap: 8,
+    minRows: 3,
+    reservePaginationSpace: false,
+    deps: [loading],
+  })
+
   // summary cards
   const assignedNodes = sensorNodes.data.filter(b => b.hotspot_details?.hotspot_id)
   const totalSensorNodes = assignedNodes.length
@@ -347,7 +363,7 @@ export default function Dashboard() {
 
   const recentWaste = [...todayWaste]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 7)
+    .slice(0, wasteRows)
 
   const todayAlerts = alerts.data
     .filter(alert => {
@@ -432,7 +448,7 @@ export default function Dashboard() {
             <div
               key={card.label}
               onClick={card.onClick}
-              className={`rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] ${card.onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+              className={`rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] cursor-pointer hover:opacity-80`}
             >
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
@@ -479,14 +495,14 @@ export default function Dashboard() {
           </div>
           
           {/* wastes */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col'>
-            <div className='flex justify-between items-center justify-between p-1.5 px-3'>
+          <div ref={wastePanelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col min-h-0'>
+            <div className='flex justify-between items-center p-1.5 px-3'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Waste Classification</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-2 p-2 overflow-y-auto'>
+            <div ref={wasteWrapRef} className='flex flex-col gap-2 p-2 overflow-y-auto flex-1 min-h-0'>
               {recentWaste.length === 0 ? (
-                <div className='flex flex-col items-center justify-center h-full py-45 gap-2'>
+                <div className='flex flex-col items-center justify-center h-full gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No waste classification today</p>
                 </div>
@@ -518,19 +534,19 @@ export default function Dashboard() {
           </div>
 
           {/* alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col'>
-            <div className='flex justify-between items-center justify-between p-1.5 px-3'>
+          <div ref={alertsPanelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col min-h-0'>
+            <div className='flex items-center justify-between p-1.5 px-3'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-2 p-2 overflow-y-auto'>
+            <div ref={alertsWrapRef} className='flex flex-col gap-2 p-2 overflow-y-auto flex-1 min-h-0'>
               {todayAlerts.length === 0 ? (
-                <div className='flex flex-col items-center justify-center h-full py-45 gap-2'>
+                <div className='flex flex-col items-center justify-center h-full gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 7).map(alert => {
+                todayAlerts.slice(0, alertRows).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div
