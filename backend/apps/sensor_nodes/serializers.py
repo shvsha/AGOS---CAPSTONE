@@ -1,10 +1,14 @@
 import re
 from rest_framework import serializers
-from .models import SensorNode, SystemHealthLog
+from .models import SensorNode, SystemHealthLog, MaintenanceLog
 from apps.barangay.models import Barangay
 from apps.hotspots.models import Hotspot
 from apps.sensor_readings.models import SensorReading
+from datetime import timedelta
+from django.utils import timezone
 
+HEALTH_REPORT_INTERVAL_MINUTES = 10
+OFFLINE_THRESHOLD_MINUTES = 25
 CODE_PATTERN = re.compile(r'^[A-Za-z0-9\-]+$')
 
 
@@ -59,6 +63,8 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     clog_pct = serializers.SerializerMethodField()
     condition = serializers.SerializerMethodField()
     health_status = serializers.SerializerMethodField()
+    is_online = serializers.SerializerMethodField()
+    last_seen = serializers.SerializerMethodField()
 
     last_reading_at = serializers.SerializerMethodField()
 
@@ -72,7 +78,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'availability_status', 'status',
             'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
-            'health_status',
+            'health_status', 'is_online', 'last_seen',
             'last_reading_at',
         ]
         extra_kwargs = {
@@ -142,10 +148,20 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         if r.clog_pct >= 34:
             return 'Warning'
         return 'Normal'
-
+    
     def get_health_status(self, obj):
         h = self._latest_health(obj)
         return h.status if h else None
+
+    def get_is_online(self, obj):
+        latest = self._latest_health(obj)
+        if not latest:
+            return False
+        return (timezone.now() - latest.checked_at) <= timedelta(minutes=OFFLINE_THRESHOLD_MINUTES)
+
+    def get_last_seen(self, obj):
+        latest = self._latest_health(obj)
+        return latest.checked_at if latest else None
 
     def get_last_reading_at(self, obj):
         r = self._latest(obj)
@@ -214,3 +230,29 @@ class SystemHealthLogSerializer(serializers.ModelSerializer):
 
     def get_node_details(self, obj):
         return get_node_identity(obj.node)
+
+
+class MaintenanceLogSerializer(serializers.ModelSerializer):
+    node_details = serializers.SerializerMethodField()
+    marked_by_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MaintenanceLog
+        fields = [
+            'maintenance_id', 'node', 'node_details',
+            'reason', 'marked_by', 'marked_by_details',
+            'started_at', 'resolved_at',
+        ]
+        read_only_fields = ['node', 'marked_by', 'started_at']
+
+    def get_node_details(self, obj):
+        return get_node_identity(obj.node)
+
+    def get_marked_by_details(self, obj):
+        if not obj.marked_by:
+            return None
+        return {
+            'user_id': obj.marked_by.user_id,
+            'first_name': obj.marked_by.first_name,
+            'last_name': obj.marked_by.last_name,
+        }

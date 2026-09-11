@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Users, ChartNoAxesCombined,
   Siren, Activity, History, Stamp,
   Map, Package, FileBarChart, CalendarDays,
-  MapPin, FileUp, LogOut, RadioTower, ChevronDown,
+  MapPin, Wrench, LogOut, RadioTower, ChevronDown,
   SlidersHorizontal, Target, GitBranchPlus,
   TriangleAlert, Settings, Book 
 } from "lucide-react"
@@ -87,6 +87,7 @@ const navItems: Record<string, NavItem[]> = {
         { label: "User Management",     href: "/admin/users",   icon: <Users size={14} /> },
         { label: "Barangay Management", href: "/admin/barangay",icon: <MapPin size={14} /> },
         { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
+        { label: "Maintenance Logs",    href: "/admin/maintenance-logs",  icon: <Wrench size={14} /> },
         { label: "Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
         { label: "Settings",    href: "/admin/settings",  icon: <Settings size={14} /> },
         { label: "User Manual",    href: "/admin/manual",  icon: <Book size={14} /> },

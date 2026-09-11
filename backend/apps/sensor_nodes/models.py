@@ -2,6 +2,7 @@ from django.db import models
 from apps.barangay.models import Barangay
 from apps.hotspots.models import Hotspot
 from django.utils import timezone
+from django.conf import settings
 
 
 class SensorNode(models.Model):
@@ -83,3 +84,28 @@ class SystemHealthLog(models.Model):
 
     def __str__(self):
         return f"Health {self.health_id} - Node {self.node.node_id} - {self.status}"
+
+
+class MaintenanceLog(models.Model):
+    maintenance_id = models.AutoField(primary_key=True)
+    node = models.ForeignKey(
+        SensorNode,
+        on_delete=models.CASCADE,
+        db_column='node_id'
+    )
+    reason = models.TextField()
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        db_column='marked_by'
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'tbl_maintenance_logs'
+
+    def __str__(self):
+        state = "Ongoing" if self.resolved_at is None else "Resolved"
+        return f"Maintenance {self.maintenance_id} - Node {self.node.node_id} - {state}"

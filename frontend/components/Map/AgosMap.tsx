@@ -20,10 +20,11 @@ const CONDITION_COLORS: Record<string, string> = {
 }
 
 const HEALTH_COLORS: Record<string, string> = {
-  Critical: "#D81010",
-  Warning:  "#D86610",
-  Normal:   "#2C7B3C",
-  default:  "#727272",
+  Critical:    "#D81010",
+  Warning:     "#D86610",
+  Normal:      "#2C7B3C",
+  Maintenance: "#7C3AED",
+  default:     "#727272",
 }
 
 const AVAILABILITY_COLORS: Record<string, string> = {
@@ -96,7 +97,7 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null
 }
 
-function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
+function MapLegend() {
   const map = useMap()
 
   useEffect(() => {
@@ -117,8 +118,8 @@ function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
             <p style="font-weight:700; margin-bottom:6px;">Live Risk Level</p>
             ${[
               { color: '#727272', label: 'Sleep Mode' },
-              { color: colorMode === 'health' ? '#2C7B3C' : '#1565BC', label: 'Normal' },
-              { color: colorMode === 'health' ? '#D86610' : '#FF9705', label: 'Warning' },
+              { color: '#1565BC', label: 'Normal' },
+              { color: '#FF9705', label: 'Warning' },
               { color: '#D81010', label: 'Critical' },
             ].map(({ color, label }) => `
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
@@ -141,7 +142,58 @@ function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
 
     legend.addTo(map)
     return () => { legend.remove() }
-  }, [map, colorMode])
+  }, [map])
+
+  return null
+}
+
+function HealthLegend() {
+  const map = useMap()
+
+  useEffect(() => {
+    const legend = new (L.Control.extend({
+      options: { position: 'bottomleft' },
+      onAdd() {
+        const div = L.DomUtil.create('div')
+        div.innerHTML = `
+          <div style="
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            font-size: 11px;
+            color: #122A48;
+          ">
+            <p style="font-weight:700; margin-bottom:6px;">Node Health Status</p>
+            ${[
+              { color: '#727272', label: 'Offline / Sleep' },
+              { color: '#2C7B3C', label: 'Operating Normally' },
+              { color: '#D86610', label: 'Needs Attention' },
+              { color: '#D81010', label: 'Critical Fault' },
+              { color: '#7C3AED', label: 'Under Maintenance' },
+            ].map(({ color, label }) => `
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="
+                  display:inline-block;
+                  width:12px; height:12px;
+                  border-radius:50%;
+                  background:${color};
+                  border: 2px solid white;
+                  box-shadow: 0 0 3px rgba(0,0,0,0.2);
+                "></span>
+                <span>${label}</span>
+              </div>
+            `).join('')}
+          </div>
+        `
+        return div
+      }
+    }))()
+
+    legend.addTo(map)
+    return () => { legend.remove() }
+  }, [map])
 
   return null
 }
@@ -312,9 +364,9 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       )}
 
       {showLegend && (
-        colorMode === 'availability'
-          ? <HotspotAvailabilityLegend />
-          : <MapLegend colorMode={colorMode} />
+        colorMode === 'availability' ? <HotspotAvailabilityLegend /> :
+        colorMode === 'health'       ? <HealthLegend /> :
+        <MapLegend />
       )}
 
       {hasSingle && (

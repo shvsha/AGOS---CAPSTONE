@@ -75,6 +75,12 @@ const getClogPctColor = (value: number) => {
   return 'text-[#D81010]'
 }
 
+const getDeviceStatusStyle = (status: string) => {
+  if (status === 'Active') return { text: 'text-[#2C7B3C]', dot: 'bg-[#2C7B3C]' }
+  if (status === 'Maintenance') return { text: 'text-[#582579]', dot: 'bg-[#582579]' }
+  return { text: 'text-[#727272]', dot: 'bg-[#727272]' } // Inactive / fallback
+}
+
 const ALERT_ICONS: Record<string, ReactNode> = {
   Water_Level_Rising: <Activity size={18} />,
   Critical_Clog:      <RadioTower size={18} />,
@@ -291,6 +297,7 @@ export default function Monitoring() {
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE ID</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>DEVICE STATUS</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>FLOW RATE</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLOG</TableHead>
@@ -312,6 +319,17 @@ export default function Monitoring() {
                           <Map size={16}/>
                             View on map
                           </Button>
+                        </TableCell>
+                        <TableCell className='text-leftleft text-xs'>
+                          {(() => {
+                            const s = getDeviceStatusStyle(node.status)
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 font-semibold ${s.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                                {node.status}
+                              </span>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell className='text-leftleft text-xs'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
                         <TableCell className='text-leftleft text-xs'>

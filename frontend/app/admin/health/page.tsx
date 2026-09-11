@@ -1,7 +1,7 @@
 "use client"
 
 // icons
-import { BatteryMedium, Signal, ScanSearch, Radar, FileSearch, Battery, FileDown  } from "lucide-react";
+import { BatteryMedium, Signal, ScanSearch, Radar, FileSearch, Battery, FileDown, Wrench, CheckCircle2, X } from "lucide-react";
 
 // react
 import { useEffect, useState } from "react";
@@ -9,11 +9,21 @@ import { useEffect, useState } from "react";
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { HealthSkeleton } from "@/components/Skeleton/Admin/HealthSkeleton";
-import { Button } from "@/components/ui/button"
 import { useExportDialog } from "@/components/ExportDialog/useExportDialog";
 import { exportPdf } from "@/lib/exportPDF";
 import { useToast } from "@/components/hooks/useToast";
 import { Toast } from "@/components/Toast";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
+
+// shadcn
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DialogModal } from "@/components/DialogModal"
+import { Field, FieldLabel, FieldError } from "@/components/ui/field"
+
+// lib
+import { api } from "@/lib/api"
+import { DIALOG_COLOR } from "@/lib/constant"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -46,6 +56,7 @@ type SensorNode = {
   longitude: number
   status: string
   health_status: string | null
+  is_online: boolean
 }
 
 type HealthAlerts = {
@@ -132,13 +143,23 @@ export default function Health() {
   const [selectedNode, setSelectedNode] = useState<NodeHealth | null>(null)
   const [healthLogs, setHealthLogs] = useState<NodeHealth[]>([])
 
+  const [maintenanceDialog, setMaintenanceDialog] = useState(false)
+  const [maintenanceReason, setMaintenanceReason] = useState("")
+  const [maintenanceError, setMaintenanceError] = useState("")
+  const [loadingDialog, setLoadingDialog] = useState<{ open: boolean; title?: string; description?: string }>({ open: false })
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean; message?: string }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+
+  const [availableDialog, setAvailableDialog] = useState(false)
+  const [availableSubmitting, setAvailableSubmitting] = useState(false)
+
   const emptyStateText = selectedNodeId === null ? 'No node selected' : 'No health data yet'
   
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
 
   // summary cards — derived from the latest health log per node (this month)
-  const totalOnline = allNodes.filter(n => n.status === 'Active').length
+  const totalOnline = allNodes.filter(n => n.status !== 'Maintenance' && n.is_online).length
 
   const latestHealthByNode = new Map<number, NodeHealth>()
   for (const log of healthLogs) {
@@ -159,6 +180,9 @@ export default function Health() {
     : '—'
 
   const sensorFailing = latestLogs.filter(l => l.sensor_continuity === false).length
+
+  const isUnderMaintenance = selectedNode?.node_details.status === 'Maintenance'
+  
 
   const fetchNodes = async () => {
     try {
@@ -222,6 +246,51 @@ export default function Health() {
     }
   }
 
+  const handleMarkMaintenance = async () => {
+    if (!selectedNode) return
+    const reason = maintenanceReason.trim()
+    if (!reason) {
+      setMaintenanceError("Please describe the reason for maintenance.")
+      return
+    }
+    const nodeName = selectedNode.node_details.node_name
+    const nodeId = selectedNode.node_details.node_id
+
+    setMaintenanceDialog(false)
+    setMaintenanceReason("")
+    setMaintenanceError("")
+    setLoadingDialog({ open: true, title: "Marking Under Maintenance", description: `Updating ${nodeName}. Please wait.` })
+
+    try {
+      await api.post(`/api/sensor-nodes/${nodeId}/mark-maintenance/`, { reason })
+      await Promise.all([fetchNodes(), handleSelectNode(nodeId)])
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true, message: `${nodeName} has been marked under maintenance.` })
+    } catch (err: any) {
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.error ?? err?.detail ?? `Failed to mark ${nodeName} under maintenance.` })
+    }
+  }
+
+  const handleMarkAvailable = async () => {
+    if (!selectedNode) return
+    const nodeName = selectedNode.node_details.node_name
+    const nodeId = selectedNode.node_details.node_id
+
+    setAvailableDialog(false)
+    setLoadingDialog({ open: true, title: "Marking as Available", description: `Updating ${nodeName}. Please wait.` })
+
+    try {
+      await api.post(`/api/sensor-nodes/${nodeId}/mark-available/`, {})
+      await Promise.all([fetchNodes(), handleSelectNode(nodeId)])
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true, message: `${nodeName} has been marked as available.` })
+    } catch (err: any) {
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.error ?? err?.detail ?? `Failed to mark ${nodeName} as available.` })
+    }
+  }
+
   const { requestExport, ExportDialogs } = useExportDialog(async () => {
     try {
       await exportPdf(
@@ -275,15 +344,18 @@ export default function Health() {
               <p className="text-[#122A48] font-bold mb-1">Canal Network Map - Rosario, La Union</p>
             <div className="flex-1 rounded-lg overflow-hidden">
               <AgosMapWrapper
-                markers={allNodes
-                  .filter(n => n.latitude != null && n.longitude != null)
-                  .map(n => ({
-                    latitude:  n.latitude,
-                    longitude: n.longitude,
-                    label:     n.node_name,
-                    condition: n.health_status ?? 'Normal',
-                    onMarkerClick: () => handleSelectNode(n.node_id)
-                  }))}
+              markers={allNodes
+                .filter(n => n.latitude != null && n.longitude != null)
+                .map(n => ({
+                  latitude:  n.latitude,
+                  longitude: n.longitude,
+                  label:     n.node_name,
+                  condition:
+                    n.status === 'Maintenance' ? 'Maintenance' :
+                    !n.is_online                ? 'Sleep' :
+                    (n.health_status ?? 'Normal'),
+                  onMarkerClick: () => handleSelectNode(n.node_id)
+                }))}
                 zoom={13}
                 colorMode="health"
               />
@@ -309,67 +381,110 @@ export default function Health() {
             ) : (
              <div className="flex flex-col text-[#122A48] w-full">
                 {/* Hardware details */}
-                <div className="w-full p-3 -mb-4">
+                <div className="w-full p-3 -mb-2">
                   <p className="font-semibold">Hardware Details</p>
                 </div>
-                <div className="bg-[#58D07159] rounded px-3 py-2 text-[#2C7B3C] m-3 w-40 -mb-2">
+                <div className="flex items-center gap-2 mx-3 mb-2 justify-between">
                   <p className="text-xs">{selectedNode.node_details.node_name} - {selectedNode.node_details.barangay_details.barangay_name}</p>
-                </div>
-                <div className="flex justify-between text-xs p-3 items-center">
-                  <p>🌙 {selectedNode.node_details.status === 'Inactive' ? 'Deep Sleep' : 'Online'}</p>
-                  <div className="bg-[#58D07159] rounded border border-[#2C7B3C] text-[#2C7B3C] px-4 py-1">
-                    <p>{selectedNode.node_details.status}</p>
-                  </div>
-                </div>
 
-                <hr />
-
-                {/* device information */}
-                <div className="flex flex-col gap-1.5 p-3">
-                  <div className="w-full mb-1">
-                    <p className="font-semibold">Device Information</p>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <p>Device ID</p>
-                    <p></p>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <p>Model</p>
-                    <p></p>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <p>Firmware</p>
-                    <p></p>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <p>Uptime</p>
-                    <p></p>
-                  </div>
+                  {(() => {
+                    const statusStyle: Record<string, { bg: string; text: string; dot: string }> = {
+                      Active:      { bg: '#58D07159', text: '#2C7B3C', dot: 'bg-[#2C7B3C]' },
+                      Inactive:    { bg: '#E5E5E6',   text: '#727272', dot: 'bg-[#727272]' },
+                      Maintenance: { bg: '#EE9E4342', text: '#D27000', dot: 'bg-[#D27000]' },
+                    }
+                    const s = statusStyle[selectedNode.node_details.status] ?? statusStyle.Inactive
+                    return (
+                      <div
+                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs"
+                        style={{ backgroundColor: s.bg, color: s.text }}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                        <p className="font-medium">{selectedNode.node_details.status}</p>
+                      </div>
+                    )
+                  })()}
                 </div>
 
-                <hr />
+                <div className="px-3 mb-3">
+                  {selectedNode.node_details.status === 'Maintenance' ? (
+                    <button
+                      onClick={() => setAvailableDialog(true)}
+                      className="flex items-center justify-center gap-1.5 w-full rounded-full border border-[#2C7B3C] bg-white hover:bg-[#58D07120] text-[#2C7B3C] px-3 py-1.5 text-xs font-medium cursor-pointer"
+                    >
+                      <CheckCircle2 size={13} /> Mark as Available
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setMaintenanceReason(""); setMaintenanceError(""); setMaintenanceDialog(true) }}
+                      className="flex items-center justify-center gap-1.5 w-full rounded-full border border-[#D27000] bg-white hover:bg-[#EE9E4320] text-[#D27000] px-3 py-1.5 text-xs font-medium cursor-pointer"
+                    >
+                      <Wrench size={13} /> Mark Under Maintenance
+                    </button>
+                  )}
+                </div>
 
-                {/* Sensor and modules */}
-                <div className="flex flex-col gap-1.5 p-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <p>Microcontroller</p>
-                    <p className="text-[#727272] text-[10px]">{getMicrocontrollerStatus(selectedNode.status)}</p>
+                {isUnderMaintenance ? (
+                  <div className="flex flex-col items-center justify-center gap-2 p-6 text-center flex-1">
+                    <div className="rounded-full bg-[#EE9E4342] p-3">
+                      <Wrench size={22} className="text-[#D27000]" />
+                    </div>
+                    <p className="font-semibold text-sm">Under Maintenance</p>
+                    <p className="text-xs text-[#727272]">
+                      Hardware and sensor readings are paused while this node is being serviced. Mark it available once it's reinstalled.
+                    </p>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <p>Water-level sensor</p>
-                    <p className="text-[#727272] text-[10px]">{getWaterSensorStatus(selectedNode.sensor_continuity)}</p>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <p>Power Storage Reservoir</p>
-                    <p className="text-[#727272] text-[10px]">{getPowerStorageStatus(selectedNode.battery_voltage)}</p>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <p>Power Management Unit</p>
-                    <p className="text-[#727272] text-[10px]">{getPMUStatus(selectedNode.battery_voltage)}</p>
-                  </div>
-                </div>  
+                ) : (
+                  <>
+                    <hr />
 
-             </div>
+                    {/* device information */}
+                    <div className="flex flex-col gap-1.5 p-3">
+                      <div className="w-full mb-1">
+                        <p className="font-semibold">Device Information</p>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <p>Device ID</p>
+                        <p></p>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <p>Model</p>
+                        <p></p>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <p>Firmware</p>
+                        <p></p>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <p>Uptime</p>
+                        <p></p>
+                      </div>
+                    </div>
+
+                    <hr />
+
+                    {/* Sensor and modules */}
+                    <div className="flex flex-col gap-1.5 p-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <p>Microcontroller</p>
+                        <p className="text-[#727272] text-[10px]">{getMicrocontrollerStatus(selectedNode.status)}</p>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <p>Water-level sensor</p>
+                        <p className="text-[#727272] text-[10px]">{getWaterSensorStatus(selectedNode.sensor_continuity)}</p>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <p>Power Storage Reservoir</p>
+                        <p className="text-[#727272] text-[10px]">{getPowerStorageStatus(selectedNode.battery_voltage)}</p>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <p>Power Management Unit</p>
+                        <p className="text-[#727272] text-[10px]">{getPMUStatus(selectedNode.battery_voltage)}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -396,6 +511,11 @@ export default function Health() {
             {!selectedNode ? (
               <div className="flex justify-center items-center py-8">
                 <p className="text-xs text-[#727272]">{emptyStateText}</p>
+              </div>
+            ) : isUnderMaintenance ? (
+              <div className="flex flex-col items-center justify-center gap-1 py-6">
+                <Wrench size={18} className="text-[#D27000]" />
+                <p className="text-xs text-[#D27000] font-medium">Under maintenance</p>
               </div>
             ) : (
               <>
@@ -440,11 +560,16 @@ export default function Health() {
               })()}
             </div>
             
-            {!selectedNode ? (
-              <div className="flex justify-center items-center py-8">
-                <p className="text-xs text-[#727272]">No node selected</p>
-              </div>
-            ) : (
+              {!selectedNode ? (
+                <div className="flex justify-center items-center py-8">
+                  <p className="text-xs text-[#727272]">{emptyStateText}</p>
+                </div>
+              ) : isUnderMaintenance ? (
+                <div className="flex flex-col items-center justify-center gap-1 py-6">
+                  <Wrench size={18} className="text-[#D27000]" />
+                  <p className="text-xs text-[#D27000] font-medium">Under maintenance</p>
+                </div>
+              ) : (
               <>
                 <p className="text-2xl font-bold mt-1">
                   {selectedNode?.signal_strength != null ? `${selectedNode.signal_strength}` : '—'}
@@ -487,11 +612,16 @@ export default function Health() {
               }
             </div>
 
-            {!selectedNode ? (
-              <div className="flex justify-center items-center py-8">
-                <p className="text-xs text-[#727272]">No node selected</p>
-              </div>
-            ) : (
+              {!selectedNode ? (
+                <div className="flex justify-center items-center py-8">
+                  <p className="text-xs text-[#727272]">{emptyStateText}</p>
+                </div>
+              ) : isUnderMaintenance ? (
+                <div className="flex flex-col items-center justify-center gap-1 py-6">
+                  <Wrench size={18} className="text-[#D27000]" />
+                  <p className="text-xs text-[#D27000] font-medium">Under maintenance</p>
+                </div>
+              ) : (
               <>
                 <p className="text-2xl font-bold mt-1">
                   {selectedNode?.sensor_continuity == null ? '—' : selectedNode.sensor_continuity ? 'OK' : 'FAIL'}
@@ -521,6 +651,98 @@ export default function Health() {
 
         </div>      
       </div>
+
+      {/* Mark Under Maintenance Dialog */}
+      <Dialog open={maintenanceDialog} onOpenChange={setMaintenanceDialog}>
+        <DialogContent className="text-[#122A48] w-[380px]">
+          <DialogHeader>
+            <DialogTitle className="font-bold text-base">Mark Under Maintenance</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-[#727272]">
+              {selectedNode?.node_details.node_name} will be flagged under maintenance and removed from active monitoring until it's marked available again.
+            </p>
+            <Field className="flex gap-1.5 flex-col">
+              <FieldLabel className="text-[#122A48] text-xs">Reason</FieldLabel>
+              <textarea
+                value={maintenanceReason}
+                onChange={(e) => {
+                  setMaintenanceReason(e.target.value)
+                  if (maintenanceError) setMaintenanceError("")
+                }}
+                rows={3}
+                placeholder="e.g. Weak signal, needs antenna check"
+                className={`w-full rounded-lg bg-[#1565BC05] border p-2 text-xs resize-none ${maintenanceError ? 'border-[#FF0000]' : 'border-[#727272]'}`}
+              />
+              <FieldError className="text-xs">{maintenanceError}</FieldError>
+            </Field>
+            <div className="flex gap-3 justify-end mt-1">
+              <Button
+                onClick={() => setMaintenanceDialog(false)}
+                className="rounded-lg border border-[#C6C6C8] px-4 h-9 cursor-pointer text-xs bg-transparent hover:bg-[#edebeb] text-[#727272] disabled:opacity-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleMarkMaintenance}
+                className="rounded-lg border border-[#C6C6C8] px-4 h-9 cursor-pointer text-xs text-white"
+                style={{ backgroundColor: DIALOG_COLOR.yellow }}
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as Available confirm */}
+      <DialogModal
+        open={availableDialog}
+        onClose={() => setAvailableDialog(false)}
+        onConfirm={handleMarkAvailable}
+        color={DIALOG_COLOR.lightgreen}
+        icon={CheckCircle2}
+        iconColor={DIALOG_COLOR.green}
+        title="Mark as Available"
+        description={<>Are you sure <strong>{selectedNode?.node_details.node_name}</strong> has been reinstalled and is ready to resume active monitoring?</>}
+        cancelLabel="Cancel"
+        confirmLabel="Confirm"
+        loading={availableSubmitting}
+      />
+
+      {/* Loading dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={loadingDialog.title ?? "Processing"}
+        description={<>{loadingDialog.description}</>}
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={() => setSuccessDialog({ open: false })}
+        color={DIALOG_COLOR.lightgreen}
+        icon={CheckCircle2}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={successDialog.message}
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
 
       <Toast toasts={toasts} onRemove={removeToast} />
       {ExportDialogs}

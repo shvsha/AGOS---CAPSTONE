@@ -1,5 +1,12 @@
 from django.urls import path
-from .views import ( SensorNodeListView, SensorNodeDetailView, SensorNodeByBarangayView, SystemHealthLogListView, SystemHealthLogByNodeView, SystemHealthLogExportView, SensorNodeUnassignView, SensorNodeRetireView, SensorNodeConfigView, SensorNodeNextCodeView, SensorNodeGenerateKeyView )
+from .views import (
+    SensorNodeListView, SensorNodeDetailView, SensorNodeByBarangayView,
+    SystemHealthLogListView, SystemHealthLogByNodeView, SystemHealthLogExportView,
+    SensorNodeUnassignView, SensorNodeRetireView, SensorNodeConfigView,
+    SensorNodeNextCodeView, SensorNodeGenerateKeyView,
+    SensorNodeMarkMaintenanceView, SensorNodeMarkAvailableView,
+    MaintenanceLogListView, MaintenanceLogExportView,
+)
 
 urlpatterns = [
     path('sensor-nodes/', SensorNodeListView.as_view(), name='sensor-node-list'),
@@ -13,4 +20,8 @@ urlpatterns = [
     path('system-health/', SystemHealthLogListView.as_view(), name='system-health-list'),
     path('system-health/node/<int:node_id>/', SystemHealthLogByNodeView.as_view(), name='system-health-by-node'),
     path('system-health/export/', SystemHealthLogExportView.as_view(), name='system-health-export'),
+    path('sensor-nodes/<int:node_id>/mark-maintenance/', SensorNodeMarkMaintenanceView.as_view(), name='sensor-node-mark-maintenance'),
+    path('sensor-nodes/<int:node_id>/mark-available/', SensorNodeMarkAvailableView.as_view(), name='sensor-node-mark-available'),
+    path('maintenance-logs/', MaintenanceLogListView.as_view(), name='maintenance-log-list'),
+    path('maintenance-logs/export/', MaintenanceLogExportView.as_view(), name='maintenance-log-export'),
 ]
