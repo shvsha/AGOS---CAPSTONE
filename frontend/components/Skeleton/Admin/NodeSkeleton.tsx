@@ -27,25 +27,9 @@ export function NodeSkeleton() {
         <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
           <p>Node Management</p>
         </div>
-        <div className="flex gap-3">
-          <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-9 w-60">
-            <FaSearch size={14} className="text-[#C6C6C8]" />
-            <Input disabled placeholder="Search node..." className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-full" />
-          </div>
-
-          <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-            <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent position="popper">
-              <SelectItem className="cursor-pointer p-2 text-xs" value="All Status">All Status</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button disabled className="p-5 py-[16px] rounded-lg bg-[#1565BC] text-white opacity-60 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
-            <FaPlus color="white" /> Add Node
-          </Button>
-        </div>
+        <Button disabled className="p-5 py-[16px] rounded-lg bg-[#1565BC] text-white opacity-60 shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+          <FaPlus color="white" /> Add Node
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -64,7 +48,25 @@ export function NodeSkeleton() {
       {/* Table */}
       <div className="flex gap-4 mt-2 flex-1 min-h-[528px] overflow-visible">
         <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-          <Skeleton className="h-4 w-32 m-2" />
+          <div className="flex justify-between items-center p-2">
+            <Skeleton className="h-4 w-32" />
+
+            <div className="flex gap-3 items-center">
+              <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-8 w-60">
+                <FaSearch size={14} className="text-[#C6C6C8]" />
+                <Input disabled placeholder="Search node..." className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-full" />
+              </div>
+
+              <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+                <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem className="cursor-pointer p-2 text-xs" value="All Status">All Status</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <div ref={tableWrapRef}>
             <Table>

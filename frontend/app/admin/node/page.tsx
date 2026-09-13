@@ -350,27 +350,12 @@ export default function NodeManagement() {
           <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>Node Management</p>
           </div>
-          <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search node..." width="w-60" height="h-9" />
-
-            <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-              <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Availability" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="w-36 min-w-0">
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Available">Available</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Occupied">Occupied</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => setNodeFormDialog({ open: true, node: null })}
-              className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
-            >
-              <FaPlus color="white" /> Add Node
-            </Button>
-          </div>
+          <Button
+            onClick={() => setNodeFormDialog({ open: true, node: null })}
+            className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+          >
+            <FaPlus color="white" /> Add Node
+          </Button>
         </div>
 
         {/* Summary Cards */}
@@ -393,7 +378,25 @@ export default function NodeManagement() {
         {/* Table */}
         <div className="flex gap-4 mt-2 flex-1 min-h-[528px] overflow-visible">
           <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-            <p className="p-2 text-sm font-bold text-[#122A48]">IoT Sensor Nodes</p>
+            <div className="flex justify-between items-center p-2">
+              <p className="text-sm font-bold text-[#122A48]">IoT Sensor Nodes</p>
+
+              <div className="flex gap-3 items-center">
+                <SearchFilter value={search} onChange={setSearch} placeholder="Search node..." width="w-60" height="h-8" />
+
+                <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+                  <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Availability" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-36 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Available">Available</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Occupied">Occupied</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             
             <div ref={tableWrapRef}>
               <Table>

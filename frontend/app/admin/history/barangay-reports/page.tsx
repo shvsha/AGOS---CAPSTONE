@@ -194,11 +194,15 @@ export default function BarangayReports() {
   })
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
-  // summary cards
-  const total = barangayReports.length
-  const totalRecyclable = barangayReports.reduce((sum, r) => sum + r.recyclables_kg, 0)
-  const totalBiodegredable = barangayReports.reduce((sum, r) => sum + r.biodegradable_kg, 0)
-  const totalResidualOthers = barangayReports.reduce((sum, r) => sum + r.residual_waste_kg + r.special_waste_kg, 0)
+  // summary cards — reflect the barangay + month filters (not the text search)
+  const cardScopedReports = barangayReports
+    .filter(r => filterBarangay === "All" || String(r.barangay_details?.barangay_id) === filterBarangay)
+    .filter(r => selectedMonth === "All" || r.report_month.startsWith(selectedMonth))
+
+  const total = cardScopedReports.length
+  const totalRecyclable = cardScopedReports.reduce((sum, r) => sum + r.recyclables_kg, 0)
+  const totalBiodegredable = cardScopedReports.reduce((sum, r) => sum + r.biodegradable_kg, 0)
+  const totalResidualOthers = cardScopedReports.reduce((sum, r) => sum + r.residual_waste_kg + r.special_waste_kg, 0)
 
   const refetchAll = useCallback(async () => {
     await Promise.allSettled([

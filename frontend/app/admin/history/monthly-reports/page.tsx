@@ -121,11 +121,13 @@ export default function MonthlyReports() {
   })
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredReports, rows)
 
-    // summary cards
-  const total = municipalReports.length
-  const totalRecyclable = municipalReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
-  const totalBiodegredable = municipalReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
-  const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + (r.total_special_waste_kg ?? 0), 0)
+    // summary cards — reflect the month filter (not the text search)
+  const cardScopedReports = municipalReports.filter(r => selectedMonth === "All" || r.report_month.startsWith(selectedMonth))
+
+  const total = cardScopedReports.length
+  const totalRecyclable = cardScopedReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
+  const totalBiodegredable = cardScopedReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
+  const totalResidualOthers = cardScopedReports.reduce((sum, r) => sum + r.total_residual_waste_kg + (r.total_special_waste_kg ?? 0), 0)
 
   const { requestExport, ExportDialogs } = useExportDialog<{ id: number; reportMonth: string }>(
     async ({ id }) => {

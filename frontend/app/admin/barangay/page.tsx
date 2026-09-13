@@ -210,26 +210,10 @@ export default function Barangay() {
     <>
       <div className="hidden md:flex md:flex-col md:h-full">
 
-        {/* title and filter container */}
+        {/* title container */}
         <div className="flex justify-between w-full mb-2">
-          <div className="text-[#122A48] flex justify-center items-center text-[15px] gap-5">
+          <div className="text-[#122A48] flex justify-center items-center text-[15px]">
             <p className="font-bold">Barangay</p>
-
-            <div className="flex gap-3">
-              <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-9" />
-              
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                <SelectTrigger className="cursor-pointer py-[17px] w-40 text-xs border border-[#C6C6C8] bg-[#FAFCFD] rounded-lg">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="All" className="cursor-pointer p-2 text-xs">All Barangay</SelectItem>
-                  <SelectItem value="Registered" className="cursor-pointer p-2 text-xs">Registered</SelectItem>
-                  <SelectItem value="Unregistered" className="cursor-pointer p-2 text-xs">Unregistered</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
           </div>
         </div>
 
@@ -252,7 +236,24 @@ export default function Barangay() {
 
         {/* table */}
         <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[528px]">
-          <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">Barangay List</p>
+          <div className="flex justify-between items-center mx-3 mb-2">
+            <p className="text-[#122A48] font-bold text-sm">Barangay List</p>
+
+            <div className="flex gap-3 items-center">
+              <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-8" />
+
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger className="cursor-pointer py-3 w-40 text-xs border border-[#C6C6C8] bg-[#FAFCFD] rounded-lg">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="All" className="cursor-pointer p-2 text-xs">All Barangay</SelectItem>
+                  <SelectItem value="Registered" className="cursor-pointer p-2 text-xs">Registered</SelectItem>
+                  <SelectItem value="Unregistered" className="cursor-pointer p-2 text-xs">Unregistered</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <div ref={tableWrapRef}>
             <Table>

@@ -240,52 +240,19 @@ export default function Users() {
     <>
       <div className="hidden md:flex md:flex-col md:h-full">
 
-        {/* title and filter container */}
+        {/* title and action container */}
         <div className="flex justify-between w-full mb-2">
           <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>System Users</p>
           </div>
 
-          <div className="flex gap-3">
-
-            {/* search filter */}
-            <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-9" />
-
-            {/* user role filter */}
-            <Select value={userRole} onValueChange={setUserRole}>
-              <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-27 min-w-0'>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Users</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* user status filter */}
-            <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-28 min-w-0'>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Status</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* add user */}
-            <Button
-              onClick={() => router.push('/admin/users/form')}
-              className="text-xs p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
-            >
-              <FaPlus color="white" /> Add User
-            </Button>
-
-          </div>
-
+          {/* add user */}
+          <Button
+            onClick={() => router.push('/admin/users/form')}
+            className="text-xs p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+          >
+            <FaPlus color="white" /> Add User
+          </Button>
         </div>
 
         {/* header total cards */}
@@ -308,7 +275,40 @@ export default function Users() {
         
         {/* table */}
         <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
-          <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">User Accounts</p>
+
+          {/* title and filters */}
+          <div className='flex justify-between items-center px-3 mb-2'>
+            <p className="text-[#122A48] font-bold text-sm">User Accounts</p>
+
+            <div className='flex gap-3 items-center'>
+              <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-8" />
+
+              {/* user role filter */}
+              <Select value={userRole} onValueChange={setUserRole}>
+                <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent position="popper" className='w-27 min-w-0'>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Users</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* user status filter */}
+              <Select value={userStatus} onValueChange={setUserStatus}>
+                <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent position="popper" className='w-28 min-w-0'>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Status</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Active">Active</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <div ref={tableWrapRef}>
             <Table>
