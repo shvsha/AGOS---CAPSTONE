@@ -69,7 +69,7 @@ const fetchBarangaysRaw = async () => {
 }
 
 const fetchSensorNodesRaw = async () => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/?availability_status=Occupied`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
@@ -135,11 +135,16 @@ export default function Waste() {
     })
     const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
   
-    // summary cards
-    const total = wasteClassification.length
-    const biodegradable = wasteClassification.filter(n => n.dominant_waste_type === 'Biodegradable').length
-    const recyclable = wasteClassification.filter(n => n.dominant_waste_type === 'Recyclable').length
-    const residual_others = wasteClassification.filter(n => n.dominant_waste_type === 'Residual' || n.dominant_waste_type === 'Special Waste').length
+    // summary cards — reflect barangay/waste-type/node filters (wasteClassification is already month-scoped via the backend fetch; text search stays table-only)
+    const cardScopedWaste = wasteClassification
+      .filter(n => barangayFilterOpt === "All Barangay" || n.node_details?.barangay_details?.barangay_name === barangayFilterOpt)
+      .filter(n => dominantWaste === "All Waste" || n.dominant_waste_type === dominantWaste)
+      .filter(n => sensorNode === "All Nodes" || n.node_details?.node_name === sensorNode)
+
+    const total = cardScopedWaste.length
+    const biodegradable = cardScopedWaste.filter(n => n.dominant_waste_type === 'Biodegradable').length
+    const recyclable = cardScopedWaste.filter(n => n.dominant_waste_type === 'Recyclable').length
+    const residual_others = cardScopedWaste.filter(n => n.dominant_waste_type === 'Residual' || n.dominant_waste_type === 'Special Waste').length
 
 
   const refetchAll = useCallback(async () => {

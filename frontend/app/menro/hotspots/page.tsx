@@ -529,22 +529,6 @@ export default function HotspotManagement() {
           <div className="font-bold text-[#122A48] flex justify-center items-center ">
             <p className="text-[15px]">Canal Hotspots</p>
           </div>
-          <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search hotspot..." width="w-60" height="h-9" />
-
-            <Select value={filterBarangay} onValueChange={setFilterBarangay}>
-              <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="All Barangays" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="max-h-60 overflow-y-auto">
-                <SelectItem value="All" className="cursor-pointer text-xs p-2">All Barangays</SelectItem>
-                {[...allBarangays].sort((a, b) => a.barangay_name.localeCompare(b.barangay_name)).map(b => (
-                  <SelectItem className="p-2 cursor-pointer text-xs" key={b.barangay_id} value={String(b.barangay_id)}>{b.barangay_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-          </div>
         </div>
 
         {/* Summary cards */}
@@ -567,7 +551,25 @@ export default function HotspotManagement() {
         {/* Table */}
         <div className="flex gap-4 mt-2 flex-1 min-h-[528px]">
           <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full min-w-0 rounded-lg flex flex-col">
-            <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Hotspot List</p>
+            <div className="flex justify-between items-center p-2 px-3">
+              <p className="text-sm font-bold text-[#122A48]">Hotspot List</p>
+
+              <div className="flex gap-3 items-center">
+                <SearchFilter value={search} onChange={setSearch} placeholder="Search hotspot..." width="w-60" height="h-8" />
+
+                <Select value={filterBarangay} onValueChange={setFilterBarangay}>
+                  <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="All Barangays" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+                    <SelectItem value="All" className="cursor-pointer text-xs p-2">All Barangays</SelectItem>
+                    {[...allBarangays].sort((a, b) => a.barangay_name.localeCompare(b.barangay_name)).map(b => (
+                      <SelectItem className="p-2 cursor-pointer text-xs" key={b.barangay_id} value={String(b.barangay_id)}>{b.barangay_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             <div ref={tableWrapRef} className="w-full overflow-x-auto">
               <Table>

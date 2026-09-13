@@ -46,6 +46,7 @@ type NodeHealth = {
   signal_strength?: number
   sensor_continuity?: boolean
   status?: string
+  firmware_version?: string | null
   checked_at?: string
 }
 
@@ -57,6 +58,7 @@ type SensorNode = {
   status: string
   health_status: string | null
   is_online: boolean
+  device_model?: string
 }
 
 type HealthAlerts = {
@@ -130,6 +132,17 @@ function getPMUStatus(battery_voltage?: number) {
   if (pct >= 60) return 'Stable'
   if (pct >= 30) return 'Monitor'
   return 'Low Power'
+}
+
+function getRelativeTime(dateStr: string) {
+  const diffMs = Date.now() - new Date(dateStr).getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'Just now'
+  if (diffMin < 60) return `${diffMin} min${diffMin === 1 ? '' : 's'} ago`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`
+  const diffDay = Math.floor(diffHr / 24)
+  return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`
 }
 
 
@@ -363,7 +376,7 @@ export default function Health() {
           </div>
 
           {/* preview node */}
-          <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px]">
+          <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] border border-[#C9C9C9]">
             {selectedNodeId === null ? (
               <div className="flex justify-center items-center h-full flex-col gap-2 border border-[#C9C9C9] w-full rounded-lg">
                 <FileSearch size={50} className="text-[#1565BC80]"/>
@@ -444,20 +457,20 @@ export default function Health() {
                         <p className="font-semibold">Device Information</p>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <p>Device ID</p>
-                        <p></p>
-                      </div>
-                      <div className="flex justify-between text-xs">
                         <p>Model</p>
-                        <p></p>
+                        <p className="text-[#727272] text-right max-w-[60%] text-[10px]">
+                          {allNodes.find(n => n.node_id === selectedNodeId)?.device_model ?? '—'}
+                        </p>
                       </div>
                       <div className="flex justify-between text-xs">
                         <p>Firmware</p>
-                        <p></p>
+                        <p className="text-[10px]">{selectedNode.firmware_version ?? '—'}</p>
                       </div>
                       <div className="flex justify-between text-xs">
                         <p>Uptime</p>
-                        <p></p>
+                        <p className="text-[#727272] text-[10px]">
+                          {selectedNode.checked_at ? getRelativeTime(selectedNode.checked_at) : '—'}
+                        </p>
                       </div>
                     </div>
 

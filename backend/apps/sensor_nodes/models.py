@@ -43,6 +43,12 @@ class SensorNode(models.Model):
     installed_at = models.DateTimeField(default=timezone.now)
     device_key_hash = models.CharField(max_length=255, null=True, blank=True)
 
+    device_model = models.CharField(
+        max_length=150,
+        default="ESP32-S3 + SIM7600 (4G) + HC-SR04 + OV2640 Camera",
+        blank=True,
+    )
+
     class Meta:
         db_table = 'tbl_sensor_nodes'
 
@@ -77,6 +83,7 @@ class SystemHealthLog(models.Model):
     signal_strength = models.FloatField()
     sensor_continuity = models.BooleanField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Normal')
+    firmware_version = models.CharField(max_length=20, null=True, blank=True)
     checked_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

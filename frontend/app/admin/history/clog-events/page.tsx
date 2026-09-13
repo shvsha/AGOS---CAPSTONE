@@ -157,11 +157,16 @@ export default function ClogEvents() {
   })
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
-  // summary cards
-  const total = clogs.length
-  const cleared = clogs.filter(n => n.status === 'Cleared').length
+  // summary cards — reflect barangay/severity/status filters (clogs is already month-scoped via the backend fetch; text search stays table-only)
+  const cardScopedClogs = clogs
+    .filter(n => barangay === 'All Barangay' || n.barangay_details?.barangay_name === barangay)
+    .filter(n => severity === 'All Severity' || n.severity === severity)
+    .filter(n => status === 'All Status' || n.status === status)
 
-  const clearedWithDuration = clogs.filter(n => n.status === 'Cleared' && n.resolved_at && n.detected_at)
+  const total = cardScopedClogs.length
+  const cleared = cardScopedClogs.filter(n => n.status === 'Cleared').length
+
+  const clearedWithDuration = cardScopedClogs.filter(n => n.status === 'Cleared' && n.resolved_at && n.detected_at)
   const avgResolutionMinutes = clearedWithDuration.length > 0
     ? clearedWithDuration.reduce((sum, n) => sum + (new Date(n.resolved_at).getTime() - new Date(n.detected_at).getTime()) / 60000, 0) / clearedWithDuration.length
     : 0
@@ -174,11 +179,14 @@ export default function ClogEvents() {
     return `${hrs}h ${mins}m`
   }
 
-  const now = new Date()
-  const monthlyCompleted = clogs.filter(n => {
+  const monthlyCompleted = cardScopedClogs.filter(n => {
     if (n.status !== 'Cleared' || !n.resolved_at) return false
-    const resolvedDate = new Date(n.resolved_at)
-    return resolvedDate.getMonth() === now.getMonth() && resolvedDate.getFullYear() === now.getFullYear()
+    if (selectedMonth === 'All') {
+      const now = new Date()
+      const resolvedDate = new Date(n.resolved_at)
+      return resolvedDate.getMonth() === now.getMonth() && resolvedDate.getFullYear() === now.getFullYear()
+    }
+    return n.resolved_at.startsWith(selectedMonth)
   }).length
 
   const fetchMedia = async () => {

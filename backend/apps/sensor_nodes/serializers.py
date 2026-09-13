@@ -65,6 +65,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     health_status = serializers.SerializerMethodField()
     is_online = serializers.SerializerMethodField()
     last_seen = serializers.SerializerMethodField()
+    firmware_version = serializers.SerializerMethodField()
 
     last_reading_at = serializers.SerializerMethodField()
 
@@ -78,8 +79,8 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'availability_status', 'status',
             'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
-            'health_status', 'is_online', 'last_seen',
-            'last_reading_at',
+            'health_status', 'is_online', 'last_seen', 'firmware_version',
+            'last_reading_at', 'device_model',
         ]
         extra_kwargs = {
             'node_name': {'read_only': True},
@@ -162,6 +163,10 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     def get_last_seen(self, obj):
         latest = self._latest_health(obj)
         return latest.checked_at if latest else None
+    
+    def get_firmware_version(self, obj):
+        latest = self._latest_health(obj)
+        return latest.firmware_version if latest else None
 
     def get_last_reading_at(self, obj):
         r = self._latest(obj)
@@ -225,7 +230,7 @@ class SystemHealthLogSerializer(serializers.ModelSerializer):
         fields = [
             'health_id', 'node', 'node_details',
             'battery_voltage', 'signal_strength', 'sensor_continuity',
-            'status', 'checked_at',
+            'status', 'firmware_version', 'checked_at',
         ]
 
     def get_node_details(self, obj):

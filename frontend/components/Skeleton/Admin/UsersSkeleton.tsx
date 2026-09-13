@@ -27,44 +27,16 @@ export function UsersSkeleton() {
     <>
       <div className="hidden md:flex md:flex-col md:h-full">
 
-        {/* title and filter container */}
+        {/* title and action container */}
         <div className="flex justify-between w-full mb-2">
           <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>System Users</p>
           </div>
 
-          <div className="flex gap-3">
-            {/* search filter */}
-            <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-9 w-50">
-              <FaSearch size={14} className="text-[#C6C6C8]" />
-              <Input placeholder="Search Users..." disabled className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-full" />
-            </div>
-
-            {/* user role filter */}
-            <Select value={userRole} onValueChange={setUserRole}>
-              <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-27 min-w-0'>
-                <SelectItem className="text-xs p-2 text-[#122A48]" value="All">All Users</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* user status filter */}
-            <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-28 min-w-0'>
-                <SelectItem className="text-xs p-2 text-[#122A48]" value="Active">Active</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* add user */}
-            <Button disabled className="text-xs p-5 py-4 rounded-lg bg-[#1565BC] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
-              <FaPlus color="white" /> Add User
-            </Button>
-          </div>
+          {/* add user */}
+          <Button disabled className="text-xs p-5 py-4 rounded-lg bg-[#1565BC] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]">
+            <FaPlus color="white" /> Add User
+          </Button>
         </div>
 
         {/* header total cards */}
@@ -82,7 +54,39 @@ export function UsersSkeleton() {
 
         {/* table */}
         <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
-          <Skeleton className="h-4 w-28 mx-3 mb-2" />
+
+          {/* title and filters */}
+          <div className='flex justify-between items-center px-3 mb-2'>
+            <Skeleton className="h-4 w-28" />
+
+            <div className='flex gap-3 items-center'>
+              {/* search filter */}
+              <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-8 w-50">
+                <FaSearch size={14} className="text-[#C6C6C8]" />
+                <Input placeholder="Search Users..." disabled className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-full" />
+              </div>
+
+              {/* user role filter */}
+              <Select value={userRole} onValueChange={setUserRole}>
+                <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" className='w-27 min-w-0'>
+                  <SelectItem className="text-xs p-2 text-[#122A48]" value="All">All Users</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* user status filter */}
+              <Select value={userStatus} onValueChange={setUserStatus}>
+                <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" className='w-28 min-w-0'>
+                  <SelectItem className="text-xs p-2 text-[#122A48]" value="Active">Active</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <div ref={tableWrapRef}>
             <Table>

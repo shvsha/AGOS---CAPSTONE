@@ -26,18 +26,13 @@ import { usePageCache } from "@/components/hooks/usePageCache";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 
 
-type Hotspots = {
-  hotspot_id: number
-  hotpot_name: string
-}
-
 type SensorNode = {
   node_id: number
   node_name: string
   barangay_details: { barangay_id: number; barangay_name: string }
   hotspot_details: {
     hotspot_id: number
-    hotspot_name: string
+    name: string
     latitude: number
     longitude: number
     canal_width: number | null
@@ -121,10 +116,10 @@ const getClogSeverity = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "Unknown", barColor: "bg-[#9CA3AF]", textClass: "text-[#727272] font-semibold" }
   }
-  if (clogPct >= 75) {
+  if (clogPct >= 67) {
     return { label: "Critical", barColor: "bg-[#D81010]", textClass: "text-[#D81010] font-semibold" }
   }
-  if (clogPct >= 50) {
+  if (clogPct >= 34) {
     return { label: "Warning", barColor: "bg-[#FF9705]", textClass: "text-[#FF9705] font-semibold" }
   }
   return { label: "Normal", barColor: "bg-[#1565BC]", textClass: "text-[#1565BC] font-semibold" }
@@ -134,13 +129,10 @@ const getClogRankLevel = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "UNKNOWN", color: "bg-[#9CA3AF]", action: "AWAITING CANAL DATA" }
   }
-  if (clogPct >= 80) {
+  if (clogPct >= 67) {
     return { label: "CRITICAL", color: "bg-[#E85656]", action: "IMMEDIATE ACTION" }
   }
-  if (clogPct >= 60) {
-    return { label: "HIGH", color: "bg-[#F39600]", action: "WITHIN 12 HOURS" }
-  }
-  if (clogPct >= 30) {
+  if (clogPct >= 34) {
     return { label: "MEDIUM", color: "bg-[#FFCC00]", action: "WITHIN 24 HOURS" }
   }
   return { label: "LOW", color: "bg-[#2C7B3C]", action: "MONITOR CLOSELY" }
@@ -156,13 +148,6 @@ const fetchSensorNodeRaw = async (): Promise<SensorNode[]> => {
 
 const fetchReadingsRaw = async (): Promise<SensorReadings[]> => {
   const res = await fetchWithAuth(`/api/sensor-readings/`)
-  if (!res.ok) throw new Error()
-  const data = await res.json()
-  return data.results ?? data
-}
-
-const fetchHotspotsRaw = async (): Promise<Hotspots[]> => {
-  const res = await fetchWithAuth(`/api/hotspots/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
   return data.results ?? data
@@ -187,29 +172,35 @@ export default function Resources() {
   // fetch data states
   const sensorNodesCache = usePageCache('menroResources:sensorNodes', fetchSensorNodeRaw, [] as SensorNode[], { autoFetch: false })
   const readingsCache = usePageCache('menroResources:readings', fetchReadingsRaw, [] as SensorReadings[], { autoFetch: false })
-  const hotspotsCache = usePageCache('menroResources:hotspots', fetchHotspotsRaw, [] as Hotspots[], { autoFetch: false })
   const wasteCache = usePageCache('menroResources:waste', fetchWasteRaw, [] as WasteClassification[], { autoFetch: false })
   const clogsCache = usePageCache('menroResources:clogs', fetchClogsRaw, [] as Clogs[], { autoFetch: false })
 
   const allSensorNodes = sensorNodesCache.data
   const allReadings = readingsCache.data
-  const allHotspots = hotspotsCache.data
   const allWasteClassification = wasteCache.data
   const allClogs = clogsCache.data
 
-  const loading = sensorNodesCache.loading || readingsCache.loading || hotspotsCache.loading || wasteCache.loading || clogsCache.loading
-  const fetchError = sensorNodesCache.error || readingsCache.error || hotspotsCache.error || wasteCache.error || clogsCache.error
-  const retrying = sensorNodesCache.retrying || readingsCache.retrying || hotspotsCache.retrying || wasteCache.retrying || clogsCache.retrying
+  const loading = sensorNodesCache.loading || readingsCache.loading || wasteCache.loading || clogsCache.loading
+  const fetchError = sensorNodesCache.error || readingsCache.error || wasteCache.error || clogsCache.error
+  const retrying = sensorNodesCache.retrying || readingsCache.retrying || wasteCache.retrying || clogsCache.retrying
   
   const nodesWithHotspot = allSensorNodes.filter(n => n.hotspot_details != null)
 
+  const latestReadingMap = allReadings.reduce((acc, reading) => {
+    const nodeId = reading.node_details.node_id
+
+    if (
+      !acc[nodeId] ||
+      new Date(reading.timestamp) > new Date(acc[nodeId].timestamp)
+    ) {
+      acc[nodeId] = reading
+    }
+
+    return acc
+  }, {} as Record<number, SensorReadings>)
+
   const getLatestClogPct = (nodeId: number) => {
-    const nodeReadings = allReadings
-      .filter(r => r.node_details.node_id === nodeId)
-      .sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )
-    const latestReading = nodeReadings[0] ?? null
+    const latestReading = latestReadingMap[nodeId] ?? null
     const fallbackNode = allSensorNodes.find(n => n.node_id === nodeId)
     return {
       clogPct: latestReading?.clog_pct ?? fallbackNode?.clog_pct ?? null,
@@ -225,72 +216,56 @@ export default function Resources() {
   
   const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(nodesWithHotspot, 3)
   
-  const latestWastePerNode = Object.values(
-    allWasteClassification.reduce((acc, waste) => {
-      const nodeId = waste.node_details.node_id
+  const latestWasteByNode = allWasteClassification.reduce((acc, waste) => {
+    const nodeId = waste.node_details.node_id
+    if (
+      !acc[nodeId] ||
+      new Date(waste.timestamp).getTime() > new Date(acc[nodeId].timestamp).getTime()
+    ) {
+      acc[nodeId] = waste
+    }
+    return acc
+  }, {} as Record<number, WasteClassification>)
 
-      // Ignore nodes without hotspots
-      const node = allSensorNodes.find(n => n.node_id === nodeId)
-      if (!node?.hotspot_details) return acc
-
-      // Keep only the newest classification (by actual timestamp, not id)
-      if (
-        !acc[nodeId] ||
-        new Date(waste.timestamp).getTime() > new Date(acc[nodeId].timestamp).getTime()
-      ) {
-        acc[nodeId] = waste
-      }
-
-      return acc
-    }, {} as Record<number, WasteClassification>)
-  )
-
-
-  const rankedWaste = [...latestWastePerNode].sort((a, b) => {
-    const clogA = getLatestClogPct(a.node_details.node_id).clogPct ?? -1
-    const clogB = getLatestClogPct(b.node_details.node_id).clogPct ?? -1
+  const rankedNodes = [...nodesWithHotspot].sort((a, b) => {
+    const clogA = getLatestClogPct(a.node_id).clogPct ?? -1
+    const clogB = getLatestClogPct(b.node_id).clogPct ?? -1
     return clogB - clogA
   })
-  
-  const priorityQueue = rankedWaste.map((waste, index) => {
-    const pct = getLatestClogPct(waste.node_details.node_id).clogPct
+
+  const priorityQueue = rankedNodes.map((node, index) => {
+    const pct = getLatestClogPct(node.node_id).clogPct
     const rankInfo = getClogRankLevel(pct)
 
     return {
       rank: index + 1,
-      barangay: waste.node_details.barangay_details.barangay_name,
-      node_name: waste.node_details.node_name,
+      barangay: node.barangay_details?.barangay_name ?? "—",
+      node_name: node.node_name,
       pct,
       label: rankInfo.label,
       action: rankInfo.action,
     }
   })
 
-
   // summary cards
-  const totalSensorNodes = allSensorNodes.length
-  const criticalAreas = allReadings.filter(n => n.reading_status === 'Critical').length
-  const totalWaste = allWasteClassification.length
+  const totalSensorNodes = nodesWithHotspot.length
+
+  const criticalAreas = nodesWithHotspot.filter(node => {
+    const latest = latestReadingMap[node.node_id]
+    return latest?.reading_status === 'Critical'
+  }).length
+
+  const totalWaste = Object.values(latestWasteByNode).reduce(
+    (sum, w) => sum + (w.estimated_volume ?? 0),
+    0
+  )
+
   const clearedAreas = allClogs.filter(c => c.status === 'Cleared').length
-
-  const latestReadingMap = allReadings.reduce((acc, reading) => {
-    const nodeId = reading.node_details.node_id
-
-    if (
-      !acc[nodeId] ||
-      new Date(reading.timestamp) > new Date(acc[nodeId].timestamp)
-    ) {
-      acc[nodeId] = reading
-    }
-
-    return acc
-  }, {} as Record<number, SensorReadings>)
 
   const fetchAllResourceData = useCallback(async () => {
     await Promise.allSettled([
       sensorNodesCache.refetch(),
       readingsCache.refetch(),
-      hotspotsCache.refetch(),
       wasteCache.refetch(),
       clogsCache.refetch(),
     ])
@@ -356,8 +331,8 @@ export default function Resources() {
         {/* total cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
-          { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Sensor Nodes" },
-          { icon: <Trash2 size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: totalWaste, label: "Total Waste (kg)" },
+          { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: totalSensorNodes, label: "Total Assigned Sensor Nodes" },
+          { icon: <Trash2 size={20} color="#122A48" />, bg: "bg-[#CDE3DE]", count: `${totalWaste.toFixed(1)} kg`, label: "Total Waste" },
           { icon: <TriangleAlert size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: criticalAreas, label: "Critical Areas" },
           { icon: <BadgeCheck size={20} color="#1565BC" />, bg: "bg-[#1565BC29]", count: clearedAreas, label: "Cleared Areas" },
         ].map(card => (
@@ -372,7 +347,7 @@ export default function Resources() {
         </div>
 
         {/* waste hotspot, trash accumulated, priority */}
-          <div className="flex gap-3 text-[#122A48] mt-2 h-70">
+          <div className="flex gap-2 text-[#122A48] mt-2 h-70">
           {/* waste hotspot */}
             <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-[2] min-w-[320px]">
             <div className="w-full">
@@ -449,39 +424,39 @@ export default function Resources() {
           </div>
 
           {/* trash accumulated */}
-          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1 min-w-[240px]">
+          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1 min-w-[240px] flex flex-col">
             <div className="w-full">
               <p className="font-bold text-sm p-2">TRASH ACCUMULATION SEVERITY RANKING</p>
             </div>
 
-            <div>
+            <div className="flex-1 flex flex-col overflow-y-auto min-h-0">
               <Table>
                 <TableHeader className="bg-[#F5F6F9]">
                   <TableRow>
                     <TableHead className="text-[#727272] text-left text-xs">RANK</TableHead>
-                    <TableHead className="text-[#727272] text-left text-xs">HOTSPOT</TableHead>
-                    <TableHead className="text-[#727272] text-left text-xs">CLOG SEVERITY INDEX</TableHead>
+<TableHead className="text-[#727272] text-left text-xs whitespace-normal max-w-[90px]">HOTSPOT</TableHead>
+<TableHead className="text-[#727272] text-left text-xs whitespace-normal max-w-[80px]">CLOG<br/>SEVERITY</TableHead>
                   </TableRow>
                 </TableHeader>
 
                 <TableBody>
-                  {rankedWaste.length === 0 ? (
+                  {rankedNodes.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={3}
                         className="text-center text-sm text-[#727272] py-20"
                       >
-                        No waste classification data available.
+                        No assigned sensor nodes available.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    rankedWaste.map((waste, index) => {
-                      const clogPct = getLatestClogPct(waste.node_details.node_id).clogPct
+                    rankedNodes.map((node, index) => {
+                      const clogPct = getLatestClogPct(node.node_id).clogPct
                       const rankInfo = getClogRankLevel(clogPct)
 
                       return (
                         <TableRow
-                          key={waste.classification_id}
+                          key={node.node_id}
                           className="border-b-0"
                         >
                           {/* Rank */}
@@ -489,17 +464,15 @@ export default function Resources() {
                             {index + 1}
                           </TableCell>
 
-                          {/* Barangay */}
-                          <TableCell className="text-left text-xs">
-                            {
-                              waste.node_details.hotspot_details?.name
-                            }
+                          {/* Hotspot */}
+                          <TableCell className="text-left text-xs whitespace-normal max-w-[90px]">
+                            {node.hotspot_details?.name ?? "—"}
                           </TableCell>
 
                           {/* Severity Index */}
                           <TableCell className="flex justify-left">
                             <div className="flex items-center gap-3">
-                              <div className="w-20 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
+                              <div className="w-12 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
                                 <div
                                   className={`${rankInfo.color} h-full rounded-full`}
                                   style={{
@@ -519,12 +492,12 @@ export default function Resources() {
                   )}
                 </TableBody>
               </Table>
-              <div className="border-t px-4 py-2 mt-30">
+              <div className="border-t px-4 py-2 mt-auto">
                 <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#122A48]">
                   <div className="flex flex-col items-center">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#E85656]" />
-                      <span>80% - 100%</span>
+                      <span>67% - 100%</span>
                     </div>
                     <div>
                       <p>Critical</p>
@@ -533,28 +506,18 @@ export default function Resources() {
 
                   <div className="flex flex-col items-center">
                     <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#F39600]" />
-                      <span>60% - 79%</span>
-                    </div>
-                    <div>
-                      <p>High</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#FFCC00]" />
-                      <span>30% - 59%</span>
+                      <span>34% - 66%</span>
                     </div>
                     <div>
                       <p>Medium</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center flex-col">
+                  <div className="flex flex-col items-center">
                     <div className="flex gap-2">
                       <div className="w-3 h-3 rounded-full bg-[#2C7B3C]" />
-                      <span>0% - 29%</span>
+                      <span>0% - 33%</span>
                     </div>
                     <div>
                       <p>Low</p>
@@ -658,7 +621,7 @@ export default function Resources() {
             </TableHeader>
 
             <TableBody>
-              {rankedWaste.length === 0 ? (
+              {rankedNodes.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
@@ -668,29 +631,25 @@ export default function Resources() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rankedWaste.map((waste, index) => {
-                  const { clogPct, latestReading } = getLatestClogPct(waste.node_details.node_id)
+                rankedNodes.map((node) => {
+                  const { clogPct, latestReading } = getLatestClogPct(node.node_id)
                   const clogSeverity = getClogSeverity(clogPct)
+                  const latestWaste = latestWasteByNode[node.node_id]
 
                   return (
                     <TableRow
-                      key={waste.classification_id}
+                      key={node.node_id}
                       className="border-b-0"
                     >
 
-                      
-                      {/* Rank */}
+                      {/* Node */}
                       <TableCell className="text-left text-xs">
-                        {waste.node_details.node_id}
+                        {node.node_id}
                       </TableCell>
 
-                      {/* Barangay */}
+                      {/* Location */}
                       <TableCell className="text-left text-xs">
-                        {
-                          waste.node_details
-                            .barangay_details
-                            .barangay_name
-                        }
+                        {node.barangay_details?.barangay_name ?? "—"}
                       </TableCell>
 
                       {/* Severity Index (clog_pct based) */}
@@ -710,9 +669,9 @@ export default function Resources() {
                           </span>
                         </div>
                       </TableCell>
-                      
+
                       <TableCell className="text-left text-xs">
-                        {waste.estimated_volume.toFixed(2)} kg
+                        {latestWaste ? `${latestWaste.estimated_volume.toFixed(2)} kg` : "—"}
                       </TableCell>
 
                       {/* Status — derived from the same clog_pct as the Severity Index above,
