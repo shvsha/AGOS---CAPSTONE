@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -221,6 +222,82 @@ class SensorNodeGenerateKeyView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class SensorNodeForceSleepView(APIView):
+    """
+    Manually commands a node to deep-sleep for a given duration,
+    independent of the rainfall-band-derived reading_interval_seconds.
+    Consumed by the device's own /config/ check-in (force_sleep_seconds
+    field) — this endpoint just records the intent server-side.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, node_id):
+        try:
+            node = SensorNode.objects.get(node_id=node_id)
+        except SensorNode.DoesNotExist:
+            return Response({'error': 'Node not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if node.availability_status == 'Retired':
+            return Response({'error': 'Retired nodes cannot be put to sleep'}, status=status.HTTP_400_BAD_REQUEST)
+
+        minutes = request.data.get('minutes')
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError):
+            return Response({'error': 'A whole number of minutes is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if minutes <= 0:
+            return Response({'error': 'minutes must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
+
+        node.forced_sleep_until = timezone.now() + timedelta(minutes=minutes)
+        node.save()
+
+        log_action(
+            user=request.user,
+            action='Forced Node Sleep',
+            affected_table='tbl_sensor_nodes',
+            new_value=f"node: {node.node_name or node.node_id} — sleep for {minutes} min",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({
+            'message': f'Node {node_id} will sleep for {minutes} minute(s), until {node.forced_sleep_until.isoformat()}.',
+            'forced_sleep_until': node.forced_sleep_until,
+        }, status=status.HTTP_200_OK)
+
+
+class SensorNodeCancelForceSleepView(APIView):
+    """
+    Cancels an active forced-sleep command. The device picks this up
+    on its next check-in (at most one force-sleep "chunk" of latency —
+    see the firmware, which re-checks periodically rather than
+    sleeping through the whole original duration blind).
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, node_id):
+        try:
+            node = SensorNode.objects.get(node_id=node_id)
+        except SensorNode.DoesNotExist:
+            return Response({'error': 'Node not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not node.forced_sleep_until:
+            return Response({'error': 'Node has no active forced-sleep command'}, status=status.HTTP_400_BAD_REQUEST)
+
+        node.forced_sleep_until = None
+        node.save()
+
+        log_action(
+            user=request.user,
+            action='Cancelled Forced Node Sleep',
+            affected_table='tbl_sensor_nodes',
+            new_value=f"node: {node.node_name or node.node_id}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({'message': f'Forced sleep cancelled for node {node_id}.'}, status=status.HTTP_200_OK)
+
+
 class SensorNodeConfigView(APIView):
     """
     Lightweight config endpoint for IoT devices.
@@ -256,6 +333,14 @@ class SensorNodeConfigView(APIView):
             except AlertThreshold.DoesNotExist:
                 pass
 
+        # Manual override: null unless an admin has explicitly forced
+        # this node to sleep and that window hasn't elapsed yet. The
+        # firmware treats a non-null value here as taking priority
+        # over reading_interval_seconds for this wake cycle.
+        force_sleep_seconds = None
+        if node.forced_sleep_until and node.forced_sleep_until > timezone.now():
+            force_sleep_seconds = int((node.forced_sleep_until - timezone.now()).total_seconds())
+
         return Response({
             'node_id': node.node_id,
             'node_name': node.node_name,
@@ -264,6 +349,7 @@ class SensorNodeConfigView(APIView):
             'sensor_height': sensor_height,
             'canal_depth': canal_depth,
             'reading_interval_seconds': reading_interval_seconds,
+            'force_sleep_seconds': force_sleep_seconds,
             'availability_status': node.availability_status,
             'status': node.status,
         }, status=status.HTTP_200_OK)

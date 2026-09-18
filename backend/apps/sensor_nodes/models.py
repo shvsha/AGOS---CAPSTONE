@@ -49,6 +49,16 @@ class SensorNode(models.Model):
         blank=True,
     )
 
+    # Manual override: when set to a future time, the device's /config/
+    # response tells the node to deep-sleep instead of following the
+    # rainfall-band-derived reading_interval_seconds — for maintenance
+    # windows, deliberate battery conservation, or field servicing.
+    # Left null/past = no override, node behaves normally.
+    forced_sleep_until = models.DateTimeField(
+        null=True, blank=True,
+        help_text="If set to a future time, the node is told to deep-sleep until then, overriding the rainfall-based reading interval."
+    )
+
     class Meta:
         db_table = 'tbl_sensor_nodes'
 

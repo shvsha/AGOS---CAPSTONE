@@ -5,6 +5,7 @@ from .views import (
     SensorNodeUnassignView, SensorNodeRetireView, SensorNodeConfigView,
     SensorNodeNextCodeView, SensorNodeGenerateKeyView,
     SensorNodeMarkMaintenanceView, SensorNodeMarkAvailableView,
+    SensorNodeForceSleepView, SensorNodeCancelForceSleepView,
     MaintenanceLogListView, MaintenanceLogExportView,
 )
 
@@ -22,6 +23,8 @@ urlpatterns = [
     path('system-health/export/', SystemHealthLogExportView.as_view(), name='system-health-export'),
     path('sensor-nodes/<int:node_id>/mark-maintenance/', SensorNodeMarkMaintenanceView.as_view(), name='sensor-node-mark-maintenance'),
     path('sensor-nodes/<int:node_id>/mark-available/', SensorNodeMarkAvailableView.as_view(), name='sensor-node-mark-available'),
+    path('sensor-nodes/<int:node_id>/force-sleep/', SensorNodeForceSleepView.as_view(), name='sensor-node-force-sleep'),
+    path('sensor-nodes/<int:node_id>/cancel-force-sleep/', SensorNodeCancelForceSleepView.as_view(), name='sensor-node-cancel-force-sleep'),
     path('maintenance-logs/', MaintenanceLogListView.as_view(), name='maintenance-log-list'),
     path('maintenance-logs/export/', MaintenanceLogExportView.as_view(), name='maintenance-log-export'),
 ]
