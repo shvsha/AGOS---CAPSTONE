@@ -68,6 +68,14 @@ class BarangayMonthlyReport(models.Model):
         return f"Report - {self.barangay.barangay_name} - {self.report_month}"
 
 
+def report_media_upload_path(instance, filename):
+    category_folder = {
+        'Before_Clearing': 'before_clearing',
+        'After_Clearing': 'after_clearing',
+    }.get(instance.media_category, 'other')
+    return f'report_media/{category_folder}/{filename}'
+
+
 class ReportMedia(models.Model):
     MEDIA_TYPE_CHOICES = [
         ('Image', 'Image'),
@@ -96,7 +104,7 @@ class ReportMedia(models.Model):
         db_column='event_id'
     )
     media_category = models.CharField(max_length=20, choices=MEDIA_CATEGORY_CHOICES, default='Sensor_Detection')
-    file_path = models.FileField(upload_to='report_media/', null=True, blank=True)
+    file_path = models.FileField(upload_to=report_media_upload_path, null=True, blank=True)
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(

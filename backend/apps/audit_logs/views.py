@@ -83,7 +83,6 @@ class AuditLogExportView(APIView):
             report_title="Audit Logs",
             columns=columns,
             rows=rows,
-            accent_color="#475569",
             generated_by=f"{request.user.first_name} {request.user.last_name}",
             orientation="landscape",
             filename=f"audit-logs-{parse_date(start_date) or 'all'}.pdf" if start_date else "audit-logs.pdf",

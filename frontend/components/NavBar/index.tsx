@@ -13,13 +13,14 @@ import { DIALOG_COLOR } from "@/lib/constant"
 
 // component
 import { DialogModal } from "../DialogModal"
+import { SpinnerIcon } from "../SpinnerIcon"
 
 // icons
 import {
   LayoutDashboard, Users, ChartNoAxesCombined,
   Siren, Activity, History, Stamp,
   Map, Package, FileBarChart, CalendarDays,
-  MapPin, FileUp, LogOut, RadioTower, ChevronDown,
+  MapPin, Wrench, LogOut, RadioTower, ChevronDown,
   SlidersHorizontal, Target, GitBranchPlus,
   TriangleAlert, Settings, Book 
 } from "lucide-react"
@@ -27,6 +28,7 @@ import {
 // logo
 import Image from "next/image"
 import AgosLogo from '../../public/agos-logo.png'
+import RosLogo from '../../public/ROS-logo.jpg'
 
 
 const getAvatarColor = (role: string) => {
@@ -85,7 +87,8 @@ const navItems: Record<string, NavItem[]> = {
         { label: "User Management",     href: "/admin/users",   icon: <Users size={14} /> },
         { label: "Barangay Management", href: "/admin/barangay",icon: <MapPin size={14} /> },
         { label: "IoT Health",          href: "/admin/health",  icon: <Activity size={14} /> },
-        { label: "System Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
+        { label: "Maintenance Logs",    href: "/admin/maintenance-logs",  icon: <Wrench size={14} /> },
+        { label: "Audit Logs",          href: "/admin/audit",   icon: <Stamp size={14} /> },
         { label: "Settings",    href: "/admin/settings",  icon: <Settings size={14} /> },
         { label: "User Manual",    href: "/admin/manual",  icon: <Book size={14} /> },
       ]
@@ -117,6 +120,7 @@ export default function NavBar() {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [logoutDialog, setLogoutDialog] = useState<boolean>(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
 
@@ -162,6 +166,8 @@ export default function NavBar() {
   }, [])
 
   const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
     try {
       await api.post('/api/auth/logout/', {})
     } catch (err) {
@@ -276,22 +282,27 @@ export default function NavBar() {
           })}
         </nav>
 
-        {/* Logout Dialog */}
-        <div className="border-t p-2 flex gap-4">
+        {/* Logout */}
+        <div className="border-t p-2 flex gap-3">
           <div className="flex justify-center items-center">
             <div
               className="rounded-full w-10 h-10 flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
-              style={{ backgroundColor: getAvatarColor(userRole ?? "") }}
             >
-              {currentUser ? `${currentUser.first_name.charAt(0)}${currentUser.last_name.charAt(0)}` : ""}
+              <Image
+                src={RosLogo}
+                alt="ROSARIO Logo"
+                width={35}
+                height={35}
+                className="rounded-full flex-shrink-0 bg-[#CDE3DE]"
+              />
             </div>
-            </div>
+          </div>
           <div className="flex flex-col justify-center">
-          <p className="font-semibold truncate max-w-[110px]" style={{ fontSize: `${nameFontSize}px` }}>
-            {fullName}
-          </p>
-          <p className="text-[10px]">{currentUser ? getRoleLabel(currentUser.user_role) : ""}</p>
-        </div>
+            <p className="font-semibold truncate max-w-[110px]" style={{ fontSize: `${nameFontSize}px` }}>
+              {fullName}
+            </p>
+            <p className="text-[10px]">{currentUser ? getRoleLabel(currentUser.user_role) : ""}</p>
+          </div>
           <button
             suppressHydrationWarning
             onClick={() => setLogoutDialog(true)}
@@ -424,18 +435,27 @@ export default function NavBar() {
       </div>
       
       {/* Dialog */}
-      <DialogModal
-        open={logoutDialog}
-        onClose={() => setLogoutDialog(false)}
-        onConfirm={handleLogout}
-        color={DIALOG_COLOR.lightgray}
-        icon={LogOut}
-        iconColor={DIALOG_COLOR.gray}
-        title="Logout"
-        description="Are you sure you want to log out of your account?"
-        cancelLabel="Cancel"
-        confirmLabel="Logout"
-      />
+    <DialogModal
+      open={logoutDialog}
+      onClose={() => setLogoutDialog(false)}
+      onConfirm={handleLogout}
+      color={DIALOG_COLOR.lightgray}
+      icon={LogOut}
+      iconColor={DIALOG_COLOR.gray}
+      title="Logout"
+      description="Are you sure you want to log out of your account?"
+      cancelLabel="Cancel"
+      confirmLabel={
+        loggingOut ? (
+          <span className="flex items-center gap-2">
+            <SpinnerIcon size={14} />
+            Logging out...
+          </span>
+        ) : (
+          "Logout"
+        )
+      }
+    />
     </>
   )
 }

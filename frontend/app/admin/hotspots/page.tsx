@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical  } from "lucide-react"
+import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical, BadgeCheck } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback, useRef, Fragment } from "react"
@@ -24,10 +24,6 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { HotspotsSkeleton } from "@/components/Skeleton/Admin/HotspotsSkeleton"
 
-// toast
-import { useToast } from "@/components/hooks/useToast"
-import { Toast } from "@/components/Toast"
-
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
@@ -37,6 +33,11 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
 import { point, feature } from "@turf/helpers"
+
+// hooks
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 
 type Barangay = {
@@ -190,6 +191,14 @@ export default function HotspotManagement() {
   const [blockedDialog, setBlockedDialog] = useState<{ open: boolean }>({ open: false })
   const [dialogBarangay, setDialogBarangay] = useState<Barangay | null>(null)
 
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ name: string; action: 'Updated' | 'Added' | 'Removed' } | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
+    title: "Saving Changes",
+    description: "Processing hotspot details. Please wait.",
+  })
+
   const { toasts, addToast, removeToast } = useToast()
 
   const isEdit = !!formDialog.hotspot
@@ -232,7 +241,13 @@ export default function HotspotManagement() {
     }
   })
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangays, 4)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 4,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangays, rows)
 
   const total = hotspots.length
   const occupied = hotspots.filter(h => h.is_occupied).length
@@ -419,6 +434,10 @@ export default function HotspotManagement() {
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
+    setLoadingMessage({
+      title: isEdit ? "Saving Changes" : "Saving Hotspot",
+      description: "Processing hotspot details. Please wait.",
+    })
     setLoadingDialog({ open: true })
 
     const payload = {
@@ -437,14 +456,17 @@ export default function HotspotManagement() {
       if (isEdit) {
         const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
         hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
-        addToast(`${updated.name} has been updated.`, "success")   // was: ${hotspotName}
+        setActionResult({ name: updated.name, action: 'Updated' })
       } else {
         const created = await api.post("/api/hotspots/", payload)
         hotspotsCache.setData(prev => [created, ...prev])
-        addToast(`${created.name} has been added.`, "success")
+        setActionResult({ name: created.name, action: 'Added' })
       }
       setFormDialog({ open: false, hotspot: null })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
+      setLoadingDialog({ open: false })
       if (err && typeof err === "object") {
         const backendErrors: Record<string, string> = {}
         for (const key in err) {
@@ -453,9 +475,7 @@ export default function HotspotManagement() {
         }
         setFieldErrors(prev => ({ ...prev, ...backendErrors }))
       }
-      addToast(err?.detail ?? err?.code?.[0] ?? err?.name ?? "Something went wrong.", "error")
-    } finally {
-      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.code?.[0] ?? err?.name ?? "Something went wrong. Please try again." })
     }
   }
 
@@ -471,13 +491,26 @@ export default function HotspotManagement() {
     const h = deleteDialog.hotspot
     if (!h) return
     setDeleteDialog({ open: false, hotspot: null })
+    setLoadingMessage({
+      title: "Removing Hotspot",
+      description: `Removing ${h.name}. Please wait.`,
+    })
+    setLoadingDialog({ open: true })
     try {
       await api.delete(`/api/hotspots/${h.hotspot_id}/`)
       hotspotsCache.setData(prev => prev.filter(x => x.hotspot_id !== h.hotspot_id))
-      addToast(`${h.name} has been remove.`, "success")
+      setActionResult({ name: h.name, action: 'Removed' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? "Failed to remove hotspot.", "error")
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to remove ${h.name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    setActionResult(null)
   }
 
   // selected barangay object for map center fallback
@@ -488,39 +521,23 @@ export default function HotspotManagement() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* Header */}
         <div className="flex justify-between w-full mb-2">
           <div className="font-bold text-[#122A48] flex justify-center items-center ">
             <p className="text-[15px]">Canal Hotspots</p>
           </div>
-          <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search hotspot..." width="w-60" height="h-9" />
-
-            <Select value={filterBarangay} onValueChange={setFilterBarangay}>
-              <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="All Barangays" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="max-h-60 overflow-y-auto">
-                <SelectItem value="All" className="cursor-pointer text-xs p-2">All Barangays</SelectItem>
-                {[...allBarangays].sort((a, b) => a.barangay_name.localeCompare(b.barangay_name)).map(b => (
-                  <SelectItem className="p-2 cursor-pointer text-xs" key={b.barangay_id} value={String(b.barangay_id)}>{b.barangay_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-          </div>
         </div>
 
         {/* Summary cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-3 gap-3 w-full text-[#122A48]">
           {[
             { icon: <Target size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Hotspots" },
             { icon: <MapPinCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: available, label: "Available" },
             { icon: <MapPin size={20} color="#1565BC" />, bg: "bg-[#DBEAFE]", count: occupied, label: "Occupied" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-105 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold leading-tight">{card.count}</span>
@@ -531,162 +548,185 @@ export default function HotspotManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-2 h-132">
-          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-            <p className="p-2 px-3 text-sm font-bold text-[#122A48]">Hotspot List</p>
+        <div className="flex gap-4 mt-2 flex-1 min-h-[528px]">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full min-w-0 rounded-lg flex flex-col">
+            <div className="flex justify-between items-center p-2 px-3">
+              <p className="text-sm font-bold text-[#122A48]">Hotspot List</p>
 
-            <Table>
-              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-                <TableRow>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ID</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOTS</TableHead>
-                  <TableHead className="font-semibold text-left text-[#727272] text-xs">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
+              <div className="flex gap-3 items-center">
+                <SearchFilter value={search} onChange={setSearch} placeholder="Search hotspot..." width="w-60" height="h-8" />
 
-              <TableBody>
-                {fetchError ? (
+                <Select value={filterBarangay} onValueChange={setFilterBarangay}>
+                  <SelectTrigger className="cursor-pointer text-xs w-40 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="All Barangays" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="max-h-60 overflow-y-auto">
+                    <SelectItem value="All" className="cursor-pointer text-xs p-2">All Barangays</SelectItem>
+                    {[...allBarangays].sort((a, b) => a.barangay_name.localeCompare(b.barangay_name)).map(b => (
+                      <SelectItem className="p-2 cursor-pointer text-xs" key={b.barangay_id} value={String(b.barangay_id)}>{b.barangay_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div ref={tableWrapRef} className="w-full overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load hotspots. Please try again later.</p>
-                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">ID</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOTS</TableHead>
+                    <TableHead className="font-semibold text-left text-[#727272] text-xs">ACTIONS</TableHead>
                   </TableRow>
+                </TableHeader>
 
-                ) : filteredBarangays.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <Target size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No barangays found</p>
-                        <p className="text-[#727272] text-sm">
-                          No registered barangays match your search.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                <TableBody>
+                    {!fetchError && filteredBarangays.length > 0 && paginated.map(barangay => {
+                      const barangayHotspots = hotspotsByBarangay(barangay.barangay_id)
+                      const isOpen = openBarangayIds.has(barangay.barangay_id)
 
-                ) : (
-                  paginated.map(barangay => {
-                    const barangayHotspots = hotspotsByBarangay(barangay.barangay_id)
-                    const isOpen = openBarangayIds.has(barangay.barangay_id)
+                      return (
+                        <Fragment key={barangay.barangay_id}>
+                          <TableRow className="border-b border-[#C6C6C8] text-xs">
+                            <TableCell className="text-[#122A48] text-left h-14">{barangay.barangay_id}</TableCell>
+                            <TableCell className="text-[#122A48] text-left h-14 font-medium">{barangay.barangay_name}</TableCell>
+                            <TableCell className="text-[#122A48] text-left h-14">
+                              {barangayHotspots.length} Hotspot{barangayHotspots.length !== 1 ? "s" : ""}
+                            </TableCell>
+                            <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-14">
+                              <Button
+                                onClick={() => toggleBarangayRow(barangay.barangay_id)}
+                                className="flex gap-2 text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3 text-xs px-3"
+                              >
+                                {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                View ({barangayHotspots.length})
+                              </Button>
+                              <Button
+                                onClick={() => { setDialogBarangay(barangay); setFormDialog({ open: true, hotspot: null }) }}
+                                className="p-3 py-3 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white text-xs"
+                              >
+                                <FaPlus color="white" size={12} /> Add Hotspot
+                              </Button>
+                            </TableCell>
+                          </TableRow>
 
-                    return (
-                      <Fragment key={barangay.barangay_id}>
-                        <TableRow className="border-b border-[#C6C6C8] text-xs">
-                          <TableCell className="text-[#122A48] text-left h-14">{barangay.barangay_id}</TableCell>
-                          <TableCell className="text-[#122A48] text-left h-14 font-medium">{barangay.barangay_name}</TableCell>
-                          <TableCell className="text-[#122A48] text-left h-14">
-                            {barangayHotspots.length} Hotspot{barangayHotspots.length !== 1 ? "s" : ""}
-                          </TableCell>
-                          <TableCell className="text-[#122A48] flex gap-3 justify-left items-left h-14">
-                            <Button
-                              onClick={() => toggleBarangayRow(barangay.barangay_id)}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3 text-xs px-3"
-                            >
-                              {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                              View ({barangayHotspots.length})
-                            </Button>
-                            <Button
-                              onClick={() => { setDialogBarangay(barangay); setFormDialog({ open: true, hotspot: null }) }}
-                              className="p-3 py-3 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white text-xs"
-                            >
-                              <FaPlus color="white" size={12} /> Add Hotspot
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-
-                        {isOpen && (
-                          <TableRow className="border-b border-[#C6C6C8] hover:bg-transparent">
-                            <TableCell colSpan={4} className="bg-[#F7F9FA] p-3 pl-10">
-                              <div className="flex flex-col gap-2">
-                                {barangayHotspots.length === 0 ? (
-                                  <p className="text-[#727272] text-xs py-2 ml-12.5">No hotspots registered for this barangay yet.</p>
-                                ) : (
-                                  barangayHotspots.map(hotspot => (
-                                    <div
-                                      key={hotspot.hotspot_id}
-                                      className="flex items-center gap-3 bg-white border border-[#C6C6C8] rounded-lg shadow-[0_2px_4px_-2px_rgba(0,0,0,0.1)] px-4 py-3 w-200"
-                                    >
-                                      <div className="w-40 min-w-0">
-                                        <p className="font-bold text-xs text-[#122A48]">{hotspot.name}</p>
-                                        <p className="text-[#727272] text-xs capitalize">{hotspot.canal_shape}</p>
-                                      </div>
-                                      <div className="w-40 min-w-0 text-[#727272] text-xs truncate">
-                                        {hotspot.description || "—"}
-                                      </div>
-                                      <div className="flex-shrink-0">
-                                        <div className="flex-shrink-0">
-                                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                            hotspot.is_occupied
-                                              ? "bg-[#DBEAFE] text-[#1565BC]"
-                                              : "bg-[#B2FBC173] text-[#2C7B3C]"
-                                          }`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${hotspot.is_occupied ? "bg-[#1565BC]" : "bg-[#2C7B3C]"}`} />
-                                            {hotspot.is_occupied ? "Occupied" : "Available"}
-                                          </span>
+                          {isOpen && (
+                            <TableRow className="border-b border-[#C6C6C8] hover:bg-transparent">
+                              <TableCell colSpan={4} className="bg-[#F7F9FA] p-3 pl-10">
+                                <div className="flex flex-col gap-2">
+                                  {barangayHotspots.length === 0 ? (
+                                    <p className="text-[#727272] text-xs py-2 ml-12.5">No hotspots registered for this barangay yet.</p>
+                                  ) : (
+                                    barangayHotspots.map(hotspot => (
+                                      <div
+                                        key={hotspot.hotspot_id}
+                                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-3 bg-white border border-[#C6C6C8] rounded-lg shadow-[0_2px_4px_-2px_rgba(0,0,0,0.1)] px-4 py-3 w-full"
+                                      >
+                                        <div className="min-w-0">
+                                          <p className="font-bold text-xs text-[#122A48] truncate">{hotspot.name}</p>
+                                          <p className="text-[#727272] text-xs capitalize truncate">{hotspot.canal_shape}</p>
                                         </div>
-                                      </div>
-                                      <div className="flex-shrink-0 flex gap-2">
-                                        <div className="flex-shrink-0 flex gap-2 relative">
-                                          <Button
-                                            onClick={() => setViewMapDialog({ open: true, hotspot })}
-                                            className="rounded-lg text-xs text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-3 px-3"
-                                          >
-                                            <Map size={16} /> View on map
-                                          </Button>
-
-                                          <div className="relative">
+                                        <div className="min-w-0 text-[#727272] text-xs truncate">
+                                          {hotspot.description || "—"}
+                                        </div>
+                                        <div className="flex-shrink-0">
+                                          <div className="flex-shrink-0">
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                              hotspot.is_occupied
+                                                ? "bg-[#DBEAFE] text-[#1565BC]"
+                                                : "bg-[#B2FBC173] text-[#2C7B3C]"
+                                            }`}>
+                                              <span className={`w-1.5 h-1.5 rounded-full ${hotspot.is_occupied ? "bg-[#1565BC]" : "bg-[#2C7B3C]"}`} />
+                                              {hotspot.is_occupied ? "Occupied" : "Available"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="flex-shrink-0 flex gap-2">
+                                          <div className="flex-shrink-0 flex gap-2 relative">
                                             <Button
-                                              id={`menu-btn-${hotspot.hotspot_id}`}
-                                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === hotspot.hotspot_id ? null : hotspot.hotspot_id) }}
-                                              className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3 px-3"
+                                              onClick={() => setViewMapDialog({ open: true, hotspot })}
+                                              className="rounded-lg text-xs text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-3 px-3"
                                             >
-                                              <MoreVertical size={16} />
+                                              <Map size={16} /> View on map
                                             </Button>
 
-                                            {openMenuId === hotspot.hotspot_id && (
-                                              <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-32 overflow-hidden"
-                                                style={{
-                                                  top: document.getElementById(`menu-btn-${hotspot.hotspot_id}`)?.getBoundingClientRect().bottom ?? 0,
-                                                  right: window.innerWidth - (document.getElementById(`menu-btn-${hotspot.hotspot_id}`)?.getBoundingClientRect().right ?? 0),
-                                                }}
+                                            <div className="relative">
+                                              <Button
+                                                id={`menu-btn-${hotspot.hotspot_id}`}
+                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === hotspot.hotspot_id ? null : hotspot.hotspot_id) }}
+                                                className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3 px-3"
                                               >
-                                                <button
-                                                  onClick={() => { setOpenMenuId(null); setFormDialog({ open: true, hotspot }) }}
-                                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                                <MoreVertical size={16} />
+                                              </Button>
+
+                                              {openMenuId === hotspot.hotspot_id && (
+                                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-32 overflow-hidden"
+                                                  style={{
+                                                    top: document.getElementById(`menu-btn-${hotspot.hotspot_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                                    right: window.innerWidth - (document.getElementById(`menu-btn-${hotspot.hotspot_id}`)?.getBoundingClientRect().right ?? 0),
+                                                  }}
                                                 >
-                                                  <SquarePen size={14} /> Edit
-                                                </button>
-                                                <button
-                                                  onClick={() => { setOpenMenuId(null); handleDeleteClick(hotspot) }}
-                                                  className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
-                                                >
-                                                  <Trash2 size={14} /> Remove
-                                                </button>
-                                              </div>
-                                            )}
+                                                  <button
+                                                    onClick={() => { setOpenMenuId(null); setFormDialog({ open: true, hotspot }) }}
+                                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                                  >
+                                                    <SquarePen size={14} /> Edit
+                                                  </button>
+                                                  <button
+                                                    onClick={() => { setOpenMenuId(null); handleDeleteClick(hotspot) }}
+                                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                                  >
+                                                    <Trash2 size={14} /> Remove
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
-                    )
-                  })
+                                    ))
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      )
+                    })
+                  }
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                {(hotspotsCache.retrying || barangaysCache.retrying || nodesCache.retrying) ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon size={32} color="#D81010" />
+                    <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-[#D81010] text-center">
+                      <p className="font-semibold">Failed to load canal hotspots</p>
+                      <p className="text-sm">Please try again later</p>
+                    </div>
+                    <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                  </>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            )}
+
+            {!fetchError && filteredBarangays.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-4">
+                  <Target size={36} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No barangays found</p>
+                <p className="text-[#727272] text-xs">No registered barangays match your search.</p>
+              </div>
+            )}
 
             <div className="mt-auto">
               <TablePagination
@@ -704,16 +744,22 @@ export default function HotspotManagement() {
       <Dialog open={formDialog.open}>
         <DialogContent className="overflow-y-auto [&>button]:hidden p-0 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] min-w-80 md:min-w-180 max-h-150">
           <DialogHeader>
-            <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5">
-              <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? "bg-[#FF9705] mt-0.5" : "bg-[#1565BC] mt-1.5 md:mt-0.5"}`}>
-                {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+            <div className="flex items-start justify-between gap-3 p-4 py-3 md:p-5 md:py-5">
+              <div className="flex gap-3 min-w-0">
+                <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? "bg-[#FF9705] mt-0.5" : "bg-[#1565BC] mt-1.5 md:mt-0.5"}`}>
+                  {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <p className="font-bold text-base md:text-lg">{isEdit ? formDialog.hotspot?.name ?? "Edit Hotspot" : "Add Hotspot"}</p>
+                  <p className="text-[10px] md:text-sm">
+                    {isEdit ? "Rosario, La Union" : "Register a new canal hotspot under AGOS monitoring coverage"}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <p className="font-bold text-base md:text-lg">{isEdit ? formDialog.hotspot?.name ?? "Edit Hotspot" : "Add Hotspot"}</p>
-                <p className="text-[10px] md:text-sm">
-                  {isEdit ? "Rosario, La Union" : "Register a new canal hotspot under AGOS monitoring coverage"}
-                </p>
-              </div>
+
+              <button type="button" onClick={() => setCancelDialog({ open: true })} className="cursor-pointer flex-shrink-0">
+                <X size={18} />
+              </button>
             </div>
           </DialogHeader>
 
@@ -1096,8 +1142,8 @@ export default function HotspotManagement() {
         color={DIALOG_COLOR.lightblue}
         icon={SpinnerIcon}
         iconColor={DIALOG_COLOR.blue}
-        title={isEdit ? "Saving Changes" : "Saving Hotspot"}
-        description={<>Processing hotspot details. Please wait.</>}
+        title={loadingMessage.title}
+        description={<>{loadingMessage.description}</>}
       />
 
       {/* Remove dialog */}
@@ -1125,6 +1171,34 @@ export default function HotspotManagement() {
         title="Cannot Remove Hotspot"
         description="This hotspot is currently occupied by an active sensor node. Unassign the node first before removing this hotspot."
         cancelLabel="Close"
+        confirmLabel="Okay"
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={
+          <>
+            <strong>{actionResult?.name}</strong> has been {actionResult?.action.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
         confirmLabel="Okay"
       />
 

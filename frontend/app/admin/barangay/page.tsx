@@ -16,13 +16,11 @@ import { DialogModal } from "@/components/DialogModal";
 import { BarangaySkeleton } from "@/components/Skeleton/Admin/BarangaySkeleton"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { SearchFilter } from "@/components/SearchFilter";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
+import { useFillRows } from "@/components/hooks/useFillRows";
 
 // react
-import { useState, useEffect, useRef } from "react"
-
-// toast
-import { useToast } from "@/components/hooks/useToast";
-import { Toast } from "@/components/Toast";
+import { useState, useEffect } from "react"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -46,6 +44,10 @@ type DialogState = {
   open: boolean;
   barangay?: Barangay | null;
 };
+
+type DialogStateLoading = {
+  open: boolean
+}
 
 function getFilteredBarangay(barangays: Barangay[], search: string, statusFilter: string) {
   return barangays
@@ -95,9 +97,6 @@ export default function Barangay() {
   const [search, setSearch] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Registered' | 'Unregistered'>('All')
 
-  // toast
-  const { toasts, addToast, removeToast } = useToast()
-
   const [registerDialog, setRegisterDialog] = useState<DialogState>({
     open: false,
     barangay: null,
@@ -121,9 +120,24 @@ export default function Barangay() {
     issues: [],
   })
 
+  const [loadingDialog, setLoadingDialog] = useState<DialogStateLoading>({
+    open: false,
+  })
+  const [successDialog, setSuccessDialog] = useState<DialogState>({ open: false, barangay: null, })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ barangay: Barangay | null; action: 'Registered' | 'Unregistered' | null }>({
+    barangay: null,
+    action: null,
+  })
+
   const filteredBarangay = getFilteredBarangay(barangays, search, statusFilter)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, 7)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredBarangay, rows)
 
   // summary cards
   const total = barangays.length
@@ -144,7 +158,7 @@ export default function Barangay() {
         setUnregisterDialog({ open: true, barangay: b })
       }
     } catch {
-      addToast('Failed to check barangay status.', 'error')
+      setErrorDialog({ open: true, message: 'Failed to check barangay status. Please try again.' })
     }
   }
 
@@ -152,14 +166,18 @@ export default function Barangay() {
     const b = unregisterDialog.barangay
     if (!b) return
     setUnregisterDialog({ open: false, barangay: null })
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/barangays/${b.barangay_id}/unregister/`, {})
       barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: false } : x
       ))
-      addToast(`${b.barangay_name} has been unregistered.`, 'success')
+      setActionResult({ barangay: b, action: 'Unregistered' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to unregister barangay.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unregister ${b.barangay_name}. Please try again.` })
     }
   }
 
@@ -167,54 +185,46 @@ export default function Barangay() {
     const b = registerDialog.barangay
     if (!b) return
     setRegisterDialog({ open: false, barangay: null })
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/barangays/${b.barangay_id}/register/`, {})
       barangaysCache.setData(prev => prev.map(x =>
         x.barangay_id === b.barangay_id ? { ...x, is_registered: true } : x
       ))
-      addToast(`${b.barangay_name} has been registered.`, 'success')
+      setActionResult({ barangay: b, action: 'Registered' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to register barangay.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to register ${b.barangay_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false }) 
   }
 
   if (loading) return <BarangaySkeleton />
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
-        {/* title and filter container */}
+        {/* title container */}
         <div className="flex justify-between w-full mb-2">
-          <div className="text-[#122A48] flex justify-center items-center text-[15px] gap-5">
+          <div className="text-[#122A48] flex justify-center items-center text-[15px]">
             <p className="font-bold">Barangay</p>
-
-            <div className="flex gap-3">
-              <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-9" />
-              
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                <SelectTrigger className="cursor-pointer py-[17px] w-40 text-xs border border-[#C6C6C8] bg-[#FAFCFD] rounded-lg">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="All" className="cursor-pointer p-2 text-xs">All Barangay</SelectItem>
-                  <SelectItem value="Registered" className="cursor-pointer p-2 text-xs">Registered</SelectItem>
-                  <SelectItem value="Unregistered" className="cursor-pointer p-2 text-xs">Unregistered</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
           </div>
         </div>
 
         {/* total cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-3 gap-3 w-full text-[#122A48]">
           {[
             { icon: <MapPinned size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Barangay" },
             { icon: <CheckCircle size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: registered, label: "All Registered" },
             { icon: <MapPinOff size={20} color="#FF0101" />, bg: "bg-[#FFE5E5]", count: unregistered, label: "All Unregistered" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -225,51 +235,39 @@ export default function Barangay() {
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-132">
-          <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">Barangay List</p>
+        <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[528px]">
+          <div className="flex justify-between items-center mx-3 mb-2">
+            <p className="text-[#122A48] font-bold text-sm">Barangay List</p>
 
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
-              <TableRow>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
+            <div className="flex gap-3 items-center">
+              <SearchFilter value={search} onChange={setSearch} placeholder='Search Barangay...' width="w-50" height="h-8" />
 
-            <TableBody>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger className="cursor-pointer py-3 w-40 text-xs border border-[#C6C6C8] bg-[#FAFCFD] rounded-lg">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="All" className="cursor-pointer p-2 text-xs">All Barangay</SelectItem>
+                  <SelectItem value="Registered" className="cursor-pointer p-2 text-xs">Registered</SelectItem>
+                  <SelectItem value="Unregistered" className="cursor-pointer p-2 text-xs">Unregistered</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-              {/* fetch error state */}
-              {fetchError ? (
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-15">
-                    <div className="flex flex-col justify-center items-center gap-3 py-20">
-                      <p className="text-[#D81010] font-semibold text-base">Failed to load barangay. Please try again later.</p>
-                      <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                    </div>
-                  </TableCell>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
                 </TableRow>
+              </TableHeader>
 
-                // no barangay state
-              ) : filteredBarangay.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-15">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-full bg-[#E5E5E6] p-4">
-                        <UserRound size={36} color="#727272" />
-                      </div>
-                      <p className="text-[#122A48] font-bold">No barangay found</p>
-                      <p className="text-[#727272] text-sm">
-                        No barangay have been registered yet. <br /> Click the button below to start register barangay.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-
-                // with barangay state
-              ) : (
-                paginated.map(barangay => (
+              <TableBody>
+                {!fetchError && filteredBarangay.length > 0 && paginated.map(barangay => (
                   <TableRow key={barangay.barangay_id} className="border-b border-[#C6C6C8]">
                     <TableCell className="text-[#122A48] text-left h-14 text-xs">{barangay.barangay_id}</TableCell>
 
@@ -305,10 +303,46 @@ export default function Barangay() {
                     </TableCell>
 
                   </TableRow>
-                ))
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* fetch error state */}
+          {fetchError && (
+            <div className="flex-1 flex flex-col justify-center items-center gap-3">
+              {barangaysCache.retrying ? (
+                <div className="flex flex-col items-center gap-3">
+                  <SpinnerIcon size={32} color="#D81010" />
+                  <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-[#D81010] text-center">
+                    <p className="font-semibold">Failed to load barangay</p>
+                    <p className="text-sm">Please try again later</p>
+                  </div>
+                  <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                </>
               )}
-            </TableBody>
-          </Table>
+            </div>
+          )}
+
+
+
+          {/* no barangay state */}
+          {!fetchError && filteredBarangay.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+              <div className="rounded-full bg-[#E5E5E6] p-3">
+                <UserRound size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold">No barangay found</p>
+              <p className="text-[#727272] text-xs">
+                No barangay have been found.
+              </p>
+            </div>
+          )}
+
           <div className="mt-auto">
             <TablePagination
               totalItems={totalItems}
@@ -374,8 +408,17 @@ export default function Barangay() {
           {/* fetch error state */}
           {fetchError ? (
             <div className="flex flex-col justify-center items-center text-center gap-3 py-25">
-              <p className="text-[#D81010] font-semibold text-xs">Failed to load barangay. <br /> Please try again later.</p>
-              <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              {barangaysCache.retrying ? (
+                <div className="flex flex-col items-center gap-3">
+                  <SpinnerIcon size={32} color="#D81010" />
+                  <p className="text-[#D81010] font-semibold text-xs">Retrying...</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[#D81010] font-semibold text-xs">Failed to load barangay. <br /> Please try again later.</p>
+                  <Button onClick={() => barangaysCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                </>
+              )}
             </div>
 
             // empty
@@ -551,7 +594,44 @@ export default function Barangay() {
         confirmLabel="Okay"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Loading Dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title="Saving Changes"
+        description="Updating barangay status, please wait..."
+      />
+      
+      {/* success Dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Barangay Status Updated!"
+        description={
+          <>
+            <strong>{actionResult.barangay?.barangay_name}</strong> has been {actionResult.action?.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
+
     </>
   )
 }

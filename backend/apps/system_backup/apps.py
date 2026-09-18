@@ -6,7 +6,13 @@ class SystemBackupConfig(AppConfig):
     name = 'apps.system_backup'
 
     def ready(self):
+        import os
         import sys
-        if 'runserver' in sys.argv:
+
+        argv0 = os.path.basename(sys.argv[0]) if sys.argv else ''
+        is_dev_server = 'runserver' in sys.argv
+        is_daphne = 'daphne' in argv0
+
+        if is_dev_server or is_daphne:
             from .scheduler import start
             start()

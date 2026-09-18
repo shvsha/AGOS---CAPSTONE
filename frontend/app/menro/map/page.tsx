@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { ALERT_STYLE, WASTE_STYLE } from "@/lib/constant"
 import { MapSkeleton } from "@/components/Skeleton/Menro/MapSkeleton"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
@@ -127,6 +128,11 @@ type WasteClassification = {
   dominant_waste_type: string
   timestamp: string
   confidence: number
+  estimated_volume: number
+  recyclable_pct: number
+  biodegradable_pct: number
+  residual_pct: number
+  special_waste_pct: number
 }
 
 type Dialog = {
@@ -183,7 +189,25 @@ export default function Map() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [alertDialog, setAlertDialog] = useState(false)
 
+  const [selectedWaste, setSelectedWaste] = useState<WasteClassification | null>(null)
+  const [wasteDialog, setWasteDialog] = useState(false)
+
   const loading = nodesCache.loading || healthCache.loading || wasteCache.loading || alertsCache.loading
+
+  const { panelRef: wastePanelRef, tableWrapRef: wasteWrapRef, rows: wasteRows } = useFillRows({
+    rowHeight: 49.3,
+    itemGap: 12,
+    minRows: 3,
+    reservePaginationSpace: false,
+    deps: [loading],
+  })
+  const { panelRef: alertsPanelRef, tableWrapRef: alertsWrapRef, rows: alertRows } = useFillRows({
+    rowHeight: 49.3,
+    itemGap: 12,
+    minRows: 3,
+    reservePaginationSpace: false,
+    deps: [loading],
+  })
 
   // helpers
   const health = allSensorHealth.find(h => h.node_details.node_id === selectedNode?.node_id)
@@ -218,7 +242,7 @@ export default function Map() {
 
     const health = allSensorHealth.find(h => h.node_details.node_id === nodeId)
 
-    setSelectedNode({ ...node, health })  // merge health in
+    setSelectedNode({ ...node, health })
     setNodeDialog({ open: true })
   }
 
@@ -232,15 +256,17 @@ export default function Map() {
     )
   })
 
-  const todayWaste = allWasteClassification.filter(waste => {
-    const wasteDate = new Date(waste.timestamp)
-    const today = new Date()
-    return (
-      wasteDate.getFullYear() === today.getFullYear() &&
-      wasteDate.getMonth() === today.getMonth() &&
-      wasteDate.getDate() === today.getDate()
-    )
-  })
+  const todayWaste = allWasteClassification
+    .filter(waste => {
+      const wasteDate = new Date(waste.timestamp)
+      const today = new Date()
+      return (
+        wasteDate.getFullYear() === today.getFullYear() &&
+        wasteDate.getMonth() === today.getMonth() &&
+        wasteDate.getDate() === today.getDate()
+      )
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   useWebSocket({
     path: "/ws/alerts/",
@@ -300,24 +326,25 @@ export default function Map() {
           </div>
 
           {/* waste */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+          <div ref={wastePanelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col min-h-0'>
             <div className='flex justify-between items-center p-2'>
               <p className='font-semibold text-[#122A48] text-xs'>Live Waste Classification</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-3 p-2 overflow-y-auto'>
+            <div ref={wasteWrapRef} className='flex flex-col gap-3 p-2 overflow-y-auto flex-1 min-h-0'>
               {todayWaste.length === 0 ? (
                 <div className='flex flex-col items-center justify-center h-full py-60 gap-2'>
                   <Trash2 size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No waste classification today</p>
                 </div>
               ) : (
-                todayWaste.slice(0, 11).map(waste => {
+                todayWaste.slice(0, wasteRows).map(waste => {
                   const style = WASTE_STYLE[waste.dominant_waste_type] ?? WASTE_STYLE.None
                   return (
                     <div
                       key={waste.classification_id}
-                      className={`flex items-center gap-3 p-1 rounded-lg border ${style.border} ${style.shadow} bg-white`}
+                      onClick={() => { setSelectedWaste(waste); setWasteDialog(true) }}
+                      className={`h-[49.3] flex items-center gap-3 p-1 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} bg-white`}
                     >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {WASTE_ICONS[waste.dominant_waste_type] ?? <Trash2 size={18} />}
@@ -338,19 +365,19 @@ export default function Map() {
           </div>
           
           {/* alert */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
+          <div ref={alertsPanelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col'>
             <div className='flex justify-between items-center p-2 text-xs'>
               <p className='font-semibold text-[#122A48]'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-3 p-2 overflow-y-auto'>
+            <div ref={alertsWrapRef} className='flex flex-col gap-3 p-2 overflow-y-auto flex-1 min-h-0'>
               {todayAlerts.length === 0 ? (
                 <div className='flex flex-col items-center justify-center h-full py-60 gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 11).map(alert => {
+                todayAlerts.slice(0, alertRows).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div
@@ -359,7 +386,7 @@ export default function Map() {
                         setSelectedAlert(alert)
                         setAlertDialog(true)
                       }}
-                      className={`flex items-center gap-3 p-1 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
+                      className={`h-[49.3] flex items-center gap-3 p-1 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
                     >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
@@ -526,6 +553,78 @@ export default function Map() {
                   })}
                 </>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Waste Classification Detail Dialog */}
+      <Dialog open={wasteDialog} onOpenChange={setWasteDialog}>
+        <DialogContent className="[&>button]:hidden text-[#122A48] w-[350px]">
+          <DialogHeader>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg ${WASTE_STYLE[selectedWaste?.dominant_waste_type ?? '']?.icon ?? WASTE_STYLE.None.icon}`}>
+                  {WASTE_ICONS[selectedWaste?.dominant_waste_type ?? ''] ?? <Trash2 size={16} />}
+                </div>
+                <p className="font-bold text-sm">{selectedWaste?.dominant_waste_type}</p>
+              </div>
+              <button onClick={() => setWasteDialog(false)} className="cursor-pointer">
+                <X size={16} />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <DialogTitle className="sr-only">Waste Classification Details</DialogTitle>
+          <hr />
+
+          {selectedWaste && (
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Node</p>
+                <p className="font-medium">{selectedWaste.node_details?.node_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Barangay</p>
+                <p className="font-medium">{selectedWaste.node_details?.barangay_details?.barangay_name ?? '—'}</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Detected</p>
+                <p className="font-medium">
+                  {new Date(selectedWaste.timestamp).toLocaleString('en-PH', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                  })}
+                </p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Confidence</p>
+                <p className="font-medium">{selectedWaste.confidence.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Est. Volume</p>
+                <p className="font-medium">{selectedWaste.estimated_volume} kg</p>
+              </div>
+
+              <hr />
+
+              <p className="font-semibold text-xs text-[#727272]">COMPOSITION</p>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Recyclable</p>
+                <p className="font-medium">{selectedWaste.recyclable_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Biodegradable</p>
+                <p className="font-medium">{selectedWaste.biodegradable_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Residual</p>
+                <p className="font-medium">{selectedWaste.residual_pct.toFixed(1)}%</p>
+              </div>
+              <div className="flex justify-between">
+                <p className="text-[#727272]">Special Waste</p>
+                <p className="font-medium">{selectedWaste.special_waste_pct.toFixed(1)}%</p>
+              </div>
             </div>
           )}
         </DialogContent>

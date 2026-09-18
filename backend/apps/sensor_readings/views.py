@@ -187,31 +187,31 @@ def get_water_flow_category(flow_rate) -> str:
 
 def call_ai_service(image_bytes: bytes):
     """
-    Calls the standalone AI service (TensorFlow + YOLO) over HTTP.
+    Runs waste classification + detection in-process (see apps.ai_inference).
     Returns the combined {"classification": ..., "detection": ...} dict,
-    or None if the service is unreachable/erroring — callers should treat
-    None the same way they previously treated a failed in-process call.
+    or None if something goes wrong — callers should treat None the same
+    way they previously treated a failed HTTP call to the old microservice.
     """
-    import requests
-    from django.conf import settings
-
+    from apps.ai_inference.inference import run_ai_classification
     try:
-        response = requests.post(
-            f"{settings.AI_SERVICE_URL}/classify",
-            files={"frame": ("frame.jpg", image_bytes, "image/jpeg")},
-            headers={"X-Service-Key": settings.AI_SERVICE_KEY},
-            timeout=180,  # first request after cold start can be slow
-        )
-        response.raise_for_status()
-        return response.json()
+        return run_ai_classification(image_bytes)
     except Exception as e:
-        print(f"[WARN] AI service call failed: {e}")
+        print(f"[WARN] AI inference failed: {e}")
         return None
 
 
 # ------------------------------------------------------------------
 # Combined view
 # ------------------------------------------------------------------
+
+# How far back to look for the MQTT-created anchor reading that these
+# frames belong to. MQTT fires first in the device's loop and is a tiny
+# payload (near-instant); HTTP frame upload is the slow multipart leg
+# that follows. 30s comfortably covers normal timing plus some slack
+# for a slow cellular window, without being so wide it risks attaching
+# frames to a stale, unrelated reading from a prior cycle.
+MQTT_MATCH_WINDOW_SECONDS = 30
+
 
 class SensorReadingWithFlowView(APIView):
     authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
@@ -228,51 +228,38 @@ class SensorReadingWithFlowView(APIView):
             # Authenticated as human staff (Admin/MENRO) via JWT —
             # allow specifying which node to submit/test for.
             node_id = request.data.get('node')
-        water_level    = request.data.get('water_level')
-        reading_status = request.data.get('reading_status', 'Normal')
 
         if not node_id:
             return Response({'error': 'node is required'}, status=status.HTTP_400_BAD_REQUEST)
-        if water_level is None:
-            return Response({'error': 'water_level is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            water_level = float(water_level)
-        except (ValueError, TypeError):
-            return Response({'error': 'water_level must be a number'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             node = SensorNode.objects.get(node_id=node_id)
         except SensorNode.DoesNotExist:
             return Response({'error': 'Sensor node not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        if not node.hotspot:
+
+        # water_level is no longer sent over HTTP — it arrives via MQTT
+        # first and creates the anchor row this request attaches to.
+        # If that anchor doesn't exist yet (MQTT publish failed, or
+        # this request arrived too late/too early), there's nothing
+        # valid to compute flow/clog/classification against, so we
+        # don't fabricate a row — the device is expected to skip
+        # sending frames in that case and just retry next cycle.
+        from django.utils import timezone
+        from datetime import timedelta
+
+        cutoff = timezone.now() - timedelta(seconds=MQTT_MATCH_WINDOW_SECONDS)
+        reading = SensorReading.objects.filter(
+            node=node,
+            timestamp__gte=cutoff,
+        ).order_by('-timestamp').first()
+
+        if reading is None:
             return Response(
-                {'error': 'Sensor node has no assigned hotspot — cannot classify reading'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': 'No recent MQTT-created reading found for this node to attach frames to'},
+                status=status.HTTP_409_CONFLICT
             )
 
-        canal_depth = node.hotspot.canal_depth
-        if not canal_depth or canal_depth <= 0:
-            return Response(
-                {'error': 'Hotspot has no valid canal_depth set — cannot classify reading'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        if not node.barangay:
-            return Response(
-                {'error': 'Sensor node has no assigned barangay — cannot classify reading'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        from apps.rainfall.services import classify_water_level
-
-        classification = classify_water_level(
-            water_level=water_level,
-            canal_depth=canal_depth,
-            barangay=node.barangay,
-        )
-        reading_status = classification['status']
+        water_level = reading.water_level
 
         frames_bytes = []
         for i in range(1, FRAME_COUNT + 1):
@@ -297,14 +284,10 @@ class SensorReadingWithFlowView(APIView):
         clog_pct           = compute_clog_pct(water_flow_rate, trend_contribution)
         water_flow         = get_water_flow_category(water_flow_rate)
 
-        reading = SensorReading.objects.create(
-            node=node,
-            water_level=water_level,
-            water_flow_rate=water_flow_rate,
-            water_flow=water_flow,
-            reading_status=reading_status,
-            clog_pct=clog_pct,
-        )
+        reading.water_flow_rate = water_flow_rate
+        reading.water_flow      = water_flow
+        reading.clog_pct        = clog_pct
+        reading.save(update_fields=['water_flow_rate', 'water_flow', 'clog_pct'])
 
         if clog_pct is not None and clog_pct >= CLASSIFY_THRESHOLD:
             self._handle_clog_classification(
@@ -316,7 +299,7 @@ class SensorReadingWithFlowView(APIView):
 
         return Response(
             SensorReadingSerializer(reading).data,
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_200_OK
         )
 
     def _handle_clog_classification(self, node, reading, frame_bytes, clog_pct):

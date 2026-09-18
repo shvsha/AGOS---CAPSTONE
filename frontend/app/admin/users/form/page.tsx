@@ -9,14 +9,13 @@ import { DIALOG_COLOR } from "@/lib/constant";
 
 // components
 import { DialogModal } from "@/components/DialogModal";
-import { Toast } from "@/components/Toast";
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 
-// hooks
-import { useToast } from "@/components/hooks/useToast";
+// lib
+import { getErrorMessage } from "@/lib/utils";
 
 // icons
-import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle  } from "lucide-react";
+import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle, CheckCircle, BadgeCheck, X } from "lucide-react";
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -26,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // api + auth
 import { api } from "@/lib/api"
-import { clearAuth  } from "@/lib/auth";
+import { clearAuth, setSuppressInactiveRedirect } from "@/lib/auth";
 
 type DialogState = {
   open: boolean;
@@ -78,10 +77,11 @@ function FormInner() {
     open: false,
   })
   const [adminWarningDialog, setAdminWarningDialog] = useState<DialogState>({ open: false })
+  const [adminCreatedDialog, setAdminCreatedDialog] = useState<DialogState>({ open: false })
 
-  // toast
-  const {toasts, addToast, removeToast } = useToast()
-
+  const [successDialog, setSuccessDialog] = useState<DialogState>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  
   // refs
   const fnameRef = useRef<HTMLDivElement>(null)
   const lnameRef = useRef<HTMLDivElement>(null)
@@ -94,10 +94,10 @@ function FormInner() {
   useEffect(() => {
     const loadBarangays = async () => {
       try {
-        const data = await api.get('/api/barangays/')
+        const data = await api.get('/api/barangays/all/')
         setBarangays(data.results ?? data)
-      } catch {
-        addToast('Failed to load barangays.', 'error')
+      } catch (err) {
+        setErrorDialog({ open: true, message: getErrorMessage(err) })
       }
     }
     loadBarangays()
@@ -116,8 +116,8 @@ function FormInner() {
         setStatus(data.status)
         setPosition(data.position ?? '')
         setBarangayId(data.barangay_id ?? null)
-      } catch {
-        addToast('Failed to load user data.', 'error')
+      } catch (err) {
+        setErrorDialog({ open: true, message: getErrorMessage(err) })
       } finally {
         setFormLoading(false)
       }
@@ -141,12 +141,12 @@ function FormInner() {
 
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
-    if (!fname.trim())                                          errors.fname      = 'This field is required.'
-    if (!lname.trim())                                          errors.lname      = 'This field is required.'
-    if (role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && !position.trim()) errors.position   = 'This field is required.'
-    if (!role)                                                  errors.role       = 'This field is required.'
-    if (role !== 'MENRO' && role !== 'MENRO_Staff' &&  role !== 'Admin' && !barangayId)     errors.barangayId = 'This field is required.'
-    if (!email.trim())                                          errors.email      = 'This field is required.'
+    if (!fname.trim()) errors.fname = 'This field is required.'
+    if (!lname.trim()) errors.lname = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'MENRO_Staff' && role !== 'Admin' && !position.trim()) errors.position = 'This field is required.'
+    if (!role) errors.role = 'This field is required.'
+    if (role !== 'MENRO' && role !== 'MENRO_Staff' &&  role !== 'Admin' && !barangayId) errors.barangayId = 'This field is required.'
+    if (!email.trim()) errors.email = 'This field is required.'
 
     setFieldErrors(errors)
 
@@ -168,7 +168,8 @@ function FormInner() {
     }
 
     // Show special admin warning dialog instead of normal confirm
-    if (role === 'Admin') {
+    if (!isEdit && role === 'Admin') {
+      setSuppressInactiveRedirect(true)
       setAdminWarningDialog({ open: true })
       return
     }
@@ -200,26 +201,15 @@ function FormInner() {
 
       // If new admin was created, log out current admin
       if (!isEdit && role === 'Admin') {
-        addToast('New admin created. You will be logged out.', 'success')
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        try {
-          await api.post('/api/auth/logout/', {})
-        } catch (err) {
-          console.log(err)
-        } finally {
-          clearAuth()
-          window.location.href = "/login"
-        }
+        setAdminCreatedDialog({ open: true })
         return
       }
 
-      addToast(isEdit ? `User account has \nbeen updated.` : `User has been \nadded successfully.`, 'success')
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      router.push('/admin/users')
+      setSuccessDialog({ open: true })
 
     } catch (err: any) {
       setLoadingDialog({ open: false })
-      
+
       if (err && typeof err === 'object') {
         const backendErrors: Record<string, string> = {}
         for (const key in err) {
@@ -228,13 +218,35 @@ function FormInner() {
         setFieldErrors(backendErrors)
       }
 
-      addToast(isEdit ? 'Failed to save changes. Please try again.' : 'Failed to create user. Please try again.', 'error')
+      setErrorDialog({
+        open: true,
+        message: isEdit
+          ? `Failed to save changes for ${fname} ${lname}. Please try again.`
+          : 'Failed to create user. Please try again.'
+      })
     }
   }
 
   const handleAdminWarningConfirm = () => {
     setAdminWarningDialog({ open: false })
     handleSubmit()
+  }
+
+  const handleAdminCreatedConfirm = async () => {
+    setAdminCreatedDialog({ open: false })
+    try {
+      await api.post('/api/auth/logout/', {})
+    } catch (err) {
+      console.log(err)
+    } finally {
+      clearAuth()
+      window.location.href = "/login"
+    }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    router.push('/admin/users')
   }
 
   if (isEdit && formLoading) return (
@@ -247,7 +259,7 @@ function FormInner() {
   return (
     <>
 
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
         
         {/* header */}
         <div className="flex justify-between w-full">
@@ -446,7 +458,7 @@ function FormInner() {
                           <SelectTrigger className={`!font-normal bg-[#1565BC05] h-8 cursor-pointer text-xs rounded-lg ${fieldErrors.barangayId ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
                             <SelectValue placeholder="Select..." />
                           </SelectTrigger>
-                          <SelectContent position="popper">
+                          <SelectContent position="popper" side="bottom" avoidCollisions={false}>
                             {barangays.map(b => (
                               <SelectItem className="text-xs cursor-pointer p-2" key={b.barangay_id} value={String(b.barangay_id)}>
                                 {b.barangay_name}
@@ -904,7 +916,54 @@ function FormInner() {
         confirmLabel="Yes, Proceed"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Admin Created — Logout Confirmation */}
+        <DialogModal
+          open={adminCreatedDialog.open}
+          onClose={() => {}}
+          onConfirm={handleAdminCreatedConfirm}
+          color={DIALOG_COLOR.lightblue}
+          icon={CheckCircle}
+          iconColor={DIALOG_COLOR.blue}
+          title="New Admin Created"
+          description={
+            <>
+              The new Admin account has been created successfully. Click <strong>OK</strong> to log out and return to the login page.
+            </>
+          }
+          confirmLabel="OK"
+        />
+
+        {/* success dialog */}
+        <DialogModal
+          open={successDialog.open}
+          onConfirm={handleSuccessConfirm}
+          color={DIALOG_COLOR.lightgreen}
+          icon={BadgeCheck}
+          iconColor={DIALOG_COLOR.green}
+          title={isEdit ? "Changes Saved!" : "User Created!"}
+          description={
+            isEdit ? (
+              <>
+                <strong>{fname} {lname}</strong>'s account has been updated successfully.
+              </>
+            ) : (
+              "The new user account has been created successfully."
+            )
+          }
+          confirmLabel="Done"
+        />
+
+        {/* error dialog */}
+        <DialogModal
+          open={errorDialog.open}
+          onConfirm={() => setErrorDialog({ open: false, message: '' })}
+          color={DIALOG_COLOR.lightred}
+          icon={X}
+          iconColor={DIALOG_COLOR.red}
+          title="Something Went Wrong"
+          description={errorDialog.message}
+          confirmLabel="Okay"
+        />
 
     </>
   )

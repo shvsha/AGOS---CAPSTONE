@@ -20,39 +20,19 @@ const CONDITION_COLORS: Record<string, string> = {
 }
 
 const HEALTH_COLORS: Record<string, string> = {
-  Critical: "#D81010",
-  Warning:  "#D86610",
-  Normal:   "#2C7B3C",
-  default:  "#727272",
+  Critical:    "#D81010",
+  Warning:     "#D86610",
+  Normal:      "#2C7B3C",
+  Maintenance: "#7C3AED",
+  default:     "#727272",
 }
 
 const AVAILABILITY_COLORS: Record<string, string> = {
-  Occupied:  "#1565BC",
+  Occupied:  "#2C7B3C",
   Available: "#727272",
   default:   "#727272",
 }
 
-
-function createPinIcon() {
-  return L.divIcon({
-    className: '',
-    html: `
-      <div style="
-        position: relative;
-        width: 25px;
-        height: 41px;
-      ">
-        <svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 21.9 12.5 41 12.5 41C12.5 41 25 21.9 25 12.5C25 5.6 19.4 0 12.5 0Z" fill="#1565BC"/>
-          <circle cx="12.5" cy="12.5" r="5" fill="white"/>
-        </svg>
-      </div>
-    `,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [0, -41],
-  })
-}
 
 function HotspotAvailabilityLegend() {
   const map = useMap()
@@ -85,10 +65,14 @@ function HotspotAvailabilityLegend() {
               <span>Available</span>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
-              <svg width="14" height="23" viewBox="0 0 25 41" style="flex-shrink:0;">
-                <path d="M12.5 0C5.6 0 0 5.6 0 12.5C0 21.9 12.5 41 12.5 41C12.5 41 25 21.9 25 12.5C25 5.6 19.4 0 12.5 0Z" fill="#1565BC"/>
-                <circle cx="12.5" cy="12.5" r="5" fill="white"/>
-              </svg>
+              <span style="
+                display:inline-block;
+                width:12px; height:12px;
+                border-radius:50%;
+                background:#2C7B3C;
+                border: 2px solid white;
+                box-shadow: 0 0 3px rgba(0,0,0,0.2);
+              "></span>
               <span>Occupied</span>
             </div>
           </div>
@@ -113,7 +97,7 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null
 }
 
-function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
+function MapLegend() {
   const map = useMap()
 
   useEffect(() => {
@@ -134,8 +118,8 @@ function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
             <p style="font-weight:700; margin-bottom:6px;">Live Risk Level</p>
             ${[
               { color: '#727272', label: 'Sleep Mode' },
-              { color: colorMode === 'health' ? '#2C7B3C' : '#1565BC', label: 'Normal' },
-              { color: colorMode === 'health' ? '#D86610' : '#FF9705', label: 'Warning' },
+              { color: '#1565BC', label: 'Normal' },
+              { color: '#FF9705', label: 'Warning' },
               { color: '#D81010', label: 'Critical' },
             ].map(({ color, label }) => `
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
@@ -158,7 +142,58 @@ function MapLegend({ colorMode }: { colorMode: 'clog' | 'health' }) {
 
     legend.addTo(map)
     return () => { legend.remove() }
-  }, [map, colorMode])
+  }, [map])
+
+  return null
+}
+
+function HealthLegend() {
+  const map = useMap()
+
+  useEffect(() => {
+    const legend = new (L.Control.extend({
+      options: { position: 'bottomleft' },
+      onAdd() {
+        const div = L.DomUtil.create('div')
+        div.innerHTML = `
+          <div style="
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            font-size: 11px;
+            color: #122A48;
+          ">
+            <p style="font-weight:700; margin-bottom:6px;">Node Health Status</p>
+            ${[
+              { color: '#727272', label: 'Offline / Sleep' },
+              { color: '#2C7B3C', label: 'Operating Normally' },
+              { color: '#D86610', label: 'Needs Attention' },
+              { color: '#D81010', label: 'Critical Fault' },
+              { color: '#7C3AED', label: 'Under Maintenance' },
+            ].map(({ color, label }) => `
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="
+                  display:inline-block;
+                  width:12px; height:12px;
+                  border-radius:50%;
+                  background:${color};
+                  border: 2px solid white;
+                  box-shadow: 0 0 3px rgba(0,0,0,0.2);
+                "></span>
+                <span>${label}</span>
+              </div>
+            `).join('')}
+          </div>
+        `
+        return div
+      }
+    }))()
+
+    legend.addTo(map)
+    return () => { legend.remove() }
+  }, [map])
 
   return null
 }
@@ -290,13 +325,13 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
   const hasMultiple = markers && markers.length > 0
   const hasSingle   = !!latitude && !!longitude
 
-  const center: [number, number] = hasMultiple
-    ? [
-        markers.reduce((sum, m) => sum + m.latitude, 0) / markers.length,
-        markers.reduce((sum, m) => sum + m.longitude, 0) / markers.length,
-      ]
-    : hasSingle
-      ? [latitude, longitude]
+  const center: [number, number] = hasSingle
+    ? [latitude, longitude]
+    : hasMultiple
+      ? [
+          markers.reduce((sum, m) => sum + m.latitude, 0) / markers.length,
+          markers.reduce((sum, m) => sum + m.longitude, 0) / markers.length,
+        ]
       : ROSARIO_CENTER
 
   return (
@@ -329,23 +364,24 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       )}
 
       {showLegend && (
-        colorMode === 'availability'
-          ? <HotspotAvailabilityLegend />
-          : <MapLegend colorMode={colorMode} />
+        colorMode === 'availability' ? <HotspotAvailabilityLegend /> :
+        colorMode === 'health'       ? <HealthLegend /> :
+        <MapLegend />
+      )}
+
+      {hasSingle && (
+        <RecenterMap lat={latitude} lng={longitude} zoom={zoom} />
       )}
 
       {!hasMultiple && hasSingle && (
-        <>
-          <RecenterMap lat={latitude} lng={longitude} zoom={zoom} />
-          <Marker position={[latitude, longitude]}>
-            <Popup>{label ?? "Location"}</Popup>
-          </Marker>
-        </>
+        <Marker position={[latitude, longitude]}>
+          <Popup>{label ?? "Location"}</Popup>
+        </Marker>
       )}
 
       {hasMultiple && markers.map((m, i) => {
         const color = colorMap[m.condition ?? "default"] ?? colorMap.default
-        const icon = m.usePin ? createPinIcon() : createColoredIcon(color, m.label, m.condition)
+        const icon = createColoredIcon(color, m.label, m.condition)
         return (
           <Marker
               key={i}

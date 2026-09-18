@@ -6,7 +6,5 @@ keras==3.14.1
 numpy==2.4.6
 pillow==12.2.0
 opencv-python==4.13.0.92
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1
-torchvision==0.20.1
-ultralytics==8.4.92
+onnxruntime==1.29.0
+ai-edge-litert

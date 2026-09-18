@@ -8,7 +8,7 @@ import RosLogo from '@/public/ROS-logo.jpg'
 import Image from "next/image"
 
 // icons
-import { ArrowLeft, FileText, FileDown } from "lucide-react"
+import { ArrowLeft, FileDown } from "lucide-react"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 
 // lib
 import { api } from "@/lib/api"
@@ -209,33 +210,32 @@ function ViewMunicipalReportInner() {
   const [barangayReports, setBarangayReports] = useState<BarangayMonthlyReport[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  const [retrying, setRetrying] = useState(false)
 
   const [exporting, setExporting] = useState(false)
   const { toasts, addToast, removeToast } = useToast()
 
-  const handleExport = async () => {
+  const { requestExport, ExportDialogs } = useExportDialog(async () => {
     if (!report) return
-    setExporting(true)
     try {
       await exportPdf(
         `/api/municipal-reports/${report.municipal_report_id}/export/`,
         {},
-        "municipal-mrf-report.pdf"
+        "compiled-mrf-report.pdf"
       )
     } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExporting(false)
+      addToast("Failed to export compiled MRF report.", "error")
     }
-  }
+  }, { description: "Are you sure you want to export the compiled MRF report?" })
 
-  const fetchData = async () => {
+  const fetchData = async (isRetry = false) => {
     if (!id) {
       setFetchError(true)
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (isRetry) setRetrying(true)
+    else setLoading(true)
     setFetchError(false)
     try {
       const municipalReport: MunicipalReport = await api.get(`/api/municipal-reports/${id}/`)
@@ -251,7 +251,8 @@ function ViewMunicipalReportInner() {
     } catch {
       setFetchError(true)
     } finally {
-      setLoading(false)
+      if (isRetry) setRetrying(false)
+      else setLoading(false)
     }
   }
 
@@ -274,8 +275,20 @@ function ViewMunicipalReportInner() {
   if (fetchError || !report) {
     return (
       <div className="hidden md:flex flex-col items-center justify-center h-150 gap-3">
-        <p className="text-[#D81010] font-semibold text-base">Failed to load this report.</p>
-        <Button onClick={fetchData} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+        {retrying ? (
+          <>
+            <SpinnerIcon size={32} color="#D81010" />
+            <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+          </>
+        ) : (
+          <>
+            <div className="text-[#D81010] text-center">
+              <p className="font-semibold">Failed to load this compiled barangay reports</p>
+              <p className="text-sm">Please try again later</p>
+            </div>
+            <Button onClick={() => fetchData(true)} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+          </>
+        )}
       </div>
     )
   }
@@ -295,7 +308,7 @@ function ViewMunicipalReportInner() {
             </p>
           </div>
           <Button
-            onClick={handleExport}
+            onClick={() => requestExport()}
             disabled={exporting}
             className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
           >
@@ -308,6 +321,8 @@ function ViewMunicipalReportInner() {
 
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
 
     </>
   )

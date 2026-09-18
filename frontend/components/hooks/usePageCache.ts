@@ -15,6 +15,7 @@ export function usePageCache<T>(
   const [data, setDataRaw] = useState<T>(cached ?? initial)
   const [loading, setLoading] = useState(cached === undefined)
   const [error, setError] = useState(false)
+  const [retrying, setRetrying] = useState(false)
 
   // Always keep the latest fetcher available, even though `refetch`
   // itself stays referentially stable (keyed only by `key`).
@@ -32,6 +33,7 @@ export function usePageCache<T>(
   }, [key])
 
   const refetch = useCallback(async () => {
+    setRetrying(true)
     try {
       const result = await fetcherRef.current()
       caches.set(key, result)
@@ -42,6 +44,7 @@ export function usePageCache<T>(
       setError(true)
     } finally {
       setLoading(false)
+      setRetrying(false)
     }
   }, [key])
 
@@ -49,5 +52,5 @@ export function usePageCache<T>(
     if (autoFetch) refetch()
   }, [])
 
-  return { data, setData, loading, error, refetch }
+  return { data, setData, loading, error, retrying, refetch }
 }

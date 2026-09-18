@@ -79,13 +79,16 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
-        {loading && !error && (
-          <View className="items-center py-10">
-            <ActivityIndicator color="#7FA9B8" />
-          </View>
+        {(loading || refreshing) && !error && (
+          <>
+            <View className="items-center justify-center p-10 flex flex-col gap-3">
+              <ActivityIndicator color="#2F6FED" />
+              <Text>Loading...</Text>
+            </View>
+          </>
         )}
 
-        {!loading && !error && (
+        {!loading && !refreshing && !error && (
           <>
             {/* Waste Volume */}
             <View className="bg-white rounded-2xl p-4 mb-5"

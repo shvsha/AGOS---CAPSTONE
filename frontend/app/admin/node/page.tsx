@@ -2,10 +2,11 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Copy } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Mail, BadgeCheck } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -23,10 +24,7 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { NodeSkeleton } from "@/components/Skeleton/Admin/NodeSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
-
-// toast
-import { useToast } from "@/components/hooks/useToast"
-import { Toast } from "@/components/Toast"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -65,6 +63,8 @@ type SensorReading = {
 
 
 export default function NodeManagement() {
+  const router = useRouter()
+
   // fetch raw data
   const fetchNodesRaw = async (): Promise<SensorNode[]> => {
     const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
@@ -99,7 +99,13 @@ export default function NodeManagement() {
   const [readingsError, setReadingsError] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
-  const { toasts, addToast, removeToast } = useToast()
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ name: string; action: string } | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
+    title: "Saving Changes",
+    description: "Processing details. Please wait.",
+  })
 
   const [nodeFormDialog, setNodeFormDialog] = useState<DialogState>({ open: false, node: null })
   const [loadingDialog, setLoadingDialog] = useState<DialogState>({ open: false })
@@ -109,10 +115,9 @@ export default function NodeManagement() {
   const [decommissionDialog, setDecommissionDialog] = useState<DialogState>({ open: false, node: null })
   const [decommissionGuardDialog, setDecommissionGuardDialog] = useState<DialogState>({ open: false, node: null })
 
-  const [keyModal, setKeyModal] = useState<{ open: boolean; deviceKey: string; nodeName: string; fromAdd: boolean }>({ open: false, deviceKey: '', nodeName: '', fromAdd: false })
+  const [keyModal, setKeyModal] = useState<{ open: boolean; email: string; nodeName: string; fromAdd: boolean }>({ open: false, email: '', nodeName: '', fromAdd: false })
   const [regenerateConfirmDialog, setRegenerateConfirmDialog] = useState<DialogState>({ open: false })
   const [generatingKey, setGeneratingKey] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   const isEdit = !!nodeFormDialog.node
 
@@ -125,7 +130,13 @@ export default function NodeManagement() {
     .filter(n => n.node_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.node_id - a.node_id)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 4,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   const total     = sensorNodes.filter(n => n.availability_status !== 'Retired').length
   const available = sensorNodes.filter(n => n.availability_status === 'Available').length
@@ -214,9 +225,9 @@ export default function NodeManagement() {
     setGeneratingKey(true)
     try {
       const result = await api.post(`/api/sensor-nodes/${node.node_id}/generate-key/`, {})
-      setKeyModal({ open: true, deviceKey: result.device_key, nodeName: node.node_name, fromAdd })
+      setKeyModal({ open: true, email: result.email, nodeName: node.node_name, fromAdd })
     } catch (err: any) {
-      addToast(err?.detail ?? err?.error ?? 'Failed to generate device key.', 'error')
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? 'Failed to generate device key.' })
       if (fromAdd) {
         setNodeFormDialog({ open: false, node: null })
         resetForm()
@@ -228,16 +239,20 @@ export default function NodeManagement() {
 
   const handleKeyModalDone = () => {
     const wasFromAdd = keyModal.fromAdd
-    setKeyModal({ open: false, deviceKey: '', nodeName: '', fromAdd: false })
-    setCopied(false)
+    setKeyModal({ open: false, email: '', nodeName: '', fromAdd: false })
     if (wasFromAdd) {
       setNodeFormDialog({ open: false, node: null })
       resetForm()
+      setSuccessDialog({ open: true })
     }
   }
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
+    setLoadingMessage({
+      title: isEdit ? "Saving Changes" : "Adding Node",
+      description: "Processing details. Please wait.",
+    })
     setLoadingDialog({ open: true })
 
     const payload = { node_code: nodeCode.trim() }
@@ -248,27 +263,36 @@ export default function NodeManagement() {
         nodesCache.setData(prev => prev.map(n =>
           n.node_id === nodeFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
-        addToast(`${updated.node_name} has been updated.`, 'success') 
-      } else {
-        const created = await api.post('/api/sensor-nodes/', payload)
-        nodesCache.setData(prev => [created, ...prev])
-        addToast(`${created.node_name} has been added.`, 'success')
-        await generateKeyForNode(created, true)
-      }
-      setNodeFormDialog({ open: false, node: null })
-      resetForm()
+        setActionResult({ name: updated.node_name, action: 'updated' })
+        setNodeFormDialog({ open: false, node: null })
+        resetForm()
+        setLoadingDialog({ open: false })
+        setSuccessDialog({ open: true })
+        } else {
+          const created = await api.post('/api/sensor-nodes/', payload)
+          nodesCache.setData(prev => [created, ...prev])
+          setActionResult({ name: created.node_name, action: 'added' })
+          setLoadingMessage({
+            title: "Generating Device Key",
+            description: "Creating a secure key and emailing it to you. Please wait.",
+          })
+          await generateKeyForNode(created, true)
+          setLoadingDialog({ open: false })
+          // form closes + success dialog fires inside handleKeyModalDone, once the key's been shown
+        }
     } catch (err: any) {
+      setLoadingDialog({ open: false })
       if (err?.node_code) {
         setFieldErrors(prev => ({ ...prev, nodeCode: Array.isArray(err.node_code) ? err.node_code[0] : err.node_code }))
       }
-      addToast(err?.detail ?? err?.node_code?.[0] ?? err?.error ?? 'Something went wrong.', 'error')
-    } finally {
-      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.node_code?.[0] ?? err?.error ?? 'Something went wrong. Please try again.' })
     }
   }
 
   const handleUnassign = async (node: SensorNode) => {
     setUnassignDialog({ open: false, node: null })
+    setLoadingMessage({ title: "Unassigning Node", description: `Unassigning ${node.node_name}. Please wait.` })
+    setLoadingDialog({ open: true })
     try {
       await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
       nodesCache.setData(prev => prev.map(n =>
@@ -276,14 +300,19 @@ export default function NodeManagement() {
           ? { ...n, availability_status: 'Available', status: 'Active' }
           : n
       ))
-      addToast(`${node.node_name} has been unassigned and is now available.`, 'success')
+      setActionResult({ name: node.node_name, action: 'unassigned and is now available' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to unassign node.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unassign ${node.node_name}. Please try again.` })
     }
   }
 
   const handleDecommission = async (node: SensorNode) => {
     setDecommissionDialog({ open: false, node: null })
+    setLoadingMessage({ title: "Decommissioning Node", description: `Decommissioning ${node.node_name}. Please wait.` })
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/sensor-nodes/${node.node_id}/`, { availability_status: 'Retired' })
       nodesCache.setData(prev => prev.map(n =>
@@ -291,9 +320,21 @@ export default function NodeManagement() {
           ? { ...n, availability_status: 'Retired' }
           : n
       ))
-      addToast(`${node.node_name} has been decommissioned.`, 'success')
+      setActionResult({ name: node.node_name, action: 'decommissioned' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to decommission node.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to decommission ${node.node_name}. Please try again.` })
+    }
+  }
+
+  const handleSuccessConfirm = () => {
+    const wasAdd = actionResult?.action === 'added'
+    setSuccessDialog({ open: false })
+    setActionResult(null)
+    if (wasAdd) {
+      router.push('/admin/assign')
     }
   }
 
@@ -302,44 +343,29 @@ export default function NodeManagement() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* Header */}
         <div className="flex justify-between w-full">
           <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>Node Management</p>
           </div>
-          <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search node..." width="w-60" height="h-9" />
-
-            <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-              <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Availability" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="w-36 min-w-0">
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Available">Available</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Occupied">Occupied</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => setNodeFormDialog({ open: true, node: null })}
-              className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
-            >
-              <FaPlus color="white" /> Add Node
-            </Button>
-          </div>
+          <Button
+            onClick={() => setNodeFormDialog({ open: true, node: null })}
+            className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+          >
+            <FaPlus color="white" /> Add Node
+          </Button>
         </div>
 
         {/* Summary Cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-3 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />,  bg: "bg-[#CDE3DE]", count: total,     label: "Total Nodes" },
             { icon: <CheckCircle size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: available, label: "Available" },
             { icon: <RadioTower size={20} color="#1565BC" />,  bg: "bg-[#DBEAFE]", count: occupied,  label: "Occupied" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -350,184 +376,213 @@ export default function NodeManagement() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-2 h-132 overflow-visible">
-          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-            <p className="p-2 text-sm font-bold text-[#122A48]">IoT Sensor Nodes</p>
-            <Table>
-              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-                <TableRow>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fetchError ? (
+        <div className="flex gap-4 mt-2 flex-1 min-h-[528px] overflow-visible">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+            <div className="flex justify-between items-center p-2">
+              <p className="text-sm font-bold text-[#122A48]">IoT Sensor Nodes</p>
+
+              <div className="flex gap-3 items-center">
+                <SearchFilter value={search} onChange={setSearch} placeholder="Search node..." width="w-60" height="h-8" />
+
+                <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+                  <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Availability" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-36 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Available">Available</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Occupied">Occupied</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load nodes. Please try again.</p>
-                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE ID</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">AVAILABILITY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                   </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <RadioTower size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No sensor nodes added</p>
-                        <p className="text-[#727272] text-sm">Add a node to start monitoring.</p>
-                        <Button
-                          onClick={() => setNodeFormDialog({ open: true, node: null })}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                        >
-                          + Add Node
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!fetchError && filtered.length > 0 && paginated.map(node => (
+                      <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
+                        <TableCell className="text-left h-14 text-xs">
+                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                            node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
+                            node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
+                            'bg-[#DBEAFE] text-[#1565BC]'
+                          }`}>
+                            <span className={`text-xs w-1.5 h-1.5 rounded-full ${
+                              node.availability_status === 'Available' ? 'bg-[#1D8104]' :
+                              node.availability_status === 'Retired'   ? 'bg-[#727272]' :
+                              'bg-[#1565BC]'
+                            }`} />
+                            <p className="text-xs">{node.availability_status}</p>
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-14 text-xs relative">
+                          {/* Available */}
+                          {node.availability_status === 'Available' && (
+                            <>
+                              <Button
+                                onClick={() => setNodeFormDialog({ open: true, node })}
+                                className="text-xs flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3"
+                              >
+                                <SquarePen size={16} /> Edit
+                              </Button>
+
+                              <div className="relative">
+                                <Button
+                                  id={`menu-btn-${node.node_id}`}
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                                  className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
+                                >
+                                  <MoreVertical size={16} />
+                                </Button>
+
+                                {openMenuId === node.node_id && (
+                                  <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
+                                    style={{
+                                      top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                      right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                    >
+                                      <History size={14} /> View Readings
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setDecommissionDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                    >
+                                      <CircleOff size={14} /> Decommission
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Occupied */}
+                          {node.availability_status === 'Occupied' && (
+                            <>
+                              <Button
+                                onClick={() => setNodeFormDialog({ open: true, node })}
+                                className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
+                              >
+                                <SquarePen size={16} /> Edit
+                              </Button>
+
+                              <div className="relative">
+                                <Button
+                                  id={`menu-btn-${node.node_id}`}
+                                  onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
+                                  className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
+                                >
+                                  <MoreVertical size={16} />
+                                </Button>
+
+                                {openMenuId === node.node_id && (
+                                  <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
+                                    style={{
+                                      top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
+                                      right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
+                                    >
+                                      <History size={14} /> View Readings
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
+                                    >
+                                      <Unplug size={14} /> Unassign
+                                    </button>
+                                    <button
+                                      onClick={() => { setOpenMenuId(null); setDecommissionGuardDialog({ open: true, node }) }}
+                                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                                    >
+                                      <CircleOff size={14} /> Decommission
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Retired */}
+                          {node.availability_status === 'Retired' && (
+                            <>
+                              <Button
+                                onClick={() => setNodeFormDialog({ open: true, node })}
+                                className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
+                              >
+                                <SquarePen size={16} /> Edit
+                              </Button>
+                              <Button
+                                onClick={() => setReadingsDialog({ open: true, node })}
+                                className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
+                              >
+                                <History size={16} /> View Readings
+                              </Button>
+                            </>
+                          )}
+
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                {nodesCache.retrying ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon size={32} color="#D81010" />
+                    <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+                  </div>
                 ) : (
-                  paginated.map(node => (
-                    <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
-                      <TableCell className="text-left h-14 text-xs">
-                        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                          node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
-                          node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
-                          'bg-[#DBEAFE] text-[#1565BC]'
-                        }`}>
-                          <span className={`text-xs w-1.5 h-1.5 rounded-full ${
-                            node.availability_status === 'Available' ? 'bg-[#1D8104]' :
-                            node.availability_status === 'Retired'   ? 'bg-[#727272]' :
-                            'bg-[#1565BC]'
-                          }`} />
-                          <p className="text-xs">{node.availability_status}</p>
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-14 text-xs relative">
-                        {/* Available */}
-                        {node.availability_status === 'Available' && (
-                          <>
-                            <Button
-                              onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="text-xs flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3"
-                            >
-                              <SquarePen size={16} /> Edit
-                            </Button>
-
-                            <div className="relative">
-                              <Button
-                                id={`menu-btn-${node.node_id}`}
-                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                                className="text-xs text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
-                              >
-                                <MoreVertical size={16} />
-                              </Button>
-
-                              {openMenuId === node.node_id && (
-                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
-                                  style={{
-                                    top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
-                                    right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
-                                  }}
-                                >
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
-                                  >
-                                    <History size={14} /> View Readings
-                                  </button>
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setDecommissionDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
-                                  >
-                                    <CircleOff size={14} /> Decommission
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-
-                        {/* Occupied */}
-                        {node.availability_status === 'Occupied' && (
-                          <>
-                            <Button
-                              onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
-                            >
-                              <SquarePen size={16} /> Edit
-                            </Button>
-
-                            <div className="relative">
-                              <Button
-                                id={`menu-btn-${node.node_id}`}
-                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === node.node_id ? null : node.node_id) }}
-                                className="text-[#122A48] rounded-lg bg-[#FAFCFD] hover:bg-[#eef1f3] cursor-pointer border border-[#C6C6C8] py-3.5 px-3"
-                              >
-                                <MoreVertical size={16} />
-                              </Button>
-
-                              {openMenuId === node.node_id && (
-                                <div className="fixed bg-white border border-[#C6C6C8] rounded-lg shadow-lg z-[9999] w-35 overflow-hidden"
-                                  style={{
-                                    top: document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().bottom ?? 0,
-                                    right: window.innerWidth - (document.getElementById(`menu-btn-${node.node_id}`)?.getBoundingClientRect().right ?? 0),
-                                  }}
-                                >
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
-                                  >
-                                    <History size={14} /> View Readings
-                                  </button>
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#FF9705] hover:bg-[#FFF3E0] cursor-pointer"
-                                  >
-                                    <Unplug size={14} /> Unassign
-                                  </button>
-                                  <button
-                                    onClick={() => { setOpenMenuId(null); setDecommissionGuardDialog({ open: true, node }) }}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
-                                  >
-                                    <CircleOff size={14} /> Decommission
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-
-                        {/* Retired */}
-                        {node.availability_status === 'Retired' && (
-                          <>
-                            <Button
-                              onClick={() => setNodeFormDialog({ open: true, node })}
-                              className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-4.5 px-3"
-                            >
-                              <SquarePen size={16} /> Edit
-                            </Button>
-                            <Button
-                              onClick={() => setReadingsDialog({ open: true, node })}
-                              className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
-                            >
-                              <History size={16} /> View Readings
-                            </Button>
-                          </>
-                        )}
-
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  <>
+                    <div className="text-[#D81010] text-center">
+                      <p className="font-semibold">Failed to load sensor nodes</p>
+                      <p className="text-sm">Please try again later</p>
+                    </div>
+                    <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                  </>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            )}
+
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <RadioTower size={30} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No sensor nodes added</p>
+                <p className="text-[#727272] text-xs">Add a node to start monitoring.</p>
+                <Button
+                  onClick={() => setNodeFormDialog({ open: true, node: null })}
+                  className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                >
+                  + Add Node
+                </Button>
+              </div>
+            )}
+
             <div className="mt-auto">
               <TablePagination
                 totalItems={totalItems}
@@ -555,6 +610,7 @@ export default function NodeManagement() {
                 </p>
               </div>
             </div>
+            
           </DialogHeader>
           <DialogTitle className="sr-only">{isEdit ? 'Edit Node' : 'Add Node'}</DialogTitle>
 
@@ -761,32 +817,18 @@ export default function NodeManagement() {
         confirmLabel="Generate Key"
       />
 
-      {/* Device key reveal modal */}
+      {/* Device key generated — sent via email */}
       <DialogModal
         open={keyModal.open}
         color={DIALOG_COLOR.lightgreen}
-        icon={KeyRound}
+        icon={Mail}
         iconColor={DIALOG_COLOR.green}
         title="Device Key Generated"
         description={
           <span className="flex flex-col gap-2">
             <span className="block">
-              Copy this key into <strong>{keyModal.nodeName}</strong>&apos;s firmware now — it will not be shown again.
-            </span>
-            <span className="flex items-center gap-2 rounded-lg border border-[#C6C6C8] bg-[#1565BC05] px-3 py-2">
-              <code className="flex-1 text-[11px] sm:text-xs break-all font-mono text-[#122A48]">
-                {keyModal.deviceKey}
-              </code>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(keyModal.deviceKey)
-                  setCopied(true)
-                }}
-                className="flex-shrink-0 cursor-pointer text-[#1565BC] hover:text-[#12569f]"
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </button>
+              A new device key for <strong>{keyModal.nodeName}</strong> has been sent to{" "}
+              <strong>{keyModal.email}</strong>. Check your inbox to copy it into the device firmware.
             </span>
             <span className="block text-[#FF0000] text-[11px] sm:text-xs font-medium">
               If lost, you&apos;ll need to generate a new key and reflash the device.
@@ -839,7 +881,43 @@ export default function NodeManagement() {
         confirmLabel="Okay"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Loading dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={loadingMessage.title}
+        description={<>{loadingMessage.description}</>}
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={
+          <>
+            <strong>{actionResult?.name}</strong> has been {actionResult?.action} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
     </>
   )
 }

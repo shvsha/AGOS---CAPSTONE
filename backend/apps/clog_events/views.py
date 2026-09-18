@@ -30,13 +30,25 @@ class ClogEventListView(generics.ListCreateAPIView):
         return [IsAdmin()]
 
     def get_queryset(self):
+        from datetime import datetime
         from django.utils import timezone
-        now = timezone.now()
-        qs = ClogEvent.objects.select_related(
-            'node', 'node__barangay', 'node__hotspot'
-        ).filter(
-            detected_at__year=now.year, detected_at__month=now.month
-        )
+
+        month_param = self.request.query_params.get('month')
+        qs = ClogEvent.objects.select_related('node', 'node__barangay', 'node__hotspot')
+
+        if month_param == 'All':
+            pass
+        elif month_param:
+            try:
+                target = datetime.strptime(month_param, '%Y-%m')
+                qs = qs.filter(detected_at__year=target.year, detected_at__month=target.month)
+            except ValueError:
+                now = timezone.now()
+                qs = qs.filter(detected_at__year=now.year, detected_at__month=now.month)
+        else:
+            now = timezone.now()
+            qs = qs.filter(detected_at__year=now.year, detected_at__month=now.month)
+
         user = self.request.user
         if user.user_role == 'Barangay':
             qs = qs.filter(barangay=user.barangay)
@@ -101,6 +113,7 @@ class UpdateClogStatusView(APIView):
                 event.resolved_at = timezone.now()
                 event.cleared_by = user
             elif new_status == 'Responded':
+                event.responded_at = timezone.now()
                 event.responded_by = user
             event.save()
 
@@ -185,7 +198,6 @@ class ClogEventExportView(APIView):
             report_title="Clog Events",
             columns=columns,
             rows=rows,
-            accent_color="#E65100",
             generated_by=f"{request.user.first_name} {request.user.last_name}",
             orientation="landscape",
             filename="clog-events.pdf",

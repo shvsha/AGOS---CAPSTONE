@@ -22,10 +22,7 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { AssignSkeleton } from "@/components/Skeleton/Admin/AssignSkeleton"
-
-// toast
-import { useToast } from "@/components/hooks/useToast"
-import { Toast } from "@/components/Toast"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -116,10 +113,19 @@ export default function NodeAssignment() {
   const [installedAt, setInstalledAt] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  const [loadingAvailableNodes, setLoadingAvailableNodes] = useState(false)
+  const [loadingHotspots, setLoadingHotspots] = useState(false)
+
   const fetchError = assignedNodesCache.error || barangaysCache.error || allHotspotsCache.error
   const loading = assignedNodesCache.loading || barangaysCache.loading || allHotspotsCache.loading
 
-  const { toasts, addToast, removeToast } = useToast()
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  const [actionResult, setActionResult] = useState<{ message: string } | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
+    title: "Assigning Node",
+    description: "Processing. Please wait.",
+  })
 
   const [assignFormDialog, setAssignFormDialog] = useState<DialogState>({ open: false, node: null })
   const [viewMapDialog, setViewMapDialog] = useState<DialogState>({ open: false, node: null })
@@ -145,7 +151,13 @@ export default function NodeAssignment() {
     )
     .sort((a, b) => b.node_id - a.node_id)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 4)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   const total    = assignedNodes.length
   const active   = assignedNodes.filter(n => n.status === 'Active').length
@@ -156,14 +168,19 @@ export default function NodeAssignment() {
     return {
       latitude: h.latitude,
       longitude: h.longitude,
-      label: assignedNode ? assignedNode.node_name : h.name,
+      label: assignedNode
+        ? `${assignedNode.node_name} – ${assignedNode.barangay_details?.barangay_name ?? ''}`
+        : h.name,
       condition: assignedNode ? 'Occupied' : 'Available',
       sublabel: assignedNode 
-        ? `Water: ${assignedNode.water_level ?? '—'}cm | Clog: ${assignedNode.clog_pct ?? '—'}%`
+        ? `Occupying: ${h.name}`
         : "Available hotspot",
       usePin: !!assignedNode,
     }
   })
+
+  // Occupied-only, for the node "view on map" dialog — unoccupied hotspots aren't relevant there.
+  const occupiedHotspotMarkers = allHotspotMarkers.filter(m => m.condition === 'Occupied')
 
   // Hotspots for the assign-form map preview, scoped to the selected barangay only.
   // Falls back to all hotspots when no barangay has been chosen yet.
@@ -174,6 +191,7 @@ export default function NodeAssignment() {
   
 
   const fetchAvailableNodes = async () => {
+    setLoadingAvailableNodes(true)
     try {
       const res = await fetchWithAuth(
         `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/?availability_status=Available`
@@ -181,7 +199,9 @@ export default function NodeAssignment() {
       if (!res.ok) throw new Error()
       const data = await res.json()
       setAvailableNodes(data.results ?? data)
-    } catch {}
+    } catch {} finally {
+      setLoadingAvailableNodes(false)
+    }
   }
 
   const refetchAll = useCallback(async () => {
@@ -226,6 +246,7 @@ export default function NodeAssignment() {
     if (!barangay) { setHotspots([]); setHotspot(''); return }
 
     const fetchHotspots = async () => {
+      setLoadingHotspots(true)
       try {
         const res = await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/barangay/${barangay}/available/`
@@ -234,7 +255,6 @@ export default function NodeAssignment() {
         const data = await res.json()
         let spots: Hotspot[] = data.results ?? data
 
-        // On edit, keep the current hotspot in the list even if occupied
         if (assignFormDialog.node?.hotspot_details) {
           const current = assignFormDialog.node.hotspot_details
           const alreadyIncluded = spots.some(h => h.hotspot_id === current.hotspot_id)
@@ -244,7 +264,9 @@ export default function NodeAssignment() {
         }
 
         setHotspots(spots)
-      } catch { setHotspots([]) }
+      } catch { setHotspots([]) } finally {
+        setLoadingHotspots(false)
+      }
     }
     fetchHotspots()
   }, [barangay])
@@ -291,6 +313,10 @@ export default function NodeAssignment() {
 
   const handleSubmit = async () => {
     setConfirmDialog({ open: false })
+    setLoadingMessage({
+      title: isEdit ? "Saving Changes" : "Assigning Node",
+      description: "Processing. Please wait.",
+    })
     setLoadingDialog({ open: true })
 
     const payload = {
@@ -305,72 +331,70 @@ export default function NodeAssignment() {
         assignedNodesCache.setData(prev => prev.map(n =>
           n.node_id === assignFormDialog.node!.node_id ? { ...n, ...updated } : n
         ))
-        addToast(`${assignFormDialog.node!.node_name} assignment updated.`, 'success')
+        setActionResult({ message: `${assignFormDialog.node!.node_name}'s assignment has been updated successfully.` })
       } else {
         const updated = await api.patch(`/api/sensor-nodes/${selectedNode}/`, payload)
         assignedNodesCache.setData(prev => [updated, ...prev])
-        addToast('Node has been assigned successfully.', 'success')
+        setActionResult({ message: 'Node has been assigned successfully.' })
       }
       setAssignFormDialog({ open: false, node: null })
       resetForm()
-    } catch (err: any) {
-      addToast(err?.detail ?? err?.error ?? 'Something went wrong.', 'error')
-    } finally {
       setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
+    } catch (err: any) {
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? 'Something went wrong. Please try again.' })
     }
   }
 
   const handleUnassign = async (node: SensorNode) => {
     setUnassignDialog({ open: false, node: null })
+    setLoadingMessage({ title: "Unassigning Node", description: `Unassigning ${node.node_name}. Please wait.` })
+    setLoadingDialog({ open: true })
     try {
       await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
       assignedNodesCache.setData(prev => prev.filter(n => n.node_id !== node.node_id))
-      addToast(`${node.node_name} has been unassigned.`, 'success')
+      setActionResult({ message: `${node.node_name} has been unassigned successfully.` })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err: any) {
-      addToast(err?.detail ?? 'Failed to unassign node.', 'error')
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unassign ${node.node_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false })
+    setActionResult(null)
   }
 
   if (loading) return <AssignSkeleton/>
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* Header */}
         <div className="flex justify-between w-full">
           <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>Node Assignment</p>
           </div>
-          <div className="flex gap-3">
-            <SearchFilter value={search} onChange={setSearch} placeholder="Search assigned node..." width="w-60" height="h-9" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="cursor-pointer text-xs w-36 px-3 py-[16px] bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="w-36 min-w-0">
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => setAssignFormDialog({ open: true, node: null })}
-              className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
-            >
-              <MapPinPlus size={16} /> Assign Node
-            </Button>
-          </div>
+          <Button
+            onClick={() => setAssignFormDialog({ open: true, node: null })}
+            className="p-5 py-[16px] rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+          >
+            <MapPinPlus size={16} /> Assign Node
+          </Button>
         </div>
 
         {/* Summary Cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-3 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Assigned" },
             { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active,   label: "Active" },
             { icon: <CircleOff size={20} color="#D81010" />,  bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -381,101 +405,128 @@ export default function NodeAssignment() {
         </div>
 
         {/* Table */}
-        <div className="flex gap-4 mt-3 h-132">
-          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
-            <p className="p-2 font-bold text-[#122A48] text-sm">Assigned Canal Nodes</p>
-            <Table>
-              <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
-                <TableRow>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">INSTALLED</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fetchError ? (
+        <div className="flex gap-4 mt-3 flex-1 min-h-[528px]">
+          <div ref={panelRef} className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-full rounded-lg flex flex-col">
+            <div className="flex justify-between items-center p-2">
+              <p className="font-bold text-[#122A48] text-sm">Assigned Canal Nodes</p>
+
+              <div className="flex gap-3 items-center">
+                <SearchFilter value={search} onChange={setSearch} placeholder="Search assigned node..." width="w-60" height="h-8" />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="cursor-pointer text-xs w-36 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-36 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Active">Active</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load assignments. Please try again.</p>
-                        <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">BARANGAY</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">NODE NAME</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">HOTSPOT</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">LOCATION</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">STATUS</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">INSTALLED</TableHead>
+                    <TableHead className="font-semibold text-left text-xs text-[#727272]">ACTIONS</TableHead>
                   </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <RadioTower size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No nodes assigned yet</p>
-                        <p className="text-[#727272] text-sm">Assign an available node to a canal hotspot.</p>
-                        <Button
-                          onClick={() => setAssignFormDialog({ open: true, node: null })}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                        >
-                          + Assign Node
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {!fetchError && filtered.length > 0 && paginated.map(node => (
+                      <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.hotspot_details?.name ?? '—'}</TableCell>
+                        <TableCell className="text-left h-14 text-xs">
+                          <Button
+                            className="text-xs text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
+                            onClick={() => setViewMapDialog({ open: true, node })}
+                          >
+                            <Map size={16} /> View on map
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-left h-18">
+                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                            node.status === 'Active' ? 'bg-[#B2FBC173] text-[#2C7B3C]' : 'bg-[#FFE5E5] text-[#D81010]'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              node.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
+                            }`} />
+                            {node.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-[#122A48] text-left h-14 text-xs">
+                          {node.installed_at
+                            ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
+                                year: 'numeric', month: 'short', day: 'numeric'
+                              })
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="text-[#122A48] flex gap-2 justify-left items-center h-14 text-xs">
+                          <Button
+                            onClick={() => setAssignFormDialog({ open: true, node })}
+                            className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 text-xs px-3"
+                          >
+                            <SquarePen size={16} /> Edit
+                          </Button>
+                          <Button
+                            onClick={() => setUnassignDialog({ open: true, node })}
+                            className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-3.5 text-xs px-3"
+                          >
+                            <Unplug size={16} /> Unassign
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col justify-center items-center gap-3">
+                {(assignedNodesCache.retrying || barangaysCache.retrying || allHotspotsCache.retrying) ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon size={32} color="#D81010" />
+                    <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+                  </div>
                 ) : (
-                  paginated.map(node => (
-                    <TableRow key={node.node_id} className="border-b border-[#C6C6C8]">
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.barangay_details?.barangay_name ?? '—'}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.hotspot_details?.name ?? '—'}</TableCell>
-                      <TableCell className="text-left h-14 text-xs">
-                        <Button
-                          className="text-xs text-[#2C7B3C] bg-[#B2FBC173] hover:bg-[#9ae2a873] cursor-pointer"
-                          onClick={() => setViewMapDialog({ open: true, node })}
-                        >
-                          <Map size={16} /> View on map
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-left h-18">
-                        <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                          node.status === 'Active' ? 'bg-[#B2FBC173] text-[#2C7B3C]' : 'bg-[#FFE5E5] text-[#D81010]'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            node.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
-                          }`} />
-                          {node.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-[#122A48] text-left h-14 text-xs">
-                        {node.installed_at
-                          ? new Date(node.installed_at.replace(' ', 'T')).toLocaleDateString('en-PH', {
-                              year: 'numeric', month: 'short', day: 'numeric'
-                            })
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-[#122A48] flex gap-2 justify-left items-center h-14 text-xs">
-                        <Button
-                          onClick={() => setAssignFormDialog({ open: true, node })}
-                          className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 text-xs px-3"
-                        >
-                          <SquarePen size={16} /> Edit
-                        </Button>
-                        <Button
-                          onClick={() => setUnassignDialog({ open: true, node })}
-                          className="flex gap-2 text-[#FF9705] rounded-lg bg-[#FFF3E0] hover:bg-[#ffe0b2] cursor-pointer border border-[#C6C6C8] py-3.5 text-xs px-3"
-                        >
-                          <Unplug size={16} /> Unassign
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  <>
+                    <div className="text-[#D81010] text-center">
+                      <p className="font-semibold">Failed to load assigned nodes</p>
+                      <p className="text-sm">Please try again later</p>
+                    </div>
+                    <Button onClick={refetchAll} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                  </>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            )}
+
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+                <div className="rounded-full bg-[#E5E5E6] p-3">
+                  <RadioTower size={30} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No nodes assigned yet</p>
+                <p className="text-[#727272] text-xs">Assign an available node to a canal hotspot.</p>
+                <Button
+                  onClick={() => setAssignFormDialog({ open: true, node: null })}
+                  className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                >
+                  + Assign Node
+                </Button>
+              </div>
+            )}
+            
             <div className="mt-auto">
               <TablePagination
                 totalItems={totalItems}
@@ -492,16 +543,21 @@ export default function NodeAssignment() {
       <Dialog open={assignFormDialog.open}>
         <DialogContent className="overflow-y-auto [&>button]:hidden p-0 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] text-[#122A48] min-w-80 md:min-w-180 max-h-150">
           <DialogHeader>
-            <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5">
-              <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? 'bg-[#FF9705] mt-0.5' : 'bg-[#1565BC] mt-1.5 md:mt-0.5'}`}>
-                {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+            <div className="flex gap-3 p-4 py-3 md:p-5 md:py-5 justify-between">
+              <div className="flex gap-3">
+                <div className={`flex-shrink-0 self-start rounded-lg p-2 md:p-2.5 text-white ${isEdit ? 'bg-[#FF9705] mt-0.5' : 'bg-[#1565BC] mt-1.5 md:mt-0.5'}`}>
+                  {isEdit ? <MapPinPen className="md:h-7.5 md:w-7.5" /> : <MapPinPlus className="md:h-7.5 md:w-7.5" />}
+                </div>
+                <div className="flex flex-col">
+                  <p className="font-bold text-base md:text-lg">{isEdit ? assignFormDialog.node?.node_name ?? 'Edit Assignment' : 'Assign Node'}</p>
+                  <p className="text-[10px] md:text-sm text-[#727272]">
+                    {isEdit ? "Update this node's hotspot assignment." : 'Assign an available node to a canal hotspot.'}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <p className="font-bold text-base md:text-lg">{isEdit ? assignFormDialog.node?.node_name ?? 'Edit Assignment' : 'Assign Node'}</p>
-                <p className="text-[10px] md:text-sm text-[#727272]">
-                  {isEdit ? "Update this node's hotspot assignment." : 'Assign an available node to a canal hotspot.'}
-                </p>
-              </div>
+              <button type="button" onClick={() => setCancelDialog({ open: true })} className="cursor-pointer flex-shrink-0">
+                <X size={18} />
+              </button>
             </div>
           </DialogHeader>
           <DialogTitle className="sr-only">{isEdit ? 'Edit Assignment' : 'Assign Node'}</DialogTitle>
@@ -534,8 +590,8 @@ export default function NodeAssignment() {
                             if (fieldErrors.selectedNode) setFieldErrors(prev => ({ ...prev, selectedNode: '' }))
                           }}
                         >
-                          <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.selectedNode ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                            <SelectValue placeholder="Select available node..." />
+                          <SelectTrigger disabled={loadingAvailableNodes} className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.selectedNode ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                            <SelectValue placeholder={loadingAvailableNodes ? "Loading node..." : "Select available node..."} />
                           </SelectTrigger>
                           <SelectContent position="popper" className="max-h-60 overflow-y-auto">
                             {availableNodes.length === 0 ? (
@@ -568,8 +624,8 @@ export default function NodeAssignment() {
                           if (fieldErrors.barangay) setFieldErrors(prev => ({ ...prev, barangay: '' }))
                         }}
                       >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder="Select Barangay..." />
+                        <SelectTrigger disabled={loading} className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.barangay ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue placeholder={loading ? "Loading barangay..." : "Select Barangay..."} />
                         </SelectTrigger>
                         <SelectContent position="popper" className="max-h-60 overflow-y-auto">
                           {[...allBarangays]
@@ -601,8 +657,16 @@ export default function NodeAssignment() {
                         }}
                         disabled={!barangay}
                       >
-                        <SelectTrigger className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.hotspot ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
-                          <SelectValue placeholder={!barangay ? "Select barangay first..." : "Select hotspot..."} />
+                        <SelectTrigger disabled={loading || !barangay} className={`!font-normal bg-[#1565BC05] py-0 md:py-[20px] text-xs md:text-sm rounded-lg ${fieldErrors.hotspot ? 'border-[#FF0000]' : 'border-[#727272]'}`}>
+                          <SelectValue
+                            placeholder={
+                              loadingHotspots
+                                ? "Loading..."
+                                : !barangay
+                                  ? "Select barangay first..."
+                                  : "Select hotspot..."
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent position="popper" className="max-h-60 overflow-y-auto">
                           {hotspots.length === 0 ? (
@@ -739,9 +803,11 @@ export default function NodeAssignment() {
           </DialogHeader>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
-              markers={allHotspotMarkers}
+              latitude={viewMapDialog.node?.hotspot_details?.latitude}
+              longitude={viewMapDialog.node?.hotspot_details?.longitude}
+              markers={occupiedHotspotMarkers}
               zoom={13}
-              showLegend={true}
+              showLegend={false}
               colorMode="availability"
             />
           </div>
@@ -823,7 +889,39 @@ export default function NodeAssignment() {
         confirmLabel="Unassign"
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Loading dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={loadingMessage.title}
+        description={<>{loadingMessage.description}</>}
+      />
+
+      {/* Success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Success!"
+        description={actionResult?.message}
+        confirmLabel="Done"
+      />
+
+      {/* Error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
     </>
   )
 }

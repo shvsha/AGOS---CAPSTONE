@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django_apscheduler',
     'django_filters',
     'axes',
+    'storages',
 
     'rest_framework',
     'corsheaders',
@@ -92,6 +93,7 @@ INSTALLED_APPS = [
     'apps.audit_logs',
     'apps.hotspots',
     'apps.rainfall',
+    'apps.ai_inference',
 
     # not part of the main process of the system
     'apps.training_captures',
@@ -284,6 +286,28 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Supabase S3-compatible storage
+AWS_ACCESS_KEY_ID = os.getenv('SUPABASE_S3_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY = os.getenv('SUPABASE_S3_SECRET_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('SUPABASE_S3_BUCKET', 'agos-media')
+AWS_S3_ENDPOINT_URL = os.getenv('SUPABASE_S3_ENDPOINT')
+AWS_S3_REGION_NAME = os.getenv('SUPABASE_S3_REGION')
+AWS_DEFAULT_ACL = 'public-read'
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_FILE_OVERWRITE = False
+
+SUPABASE_PROJECT_URL = os.getenv('SUPABASE_PROJECT_URL')
+SUPABASE_S3_BACKUP_BUCKET = os.getenv('SUPABASE_S3_BACKUP_BUCKET', 'agos-backups')
+
+STORAGES = {
+    "default": {
+        "BACKEND": "agos_backend.storage_backends.SupabasePublicStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 # API key for the IoT
 IOT_API_KEY = os.getenv('IOT_API_KEY')
 
@@ -292,3 +316,9 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://localhost:8001')
 AI_SERVICE_KEY = os.getenv('AI_SERVICE_KEY')
 CLOUDFLARE_URL = os.getenv('CLOUDFLARE_URL')
+
+# mqtt for IoT
+MQTT_BROKER_HOST = os.getenv('MQTT_BROKER_HOST')
+MQTT_BROKER_PORT = int(os.getenv('MQTT_BROKER_PORT', 8883))
+MQTT_USERNAME = os.getenv('MQTT_USERNAME')
+MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')

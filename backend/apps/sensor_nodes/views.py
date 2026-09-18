@@ -3,14 +3,18 @@ from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import SensorNode, SystemHealthLog
-from .serializers import SensorNodeSerializer, SystemHealthLogSerializer
+from .models import SensorNode, SystemHealthLog, MaintenanceLog
+from .serializers import SensorNodeSerializer, SystemHealthLogSerializer, MaintenanceLogSerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from apps.users.authentication import CookieJWTAuthentication
 from apps.rainfall.services import get_effective_condition, AlertThreshold
 from apps.audit_logs.utils import log_action
 import secrets
 from django.contrib.auth.hashers import make_password
+from agos_backend.pdf_utils import render_to_pdf
+from .utils import send_device_key_email 
+from apps.audit_logs.utils import log_action
+from django.utils import timezone
 
 
 class SensorNodeListView(generics.ListCreateAPIView):
@@ -183,9 +187,9 @@ class SensorNodeRetireView(APIView):
 class SensorNodeGenerateKeyView(APIView):
     """
     Generates a new device credential for a node. The plaintext key is
-    returned ONLY in this response — it's never stored or recoverable
-    again, only the hash. Calling this again for the same node
-    invalidates whatever key it had before.
+    emailed to the requesting admin — it's never returned in the API
+    response, stored, or recoverable again, only the hash. Calling this
+    again for the same node invalidates whatever key it had before.
     """
     permission_classes = [IsAdmin]
 
@@ -199,6 +203,9 @@ class SensorNodeGenerateKeyView(APIView):
         node.device_key_hash = make_password(secret)
         node.save()
 
+        device_key = f"{node.node_id}.{secret}"
+        send_device_key_email(request.user, node, device_key)
+
         log_action(
             user=request.user,
             action='Generated Device Key',
@@ -209,8 +216,8 @@ class SensorNodeGenerateKeyView(APIView):
 
         return Response({
             'node_id': node.node_id,
-            'device_key': f"{node.node_id}.{secret}",
-            'warning': 'This key will not be shown again. Copy it into the device firmware now.',
+            'email': request.user.email,
+            'message': 'Device key generated and sent to your email.',
         }, status=status.HTTP_200_OK)
 
 
@@ -273,7 +280,7 @@ class SystemHealthLogListView(generics.ListCreateAPIView):
         return SystemHealthLog.objects.select_related(
             'node', 'node__barangay', 'node__hotspot'
         ).filter(
-            timestamp__year=now.year, timestamp__month=now.month
+            checked_at__year=now.year, checked_at__month=now.month
         ).order_by('-checked_at')
 
     def get_permissions(self):
@@ -295,3 +302,187 @@ class SystemHealthLogByNodeView(generics.ListAPIView):
     def get_queryset(self):
         node_id = self.kwargs['node_id']
         return SystemHealthLog.objects.filter(node__node_id=node_id).order_by('-checked_at')
+
+
+class SystemHealthLogExportView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        # Only export assigned nodes — a node without a hotspot isn't a
+        # deployed device yet (or was retired, which clears the hotspot),
+        # so it has no real health to report. Matches the "assigned"
+        # definition already used on the Dashboard (hotspot_details present).
+        nodes = SensorNode.objects.select_related('barangay').filter(
+            hotspot__isnull=False
+        ).order_by('node_name')
+
+        columns = ["Node", "Barangay", "Status", "Battery (V)", "Battery %", "Signal (dBm)", "Sensor", "Last Checked"]
+        rows = []
+        for node in nodes:
+            latest = SystemHealthLog.objects.filter(node=node).order_by('-checked_at').first()
+            if latest:
+                if latest.battery_voltage is not None:
+                    pct = round(min(100, max(0, ((latest.battery_voltage - 3.0) / (4.2 - 3.0)) * 100)))
+                    battery_v = f"{latest.battery_voltage:.1f}"
+                    battery_pct = f"{pct}%"
+                else:
+                    battery_v = "—"
+                    battery_pct = "—"
+
+                rows.append([
+                    node.node_name,
+                    node.barangay.barangay_name if node.barangay else "—",
+                    node.status,
+                    battery_v,
+                    battery_pct,
+                    f"{latest.signal_strength}" if latest.signal_strength is not None else "—",
+                    "OK" if latest.sensor_continuity else ("FAIL" if latest.sensor_continuity is False else "—"),
+                    latest.checked_at.strftime("%b %d, %Y %I:%M %p"),
+                ])
+            else:
+                rows.append([node.node_name, node.barangay.barangay_name if node.barangay else "—", node.status, "—", "—", "—", "—", "No data yet"])
+
+        log_action(
+            user=request.user,
+            action='Exported System Health',
+            affected_table='tbl_sensor_nodes',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return render_to_pdf(
+            report_title="System Health Summary",
+            columns=columns,
+            rows=rows,
+            generated_by=f"{request.user.first_name} {request.user.last_name}",
+            orientation="landscape",
+            filename="system-health.pdf",
+        )
+
+
+class SensorNodeMarkMaintenanceView(APIView):
+    """
+    Flags a node as under maintenance and opens a MaintenanceLog entry.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, node_id):
+        try:
+            node = SensorNode.objects.get(node_id=node_id)
+        except SensorNode.DoesNotExist:
+            return Response({'error': 'Node not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if node.availability_status == 'Retired':
+            return Response({'error': 'Retired nodes cannot be marked under maintenance'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if node.status == 'Maintenance':
+            return Response({'error': 'Node is already under maintenance'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response({'error': 'A reason is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        previous_status = node.status
+        node.status = 'Maintenance'
+        node.save()
+
+        MaintenanceLog.objects.create(node=node, reason=reason, marked_by=request.user)
+
+        log_action(
+            user=request.user,
+            action='Marked Node Under Maintenance',
+            affected_table='tbl_sensor_nodes',
+            old_value=f"status: {previous_status}",
+            new_value=f"status: Maintenance — {reason}",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({'message': f'Node {node_id} marked under maintenance'}, status=status.HTTP_200_OK)
+
+
+class SensorNodeMarkAvailableView(APIView):
+    """
+    Reverts a node from Maintenance back to Active and closes its open MaintenanceLog entry.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request, node_id):
+        try:
+            node = SensorNode.objects.get(node_id=node_id)
+        except SensorNode.DoesNotExist:
+            return Response({'error': 'Node not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if node.status != 'Maintenance':
+            return Response({'error': 'Node is not currently under maintenance'}, status=status.HTTP_400_BAD_REQUEST)
+
+        node.status = 'Active'
+        node.save()
+
+        open_log = MaintenanceLog.objects.filter(node=node, resolved_at__isnull=True).order_by('-started_at').first()
+        if open_log:
+            open_log.resolved_at = timezone.now()
+            open_log.save()
+
+        log_action(
+            user=request.user,
+            action='Marked Node Available',
+            affected_table='tbl_sensor_nodes',
+            old_value="status: Maintenance",
+            new_value="status: Active",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({'message': f'Node {node_id} marked as available'}, status=status.HTTP_200_OK)
+
+
+class MaintenanceLogListView(generics.ListAPIView):
+    serializer_class = MaintenanceLogSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = MaintenanceLog.objects.select_related('node', 'marked_by').order_by('-started_at')
+        month = self.request.query_params.get('month')  # expects 'YYYY-MM'
+        if month:
+            try:
+                year, mon = month.split('-')
+                qs = qs.filter(started_at__year=int(year), started_at__month=int(mon))
+            except ValueError:
+                pass
+        return qs
+
+
+class MaintenanceLogExportView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        qs = MaintenanceLog.objects.select_related('node').order_by('-started_at')
+
+        month = request.query_params.get('month')
+        if month:
+            try:
+                year, mon = month.split('-')
+                qs = qs.filter(started_at__year=int(year), started_at__month=int(mon))
+            except ValueError:
+                pass
+
+        columns = ["Node", "Reason", "Date Marked"]
+        rows = [
+            [m.node.node_name, m.reason, m.started_at.strftime("%b %d, %Y %I:%M %p")]
+            for m in qs
+        ]
+
+        log_action(
+            user=request.user,
+            action='Exported Maintenance Logs',
+            affected_table='tbl_maintenance_logs',
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+
+        return render_to_pdf(
+            report_title="Maintenance Logs",
+            columns=columns,
+            rows=rows,
+            generated_by=f"{request.user.first_name} {request.user.last_name}",
+            orientation="landscape",
+            filename=f"maintenance-logs-{month}.pdf" if month else "maintenance-logs.pdf",
+        )

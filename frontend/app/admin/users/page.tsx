@@ -4,20 +4,18 @@
 import { FaSearch } from "react-icons/fa"
 import { FaPlus } from "react-icons/fa6"
 import { FaUsers } from "react-icons/fa";
-import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal  } from "lucide-react";
+import { BadgeCheck, CircleOff, ShieldCheck, UserRound, SquarePen, UserMinus, UserPlus, User, SlidersHorizontal, X, MoreHorizontal, CheckCircle, ShieldAlert  } from "lucide-react";
 
 // react
-import { useState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
-
-// toast
-import { useToast } from "@/components/hooks/useToast";
-import { Toast } from "@/components/Toast";
 
 // component
 import { UsersSkeleton } from "@/components/Skeleton/Admin/UsersSkeleton";
 import { DialogModal } from "@/components/DialogModal";
 import { SearchFilter } from "@/components/SearchFilter";
+import { SpinnerIcon } from "@/components/SpinnerIcon";
+import { useFillRows } from "@/components/hooks/useFillRows";
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -28,6 +26,7 @@ import { DIALOG_COLOR } from "@/lib/constant";
 import { ROLE_DISPLAY } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { usePageCache } from "@/components/hooks/usePageCache";
+import { clearAuth, setSuppressInactiveRedirect } from "@/lib/auth";
 
 // shadcn
 import { Input } from "@/components/ui/input"
@@ -53,6 +52,10 @@ type DialogState = {
   user: User | null;
 };
 
+type DialogStateLoading = {
+  open: boolean
+}
+
 const getAvatarColor = (role: string) => {
   if (role === "MENRO") return "#2C7B3C"
   if (role === "MENRO_Staff") return "#37b851"
@@ -71,9 +74,8 @@ function getFilteredUsers(users: User[], role: string, status: string, search: s
 // fetch raw data
 const fetchUsersRaw = async (): Promise<User[]> => {
   const data = await api.get('/api/users/')
-  return (data.results as User[]).filter(u => u.user_role !== 'Admin')
+  return (data.results as User[])
 }
-
 
 export default function Users() {
   const router = useRouter()
@@ -89,10 +91,9 @@ export default function Users() {
   const [filterOpen, setFilterOpen] = useState<boolean>(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
-  // toast
-  const {toasts, addToast, removeToast } = useToast()
-
   const usersCache = usePageCache('users:users', fetchUsersRaw, [] as User[], { autoFetch: false })
+
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     usersCache.refetch()
@@ -112,10 +113,31 @@ export default function Users() {
     open: false,
     user: null,
   })
+  const [blockedDialog, setBlockedDialog] = useState<DialogState>({
+    open: false,
+    user: null,
+  })
+  const [loadingDialog, setLoadingDialog] = useState<DialogStateLoading>({
+    open: false,
+  })
+  const [successDialog, setSuccessDialog] = useState<DialogStateLoading>({ open: false })
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+
+  const [actionResult, setActionResult] = useState<{ user: User | null; action: 'Activated' | 'Deactivated' | null }>({
+    user: null,
+    action: null,
+  })
+
+  const [adminReactivatedDialog, setAdminReactivatedDialog] = useState<DialogState>({ open: false, user: null })
 
   const filteredUsers = getFilteredUsers(users, userRole, userStatus, search)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, 7)
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredUsers, rows)
 
   // summary cards
   const total    = users.length
@@ -128,9 +150,16 @@ export default function Users() {
     const user = reactivateDialog.user
     if (!user) return
     setReactivateDialog({open: false, user: null})
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Active' })
-      addToast(`${user.first_name} ${user.last_name} has been activated.`)
+
+      if (user.user_role === 'Admin') {
+        setSuppressInactiveRedirect(true)
+        setAdminReactivatedDialog({ open: true, user })
+        return
+      }
+
       usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
@@ -138,19 +167,50 @@ export default function Users() {
             : u
         )
       )
+      setActionResult({ user, action: 'Activated' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
     } catch (err) {
       console.log(err)
-      addToast('Failed to activate user', 'error')
+      setActionResult({ user, action: 'Activated' })
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: `Failed to activate ${user.first_name} ${user.last_name}. Please try again.` })
     }
+  }
+
+  const handleAdminReactivatedConfirm = async () => {
+    setAdminReactivatedDialog({ open: false, user: null })
+    setLoadingDialog({ open: true })
+    try {
+      await api.post('/api/auth/logout/', {})
+
+      setLoadingDialog({ open: false })
+    } catch (err) {
+      console.log(err)
+    } finally {
+      clearAuth()
+      window.location.href = "/login"
+    }
+  }
+
+  // guard: block deactivating the only active Admin (there must always be one)
+  const handleDeactivateClick = (user: User) => {
+    const activeAdminCount = users.filter(u => u.user_role === 'Admin' && u.status === 'Active').length
+    if (user.user_role === 'Admin' && user.status === 'Active' && activeAdminCount <= 1) {
+      setBlockedDialog({ open: true, user })
+      return
+    }
+    setDeactivateDialog({ open: true, user })
   }
 
   const handlerDeactivate = async () => {
     const user = deactivateDialog.user
     if (!user) return
     setDeactivateDialog({open: false, user: null})
+    setLoadingDialog({ open: true })
     try {
       await api.patch(`/api/users/${user.user_id}/`, { status: 'Inactive' })
-      addToast(`${user.first_name} ${user.last_name} has been deactivated.`)
+      
       usersCache.setData(prev =>
         prev.map(u =>
           u.user_id === user.user_id
@@ -158,75 +218,52 @@ export default function Users() {
             : u
         )
       )
-    } catch (err) {
+
+      setActionResult({ user, action: 'Deactivated' })
+      setLoadingDialog({ open: false })
+      setSuccessDialog({ open: true })
+    } catch (err: any) {
       console.log(err)
-      addToast('Failed to deactivate user.', 'error')
+      setActionResult({ user, action: 'Deactivated' })
+      setLoadingDialog({ open: false })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? `Failed to deactivate ${user.first_name} ${user.last_name}. Please try again.` })
     }
+  }
+
+  const handleSuccessConfirm = () => {
+    setSuccessDialog({ open: false }) 
   }
 
   if (loading) return <UsersSkeleton />
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
-        {/* title and filter container */}
+        {/* title and action container */}
         <div className="flex justify-between w-full mb-2">
           <div className="font-bold text-[#122A48] flex justify-center items-center text-[15px]">
             <p>System Users</p>
           </div>
 
-          <div className="flex gap-3">
-
-            {/* search filter */}
-            <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-9" />
-
-            {/* user role filter */}
-            <Select value={userRole} onValueChange={setUserRole}>
-              <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-27 min-w-0'>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Users</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* user status filter */}
-            <Select value={userStatus} onValueChange={setUserStatus}>
-              <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-4 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent position="popper" className='w-28 min-w-0'>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Status</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Active">Active</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* add user */}
-            <Button
-              onClick={() => router.push('/admin/users/form')}
-              className="text-xs p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
-            >
-              <FaPlus color="white" /> Add User
-            </Button>
-
-          </div>
-
+          {/* add user */}
+          <Button
+            onClick={() => router.push('/admin/users/form')}
+            className="text-xs p-5 py-4 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white shadow-[0_6px_4px_-4px_rgba(0,0,0,0.2)]"
+          >
+            <FaPlus color="white" /> Add User
+          </Button>
         </div>
 
         {/* header total cards */}
-        <div className="flex justify-between w-full text-[#122A48]">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48]">
           {[
             { icon: <FaUsers size={20} color="#1565BC" />, bg: "bg-[#CDE3DE]", count: total, label: "Total Users" },
             { icon: <BadgeCheck size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: active, label: "Active" },
             { icon: <CircleOff size={20} color="#FF0101" />, bg: "bg-[#FFE5E5]", count: inactive, label: "Inactive" },
             { icon: <ShieldCheck size={20} color="#582579" />, bg: "bg-[#DACDE3]", count: barangay, label: "Barangay Officer" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -237,10 +274,43 @@ export default function Users() {
         </div>
         
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-133">
-          <p className="text-[#122A48] font-bold mx-3 mb-2 text-sm">User Accounts</p>
+        <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[532px]">
 
-          <div>
+          {/* title and filters */}
+          <div className='flex justify-between items-center px-3 mb-2'>
+            <p className="text-[#122A48] font-bold text-sm">User Accounts</p>
+
+            <div className='flex gap-3 items-center'>
+              <SearchFilter value={search} onChange={setSearch} placeholder='Search Users...' width="w-50" height="h-8" />
+
+              {/* user role filter */}
+              <Select value={userRole} onValueChange={setUserRole}>
+                <SelectTrigger className="text-xs cursor-pointer w-27 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent position="popper" className='w-27 min-w-0'>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Users</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO">MENRO Officer</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="MENRO_Staff">MENRO Staff</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Barangay">Barangay</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* user status filter */}
+              <Select value={userStatus} onValueChange={setUserStatus}>
+                <SelectTrigger className="text-xs cursor-pointer w-28 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent position="popper" className='w-28 min-w-0'>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All">All Status</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Active">Active</SelectItem>
+                  <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div ref={tableWrapRef}>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
                 <TableRow>
@@ -252,114 +322,116 @@ export default function Users() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                
-                {/* fetch error state */}
-                {fetchError ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-15">
-                      <div className="flex flex-col justify-center items-center gap-3 py-20">
-                        <p className="text-[#D81010] font-semibold text-base">Failed to load users. Please try again later.</p>
-                        <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                {!fetchError && filteredUsers.length > 0 && paginated.map(user => (
+                  <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
+                    <TableCell className="text-[#122A48] text-left h-14 text-xs !min-w-20 ">{user.user_id}</TableCell>
 
-                  // no user state
-                  ) : filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-15">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <UserRound size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No users found</p>
-                        <p className="text-[#727272] text-sm">
-                          No user have been added yet. <br/> Click the button below to start adding users.
-                        </p>
-                        <Button
-                          onClick={() => router.push('/admin/users/form')}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+                    <TableCell className="text-[#122A48] h-14 text-xs">
+                      <div className="flex gap-3 items-left">
+                        <div
+                          className="rounded-full w-8 h-8 flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
+                          style={{ backgroundColor: getAvatarColor(user.user_role) }}
                         >
-                          + Add User
-                        </Button>
+                          {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                        </div>
+                        <div className="flex flex-col text-left text-xs">
+                          <p className="font-semibold">{user.first_name} {user.last_name}</p>
+                          <p className="underline">{user.email}</p>
+                        </div>
                       </div>
                     </TableCell>
+
+                    <TableCell className="text-[#122A48] h-14 text-xs">
+                      <div className="mx-auto text-left">
+                        {ROLE_DISPLAY[user.user_role] ?? user.user_role}
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-left h-14 text-xs">
+                      <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                        user.status === 'Active'
+                          ? 'bg-[#B2FBC173] text-[#2C7B3C]'
+                          : 'bg-[#FFE5E5] text-[#D81010]'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          user.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
+                        }`}/>
+                        {user.status}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-14 text-xs">
+                      <Button 
+                        onClick={() => router.push(`/admin/users/form?id=${user.user_id}`)}
+                        className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
+                      >
+                        <SquarePen size={16} />
+                        Edit
+                      </Button>
+
+                      {user.status === 'Active' ? (
+                        <Button 
+                          onClick={() => handleDeactivateClick(user)}
+                          className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
+                        >
+                          <UserMinus size={16} />
+                          Deactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => startTransition(() => setReactivateDialog({ open: true, user: user }))}
+                          disabled={isPending}
+                          className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          <UserPlus size={16} />
+                          Activate
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
-
-                  // with user state
-                  ) : (
-                    paginated.map(user => (
-                      <TableRow key={user.user_id} className="border-b border-[#C6C6C8]">
-                        <TableCell className="text-[#122A48] text-left h-14 text-xs !min-w-20 ">{user.user_id}</TableCell>
-
-                        <TableCell className="text-[#122A48] h-14 text-xs">
-                          <div className="flex gap-3 items-left">
-                            <div
-                              className="rounded-full w-8 h-8 flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
-                              style={{ backgroundColor: getAvatarColor(user.user_role) }}
-                            >
-                              {user.first_name.charAt(0)}{user.last_name.charAt(0)}
-                            </div>
-                            <div className="flex flex-col text-left text-xs">
-                              <p className="font-semibold">{user.first_name} {user.last_name}</p>
-                              <p className="underline">{user.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        <TableCell className="text-[#122A48] h-14 text-xs">
-                          <div className="mx-auto text-left">
-                            {ROLE_DISPLAY[user.user_role] ?? user.user_role}
-                          </div>
-                        </TableCell>
-                        
-                        <TableCell className="text-left h-14 text-xs">
-                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                            user.status === 'Active'
-                              ? 'bg-[#B2FBC173] text-[#2C7B3C]'
-                              : 'bg-[#FFE5E5] text-[#D81010]'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              user.status === 'Active' ? 'bg-[#1D8104]' : 'bg-[#BB2325]'
-                            }`}/>
-                            {user.status}
-                          </span>
-                        </TableCell>
-
-                        <TableCell className="text-[#122A48] flex gap-3 justify-left items-center h-14 text-xs">
-                          <Button 
-                            onClick={() => router.push(`/admin/users/form?id=${user.user_id}`)}
-                            className="flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3 text-xs"
-                          >
-                            <SquarePen size={16} />
-                            Edit
-                          </Button>
-
-                          {user.status === 'Active' ? (
-                            <Button 
-                              onClick={() => setDeactivateDialog({ open: true, user: user})}
-                              className="flex gap-2 text-[#D81010] rounded-lg bg-[#FFE5E5] hover:bg-red-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
-                            >
-                              <UserMinus size={16} />
-                              Deactivate
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={() => setReactivateDialog({ open: true, user: user })}
-                              className="flex gap-2 text-[#2C7B3C] rounded-lg bg-[#CDE3DE] hover:bg-green-200 cursor-pointer border border-[#C6C6C8] py-3.5 px-3 text-xs"
-                            >
-                              <UserPlus size={16} />
-                              Activate
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                  
+                ))}
               </TableBody>
             </Table>
           </div>
+
+          {/* fetch error state */}
+          {fetchError && (
+          <div className="flex-1 flex flex-col justify-center items-center gap-3">
+            {usersCache.retrying ? (
+              <div className="flex flex-col items-center gap-3">
+                <SpinnerIcon size={32} color="#D81010" />
+                <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+              </div>
+            ) : (
+              <>
+                <div className="text-[#D81010] text-center">
+                  <p className="font-semibold">Failed to load users</p>
+                  <p className="text-sm">Please try again later</p>
+                </div>
+                <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              </>
+            )}
+          </div>
+        )}
+
+          {/* no user state */}
+          {!fetchError && filteredUsers.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+              <div className="rounded-full bg-[#E5E5E6] p-3">
+                <UserRound size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold">No users found</p>
+              <p className="text-[#727272] text-xs">
+                No user have been added yet. <br/> Click the button below to start adding users.
+              </p>
+              <Button
+                onClick={() => router.push('/admin/users/form')}
+                className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
+              >
+                + Add User
+              </Button>
+            </div>
+          )}
   
           <div className="mt-auto">
             <TablePagination
@@ -477,8 +549,17 @@ export default function Users() {
           {/* fetch error state */}
           {fetchError ? (
             <div className="flex flex-col justify-center items-center text-center gap-3 py-25">
-              <p className="text-[#D81010] font-semibold text-xs">Failed to load users. <br/> Please try again later.</p>
-              <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
+              {usersCache.retrying ? (
+                <div className="flex flex-col items-center gap-3">
+                  <SpinnerIcon size={32} color="#D81010" />
+                  <p className="text-[#D81010] font-semibold text-xs">Retrying...</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[#D81010] font-semibold text-xs">Failed to load users.<br /> Please try again later.</p>
+                  <Button onClick={() => usersCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                </>
+              )}
             </div>
   
           /* empty */
@@ -563,7 +644,7 @@ export default function Users() {
 
                           {user.status === 'Active' ? (
                             <button
-                              onClick={() => { setDeactivateDialog({ open: true, user }); setOpenMenuId(null) }}
+                              onClick={() => { handleDeactivateClick(user); setOpenMenuId(null) }}
                               className="flex items-center gap-2 w-full px-3 py-2.5 text-[12px] text-[#D81010] hover:bg-[#FFE5E5]"
                             >
                               <UserMinus size={13} /> Deactivate
@@ -673,23 +754,30 @@ export default function Users() {
       </div>
 
       {/* Dialog */}
+
       {/* Reactivate Dialog */}
       <DialogModal
         open={reactivateDialog.open}
         onClose={() => setReactivateDialog({open: false, user: null})}
         onConfirm={handleReactivate}
-        color={DIALOG_COLOR.lightgreen}
+        color={reactivateDialog.user?.user_role === 'Admin' ? DIALOG_COLOR.lightred : DIALOG_COLOR.lightgreen}
         icon={UserPlus}
-        iconColor={DIALOG_COLOR.green}
-        title="Reactivate User"
+        iconColor={reactivateDialog.user?.user_role === 'Admin' ? DIALOG_COLOR.red : DIALOG_COLOR.green}
+        title={reactivateDialog.user?.user_role === 'Admin' ? "Reactivate Admin?" : "Reactivate User"}
         description={
-          <>
-            Are you sure you want to activate{" "}
-            <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong>?
-          </>
+          reactivateDialog.user?.user_role === 'Admin' ? (
+            <>
+              Reactivating <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong> as Admin will <strong>deactivate the current active Admin</strong>. You will be logged out immediately after this action. Are you sure you want to proceed?
+            </>
+          ) : (
+            <>
+              Are you sure you want to activate{" "}
+              <strong>{reactivateDialog.user?.first_name} {reactivateDialog.user?.last_name}</strong>?
+            </>
+          )
         }
         cancelLabel='Cancel'
-        confirmLabel='Activate User'
+        confirmLabel={reactivateDialog.user?.user_role === 'Admin' ? 'Yes, Proceed' : 'Activate User'}
       />
 
       {/* Deactivate dialog */}
@@ -711,8 +799,82 @@ export default function Users() {
         confirmLabel='Deactivate User'
       />
 
-      <Toast toasts={toasts} onRemove={removeToast} />
+      {/* Blocked: cannot deactivate the only active Admin */}
+      <DialogModal
+        open={blockedDialog.open}
+        onClose={() => setBlockedDialog({ open: false, user: null })}
+        onConfirm={() => setBlockedDialog({ open: false, user: null })}
+        color={DIALOG_COLOR.lightorange}
+        icon={ShieldAlert}
+        iconColor={DIALOG_COLOR.orange}
+        title="Cannot Deactivate Admin"
+        description={
+          <>
+            <strong>{blockedDialog.user?.first_name} {blockedDialog.user?.last_name}</strong> is the only active Admin account. There must always be at least one active Admin — activate another Admin first before deactivating this one.
+          </>
+        }
+        confirmLabel="Okay"
+      />
+
+      {/* Admin Reactivated — Logout Confirmation */}
+      <DialogModal
+        open={adminReactivatedDialog.open}
+        onClose={() => {}}
+        onConfirm={handleAdminReactivatedConfirm}
+        color={DIALOG_COLOR.lightblue}
+        icon={CheckCircle}
+        iconColor={DIALOG_COLOR.blue}
+        title="Admin Reactivated"
+        description={
+          <>
+            <strong>{adminReactivatedDialog.user?.first_name} {adminReactivatedDialog.user?.last_name}</strong> is now the active Admin. Click <strong>OK</strong> to log out and return to the login page.
+          </>
+        }
+        confirmLabel="OK"
+      />
+
+      {/* Loading Dialog */}
+      <DialogModal
+        open={loadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={"Saving Changes"}
+        description={
+          <>
+            Updating user account status, please wait...
+          </>
+        }
+      />
+
+      {/* success dialog */}
+      <DialogModal
+        open={successDialog.open}
+        onConfirm={handleSuccessConfirm}
+        color={DIALOG_COLOR.lightgreen}
+        icon={BadgeCheck}
+        iconColor={DIALOG_COLOR.green}
+        title="Status Updated!"
+        description={
+          <>
+            <strong>{actionResult.user?.first_name} {actionResult.user?.last_name}</strong> has been {actionResult.action?.toLowerCase()} successfully.
+          </>
+        }
+        confirmLabel="Done"
+      />
+
+      {/* error dialog */}
+      <DialogModal
+        open={errorDialog.open}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={errorDialog.message}
+        confirmLabel="Okay"
+      />
+
     </>
   )
 }
-

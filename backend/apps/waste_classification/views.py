@@ -27,25 +27,25 @@ class WasteClassificationListView(generics.ListCreateAPIView):
         from django.utils import timezone
 
         month_param = self.request.query_params.get('month')
-        if month_param:
+        qs = WasteClassification.objects.select_related('node', 'node__barangay', 'node__hotspot')
+
+        if month_param == 'All':
+            pass  # no month filter — return everything
+        elif month_param:
             try:
                 target = datetime.strptime(month_param, '%Y-%m')
+                qs = qs.filter(timestamp__year=target.year, timestamp__month=target.month)
             except ValueError:
-                target = timezone.now()
+                now = timezone.now()
+                qs = qs.filter(timestamp__year=now.year, timestamp__month=now.month)
         else:
-            target = timezone.now()
-
-        qs = WasteClassification.objects.select_related(
-            'node', 'node__barangay', 'node__hotspot'
-        ).filter(
-            timestamp__year=target.year, timestamp__month=target.month
-        )
+            now = timezone.now()
+            qs = qs.filter(timestamp__year=now.year, timestamp__month=now.month)
 
         user = self.request.user
         if user.user_role == 'Barangay':
             qs = qs.filter(node__barangay=user.barangay)
-
-        return qs.order_by('-timestamp')
+        return qs
 
 
 class WasteClassificationDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -207,7 +207,6 @@ class WasteClassificationExportView(APIView):
             report_title="Waste Classification",
             columns=columns,
             rows=rows,
-            accent_color="#347D43",
             generated_by=f"{request.user.first_name} {request.user.last_name}",
             orientation="landscape",
             filename=f"waste-classification-{month_param or target.strftime('%Y-%m')}.pdf",

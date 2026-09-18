@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function DashboardSkeleton() {
   return (
-    <div className="hidden md:flex flex-col">
+    <div className="hidden md:flex md:flex-col md:h-full">
 
       {/* title */}
       <div className="flex w-full mb-2">
@@ -12,9 +12,9 @@ export function DashboardSkeleton() {
       </div>
 
       {/* total cards */}
-      <div className="flex justify-between w-full">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 bg-[#FAFCFD]">
+          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD]">
             <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
             <div className="flex flex-col gap-1.5">
               <Skeleton className="h-5 w-10" />
@@ -26,10 +26,10 @@ export function DashboardSkeleton() {
 
       {/* map, monthly report, waste, alerts */}
       <div className="mt-3 flex gap-2 w-full">
-        <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex flex-col gap-2 flex-[3] min-w-0">
 
           {/* map */}
-          <div className="bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-[380px] flex flex-col">
+          <div className="bg-[#FAFCFD] border border-[#C6C6C8] rounded-lg h-[380px] min-[2560px]:h-[460px] min-[3840px]:h-[540px] flex flex-col">
             <div className="px-2 pt-2 pb-1">
               <Skeleton className="h-4 w-56" />
             </div>
@@ -57,7 +57,7 @@ export function DashboardSkeleton() {
         </div>
 
         {/* waste panel */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] w-67 rounded-lg flex flex-col">
+        <div className="bg-[#FAFCFD] border border-[#00000040] flex-1 min-w-[240px] rounded-lg flex flex-col">
           <div className="p-1.5 px-3">
             <Skeleton className="h-4 w-36" />
           </div>
@@ -76,7 +76,7 @@ export function DashboardSkeleton() {
         </div>
 
         {/* alerts panel */}
-        <div className="bg-[#FAFCFD] border border-[#00000040] w-67 rounded-lg flex flex-col">
+        <div className="bg-[#FAFCFD] border border-[#00000040] flex-1 min-w-[240px] rounded-lg flex flex-col">
           <div className="p-1.5 px-3">
             <Skeleton className="h-4 w-24" />
           </div>
@@ -104,7 +104,7 @@ export function DashboardSkeleton() {
 
         <div className="flex gap-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="border border-[#C6C6C8] rounded-lg p-3 flex-1 bg-[#FAFCFD]">
+            <div key={i} className="border border-[#C6C6C8] rounded-lg p-3 min-[2560px]:p-4 min-[3840px]:p-5 flex-1 bg-[#FAFCFD]">
               <div className="flex justify-between items-center mb-1">
                 <div className="flex gap-2 items-center">
                   <Skeleton className="h-3.5 w-3.5 rounded" />

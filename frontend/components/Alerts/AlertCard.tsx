@@ -2,11 +2,10 @@
 
 import { useState } from "react"
 import { FaWater, FaExclamationTriangle, FaPlug, FaBatteryQuarter, FaSignal, FaExclamationCircle, FaChevronRight, } from "react-icons/fa"
-import { X } from "lucide-react"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
 import { ALERT_STYLE } from "@/lib/constant"
+import { AlertDetailDialog } from "@/components/Alerts/AlertDetailDialog"
 
 
 type ClogContext = {
@@ -81,7 +80,7 @@ export const ALERT_META: Record<string, { label: string; Icon: React.ElementType
 
 
 // helpers
-function formatTime(ts: string) {
+export function formatTime(ts: string) {
   return new Date(ts).toLocaleTimeString("en-PH", {
     hour: "2-digit",
     minute: "2-digit",
@@ -256,7 +255,7 @@ export function AlertCard({ alert, onRead }: AlertCardProps) {
 
     if (isRead) return
     try {
-      await api.post(`/api/alerts/${alert.alert_id}/mark-read/`, {})
+      await api.post(`/api/alerts/${alert.alert_id}/read/`, {})
       setIsRead(true)
       onRead?.(alert.alert_id)
     } catch {
@@ -326,50 +325,7 @@ export function AlertCard({ alert, onRead }: AlertCardProps) {
       </div>
 
       {/* Detail Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="[&>button]:hidden text-[#122A48] w-[380px]">
-          <DialogHeader>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className={`p-2 rounded-lg ${style.icon}`}>
-                  <Icon size={16} />
-                </div>
-                <p className="font-bold text-sm">{meta.label}</p>
-              </div>
-              <button onClick={() => setDialogOpen(false)} className="cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
-          </DialogHeader>
-
-          <DialogTitle className="sr-only">Alert Details</DialogTitle>
-          <hr />
-
-          <div className="flex flex-col gap-2 text-sm">
-            <div className="flex justify-between">
-              <p className="text-[#727272]">Node</p>
-              <p className="font-medium">{alert.node_name ?? "—"}</p>
-            </div>
-            <div className="flex justify-between">
-              <p className="text-[#727272]">Barangay</p>
-              <p className="font-medium">{alert.barangay_name ?? "—"}</p>
-            </div>
-            <div className="flex justify-between">
-              <p className="text-[#727272]">Detected</p>
-              <p className="font-medium">
-                {new Date(alert.timestamp).toLocaleString("en-PH", {
-                  month: "short", day: "numeric", year: "numeric",
-                  hour: "2-digit", minute: "2-digit", hour12: true
-                })}
-              </p>
-            </div>
-
-            <hr />
-            <p className="font-semibold text-xs text-[#727272]">DETAILS</p>
-            <ContextRow alertType={alert.alert_type} ctx={alert.alert_context} />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AlertDetailDialog alert={alert} open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
   )
 }

@@ -57,6 +57,33 @@ def get_clog_severity(clog_pct):
     return None
 
 
+WATER_LEVEL_RISING_SAMPLE_SIZE = 5
+
+def is_water_level_trending_up(node, current_instance):
+    """
+    Looks at the 5 most recent readings *before* the current one for this
+    node. Fires as 'rising' only if the newest of those 5 is higher than
+    the oldest of those 5. If fewer than 5 prior readings exist yet,
+    falls back to trusting the single reading (not enough history to judge).
+    """
+    prior_readings = list(
+        SensorReading.objects
+        .filter(node=node)
+        .exclude(pk=current_instance.pk)
+        .order_by('-timestamp')
+        .values_list('water_level', flat=True)[:WATER_LEVEL_RISING_SAMPLE_SIZE]
+    )
+
+    if len(prior_readings) < WATER_LEVEL_RISING_SAMPLE_SIZE:
+        return True
+
+    prior_readings.reverse()  # oldest -> newest
+    oldest = prior_readings[0]
+    newest = prior_readings[-1]
+
+    return newest > oldest
+
+
 @receiver(post_save, sender=SensorReading)
 def handle_abnormal_reading(sender, instance, created, **kwargs):
     if not created:
@@ -64,6 +91,9 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
 
     # --- Water_Level_Rising ---------------------------------------
     if instance.reading_status in ('Warning', 'Critical'):
+        if not is_water_level_trending_up(instance.node, instance):
+            return 
+        
         last_alert = Alert.objects.filter(
             node=instance.node,
             alert_type='Water_Level_Rising',

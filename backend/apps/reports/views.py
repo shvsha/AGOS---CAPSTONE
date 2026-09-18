@@ -83,6 +83,7 @@ class BarangayMonthlyReportExportView(APIView):
             "barangay_name": barangay_name,
             "month_year": month_year,
             "report": report,
+            "generated_by": f"{request.user.first_name} {request.user.last_name}",
         }
 
         filename = f"{barangay_name}-MRF-{report.report_month.strftime('%b-%Y')}.pdf"
@@ -261,6 +262,7 @@ class MunicipalMonthlyReportExportView(APIView):
             "month_label": report.report_month.strftime("%B").upper(),
             "barangay_rows": barangay_rows,
             "report": report,
+            "generated_by": f"{request.user.first_name} {request.user.last_name}",
         }
 
         filename = f"Municipal-MRF-{report.report_month.strftime('%b-%Y')}.pdf"

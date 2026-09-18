@@ -12,7 +12,7 @@ export function AnalyticsSkeleton() {
   const [selectedMonth, setSelectedMonth] = useState<string>("current")
 
   return (
-    <div className="hidden md:flex flex-col text-[#122A48]">
+    <div className="hidden md:flex md:flex-col md:h-full text-[#122A48]">
 
       <div className="w-full mb-2 flex justify-between">
         <div>
@@ -35,7 +35,7 @@ export function AnalyticsSkeleton() {
       </div>
 
       {/* total cards */}
-      <div className="flex justify-between w-full text-[#122A48] gap-3 mt-1">
+      <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 w-full text-[#122A48] mt-1">
         {[
           { icon: <Trash size={20} color="#122A48" />, bg: "bg-[#CDE3DE]" },
           { icon: <Recycle size={20} color="#1565BC" />, bg: "bg-[#1565BC61]" },
@@ -43,7 +43,7 @@ export function AnalyticsSkeleton() {
           { icon: <Trash2 size={20} color="#122A48CC" />, bg: "bg-[#D9D9D9]" },
           { icon: <Biohazard size={20} color="#D48A00" />, bg: "bg-[#F4E4A6]" },
         ].map((card, i) => (
-          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+          <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
             <div className={`${card.bg} rounded-lg p-2 opacity-60`}>{card.icon}</div>
             <div className="flex flex-col gap-1.5">
               <Skeleton className="h-5 w-16" />
@@ -55,7 +55,7 @@ export function AnalyticsSkeleton() {
 
       <div className="flex gap-2 mt-3">
         {/* collected by barangay */}
-        <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] w-[550px]">
+        <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-0">
           <div className="w-full p-2">
             <p className="font-bold text-sm">Collection by Barangay</p>
           </div>
@@ -71,7 +71,7 @@ export function AnalyticsSkeleton() {
         </div>
 
         {/* waste composition */}
-        <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1">
+        <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-[380px]">
           <div className="w-full p-2">
             <p className="font-bold text-sm">Waste Composition</p>
           </div>
@@ -93,7 +93,7 @@ export function AnalyticsSkeleton() {
       </div>
 
       {/* table classification waste records */}
-      <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] mt-2">
+      <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] mt-2 flex-1">
         <div className="w-full p-2">
           <p className="font-bold text-sm">Waste Classification Readings</p>
         </div>

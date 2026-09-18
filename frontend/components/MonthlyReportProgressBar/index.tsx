@@ -18,7 +18,7 @@ type Props = {
 }
 
 export default function ReportProgressBar({ reports, totalBarangays, month }: Props) {
-  const verified = reports.length
+  const verified = reports.filter(r => r.status === 'Reviewed').length
   const notSubmitted = Math.max(0, totalBarangays - verified)
 
   const completionPct = totalBarangays > 0 ? Math.round((verified / totalBarangays) * 100) : 0

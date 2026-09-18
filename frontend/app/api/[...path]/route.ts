@@ -8,19 +8,33 @@ async function proxy(request: NextRequest, path: string[]) {
 
   const headers = new Headers(request.headers)
   headers.delete("host")
+  headers.delete("content-length")
+
+  const contentType = request.headers.get("content-type") || ""
+  const isMultipart = contentType.includes("multipart/form-data")
 
   const init: RequestInit & { duplex?: "half" } = {
     method: request.method,
     headers,
-    redirect: "manual",
   }
 
-  if (!["GET", "HEAD"].includes(request.method)) {
-    init.body = request.body
-    init.duplex = "half"
+  if (isMultipart) {
+    headers.delete("content-type")
+    const formData = await request.formData()
+    init.body = formData
+  } else if (!["GET", "HEAD"].includes(request.method)) {
+    init.body = await request.text()
   }
 
-  const backendRes = await fetch(targetUrl, init)
+  let backendRes: Response
+  try {
+    backendRes = await fetch(targetUrl, init)
+  } catch {
+    return NextResponse.json(
+      { error: "Cannot connect to the server. Please check your connection and try again." },
+      { status: 502 }
+    )
+  }
 
   const responseHeaders = new Headers()
   backendRes.headers.forEach((value, key) => {

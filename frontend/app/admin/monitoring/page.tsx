@@ -23,10 +23,12 @@ import { getConditionClass, ALERT_STYLE } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePageCache } from '@/components/hooks/usePageCache'
+import { SpinnerIcon } from "@/components/SpinnerIcon"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
 import { TablePagination } from "@/components/TablePagination";
+import { useFillRows } from '@/components/hooks/useFillRows'
 
 // types
 type Nodes = {
@@ -71,6 +73,12 @@ const getClogPctColor = (value: number) => {
   if (value < 34) return 'text-[#2C7B3C]' 
   if (value < 67) return 'text-[#E4B600]'
   return 'text-[#D81010]'
+}
+
+const getDeviceStatusStyle = (status: string) => {
+  if (status === 'Active') return { text: 'text-[#2C7B3C]', dot: 'bg-[#2C7B3C]' }
+  if (status === 'Maintenance') return { text: 'text-[#582579]', dot: 'bg-[#582579]' }
+  return { text: 'text-[#727272]', dot: 'bg-[#727272]' } // Inactive / fallback
 }
 
 const ALERT_ICONS: Record<string, ReactNode> = {
@@ -138,17 +146,36 @@ export default function Monitoring() {
   const [alertDialog, setAlertDialog] = useState(false)
 
   const filtered = getFilteredNode(nodes.data, condition, search)
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, 5)
+
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 5,
+    deps: [loading],
+  })
+
+  const { panelRef: alertsPanelRef, tableWrapRef: alertsWrapRef, rows: alertRows } = useFillRows({
+    rowHeight: 53,
+    itemGap: 8,
+    minRows: 3,
+    reservePaginationSpace: false,
+    deps: [loading],
+  })
+
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filtered, rows)
 
   // summary cards
   const occupiedNodes = nodes.data
     .filter(n => n.hotspot_details != null)
     .filter(n => n.availability_status === 'Occupied')
 
-  const total    = occupiedNodes.length
+  const total = occupiedNodes.length
   const critical = occupiedNodes.filter(n => n.condition === 'Critical').length
-  const warning  = occupiedNodes.filter(n => n.condition === 'Warning').length
-  const normal   = occupiedNodes.filter(n => n.condition === 'Normal').length
+  const warning = occupiedNodes.filter(n => n.condition === 'Warning').length
+  const normal = occupiedNodes.filter(n => n.condition === 'Normal').length
+
+  const activeCount = nodes.data.filter(n => n.status === 'Active').length
+  const inactiveCount = nodes.data.filter(n => n.status === 'Inactive').length
+  const maintenanceCount = nodes.data.filter(n => n.status === 'Maintenance').length
 
   // clock
   useEffect(() => {
@@ -202,7 +229,7 @@ export default function Monitoring() {
 
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
         {/* title and date/time */}
         <div className='flex justify-between'>
@@ -219,14 +246,14 @@ export default function Monitoring() {
         </div>
 
         {/* summary cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <RadioTower size={20} color="#2C7B3C" />, bg: "bg-[#CDE3DE]", count: total,    label: "Total Occupied Nodes" },
             { icon: <Activity   size={20} color="#D81010" />, bg: "bg-[#FFE5E5]", count: critical,  label: "Critical Events" },
             { icon: <TriangleAlert size={20} color="#FF9705" />, bg: "bg-[#F4E4A7]", count: warning, label: "Warning"   },
             { icon: <Waves      size={20} color="#1868A9" />, bg: "bg-[#1868A929]", count: normal,  label: "Normal"  },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -237,10 +264,10 @@ export default function Monitoring() {
         </div>
 
         {/* body */}
-        <div className='flex gap-2 mt-3 h-129'>
+        <div className='flex gap-2 mt-3 flex-1 min-h-0'>
 
           {/* table */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-205 rounded-lg flex flex-col h-133'>
+          <div ref={panelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-[3] min-w-0 rounded-lg flex flex-col h-full'>
             {/* filters */}
             <div className='flex gap-3 items-center p-3'>
               <SearchFilter value={search} onChange={setSearch} placeholder='Search sensor node or barangay...' width='w-105' height='h-9' />
@@ -263,74 +290,96 @@ export default function Monitoring() {
               <p className='font-bold text-[#122A48] mb-2 -mt-1 text-sm'>Canal Sensor Nodes</p>
             </div>
 
-            <Table>
-              <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
-                <TableRow>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE ID</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>FLOW RATE</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLOG</TableHead>
-                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONDITION</TableHead>
-                </TableRow>
-              </TableHeader>
+            <div ref={tableWrapRef}>
+              <Table>
+                <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
+                  <TableRow>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>NODE ID</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>BARANGAY</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>LOCATION</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>DEVICE STATUS</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>FLOW RATE</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLOG</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONDITION</TableHead>
+                  </TableRow>
+                </TableHeader>
 
-              <TableBody>
-                {fetchError ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-3">
-                        <p className="text-[#D81010] font-semibold">Failed to load node devices. Please try again later.</p>
-                        <Button
-                          onClick={refetchAll}
-                          className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100"
-                        >
-                          Retry
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="rounded-full bg-[#E5E5E6] p-4">
-                          <RadioTower size={36} color="#727272" />
-                        </div>
-                        <p className="text-[#122A48] font-bold">No sensor nodes found</p>
-                        <p className="text-[#727272] text-sm text-center">
-                          No sensor nodes match your search or filter. <br /> Try adjusting the filters above.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                <TableBody>
+                  {!fetchError && filtered.length > 0 &&
+                    paginated.map(node => (
+                      <TableRow key={node.node_id} className='font-medium text-[#122A48]'>
+                        <TableCell className='text-leftleft text-xs h-14'>{node.node_id}</TableCell>
+                        <TableCell className='text-leftleft text-xs'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
+                        <TableCell className='text-leftleft text-xs'>
+                          <Button
+                            onClick={() => setViewMapDialog({ open: true, node: node })}
+                            className="text-xs rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-2.5 px-2"
+                          >
+                          <Map size={16}/>
+                            View on map
+                          </Button>
+                        </TableCell>
+                        <TableCell className='text-leftleft text-xs'>
+                          {(() => {
+                            const s = getDeviceStatusStyle(node.status)
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 font-semibold ${s.text}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                                {node.status}
+                              </span>
+                            )
+                          })()}
+                        </TableCell>
+                        <TableCell className='text-leftleft text-xs'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
+                        <TableCell className='text-leftleft text-xs'>
+                          {node.water_flow_rate != null ? `${Number(node.water_flow_rate).toFixed(5)} m/s` : "—"}
+                        </TableCell>
+                        <TableCell className={`text-leftleft text-xs ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
+                        <TableCell className={`text-left text-xs font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </div>
+
+            {fetchError && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                {(nodes.retrying || alerts.retrying) ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <SpinnerIcon size={32} color="#D81010" />
+                    <p className="text-[#D81010] font-semibold">Retrying...</p>
+                  </div>
                 ) : (
-                  paginated.map(node => (
-                    <TableRow key={node.node_id} className='font-medium text-[#122A48]'>
-                      <TableCell className='text-leftleft text-xs h-14'>{node.node_id}</TableCell>
-                      <TableCell className='text-leftleft text-xs'>{node.barangay_details?.barangay_name ?? "—"}</TableCell>
-                      <TableCell className='text-leftleft text-xs'>
-                        <Button
-                          onClick={() => setViewMapDialog({ open: true, node: node })}
-                          className="text-xs rounded-lg text-[#2C7B3C] border border-[#C6C6C8] bg-[#B2FBC173] cursor-pointer hover:bg-[#78ee9073] py-2.5 px-2"
-                        >
-                         <Map size={16}/>
-                          View on map
-                        </Button>
-                      </TableCell>
-                      <TableCell className='text-leftleft text-xs'>{node.water_level != null ? `${node.water_level} cm` : "—"}</TableCell>
-                      <TableCell className='text-leftleft text-xs'>
-                        {node.water_flow_rate != null ? `${Number(node.water_flow_rate).toFixed(5)} m/s` : "—"}
-                        
-                      </TableCell>
-                      <TableCell className={`text-leftleft text-xs ${node.clog_pct != null ? getClogPctColor(node.clog_pct) : ''}`}>{node.clog_pct != null ? `${node.clog_pct} %` : "—"}</TableCell>
-                      <TableCell className={`text-left text-xs font-semibold ${getConditionClass(node.condition)}`}>{node.condition ?? "-"}</TableCell>
-                    </TableRow>
-                  ))
+                  <>
+                    <div className="text-[#D81010] text-center">
+                      <p className="font-semibold">Failed to load node devices</p>
+                      <p className="text-sm">Please try again later</p>
+                    </div>
+                    <Button
+                      onClick={refetchAll}
+                      className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100"
+                    >
+                      Retry
+                    </Button>
+                  </>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            )}
+
+            {!fetchError && filtered.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                <div className="rounded-full bg-[#E5E5E6] p-4">
+                  <RadioTower size={36} color="#727272" />
+                </div>
+                <p className="text-[#122A48] font-bold">No sensor nodes found</p>
+                <p className="text-[#727272] text-sm text-center">
+                  No sensor nodes match your search or filter. <br /> Try adjusting the filters above.
+                </p>
+              </div>
+            )}
+
             <div className='mt-auto'>
               <TablePagination
                 totalItems={totalItems}
@@ -342,19 +391,19 @@ export default function Monitoring() {
           </div>
 
           {/* live alerts */}
-          <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-67 rounded-lg flex flex-col h-133'>
-            <div className='flex justify-between items-center justify-between p-2'>
+          <div ref={alertsPanelRef} className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex-1 min-w-[240px] rounded-lg flex flex-col h-full'>
+            <div className='flex justify-between items-center p-2'>
               <p className='font-semibold text-[#122A48] text-sm'>Live Alerts</p>
             </div>
             <hr className='border-[#C6C6C8]' />
-            <div className='flex flex-col gap-2 p-3 overflow-y-auto'>
+            <div ref={alertsWrapRef} className='flex flex-col gap-2 p-1.5 overflow-y-auto flex-1 min-h-0'>
               {todayAlerts.length === 0 ? (
-                <div className='flex flex-col items-center justify-center h-full py-43 gap-2'>
+                <div className='flex-1 flex flex-col items-center justify-center gap-2'>
                   <Siren size={28} color="#C6C6C8" />
                   <p className='text-xs text-[#727272] text-center'>No alerts today</p>
                 </div>
               ) : (
-                todayAlerts.slice(0, 7).map(alert => {
+                todayAlerts.slice(0, alertRows).map(alert => {
                   const style = ALERT_STYLE[alert.alert_type] ?? ALERT_STYLE.default
                   return (
                     <div
@@ -363,7 +412,7 @@ export default function Monitoring() {
                         setSelectedAlert(alert)
                         setAlertDialog(true)
                       }}
-                      className={`flex items-center gap-3 p-1 h-14 rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
+                      className={`flex items-center gap-3 p-1 h-[53px] rounded-lg border cursor-pointer hover:opacity-80 ${style.border} ${style.shadow} ${alert.is_read ? 'opacity-60' : 'bg-white'}`}
                     >
                       <div className={`p-2 rounded-lg ${style.icon} shrink-0`}>
                         {ALERT_ICONS[alert.alert_type] ?? <Activity size={18} />}
@@ -386,7 +435,7 @@ export default function Monitoring() {
           {/* device and clog level legend */}
           <div className='flex flex-col gap-3'>
             {/* device status */}
-            {/* <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-57 h-60 rounded-lg flex flex-col'>
+            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
                 <p className='font-semibold text-[#122A48]'>Device Status</p>
                 <hr />
@@ -397,12 +446,12 @@ export default function Monitoring() {
                   { color: 'text-[#727272]', dotColor: 'bg-[#727272]', count: inactiveCount,  label: "Inactive" },
                   { color: 'text-[#582579]', dotColor: 'bg-[#582579]', count: maintenanceCount, label: "Maintenance" },
                 ].map(status => (
-                  <div key={status.label} className="flex justify-between items-center py-3.5 px-3 bg-[#FAFCFD] -mt-2">
+                  <div key={status.label} className="flex justify-between items-center py-3 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">
                       <span className={`w-2 h-2 rounded-full ${status.dotColor} `}/>
-                      <p className={`text-sm font-semibold ${status.color}`}>{status.label}</p>
+                      <p className={`text-xs font-semibold ${status.color}`}>{status.label}</p>
                     </div>
-                    <span className={`text-sm font-bold leading-tight ${status.color}`}>{status.count}</span>
+                    <span className={`text-xs font-bold leading-tight ${status.color}`}>{status.count}</span>
                   </div>
                 ))}
 
@@ -415,7 +464,7 @@ export default function Monitoring() {
                 </div>
 
               </div>
-            </div> */}
+            </div>
            
 
             {/* clog level legend */}
@@ -468,13 +517,15 @@ export default function Monitoring() {
           </DialogTitle>
           <div className="h-100 md:h-[380px] rounded-b-lg w-70 md:w-140 overflow-hidden">
             <AgosMapWrapper
+              latitude={viewMapDialog.node?.hotspot_details?.latitude}
+              longitude={viewMapDialog.node?.hotspot_details?.longitude}
               markers={nodes.data
                 .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
                 .map(n => ({
                   latitude:  n.hotspot_details!.latitude,
                   longitude: n.hotspot_details!.longitude,
-                  label:     n.node_name,
-                  condition: n.condition,
+                  label:     `${n.node_name} – ${n.barangay_details?.barangay_name ?? ''}`,
+                  condition: n.condition ?? 'Normal',
                   sublabel:  `Water: ${n.water_level ?? "—"}cm | Clog: ${n.clog_pct ?? "—"}%`,
                 }))}
               zoom={13}

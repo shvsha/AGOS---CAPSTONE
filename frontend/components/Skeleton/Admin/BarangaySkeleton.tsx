@@ -7,44 +7,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "
 import { Input } from "@/components/ui/input"
 
 import { FaSearch } from "react-icons/fa"
-import { Map, MapPinOff } from "lucide-react"
+import { useFillRows } from "@/components/hooks/useFillRows"
 
 import { useState } from "react"
 
 export function BarangaySkeleton() {
   const [statusFilter, setStatusFilter] = useState<string>('All')
 
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+  })
+
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
 
-        {/* title and filter container */}
+        {/* title container */}
         <div className="flex justify-between w-full mb-2">
-          <div className="text-[#122A48] flex justify-center items-center text-[15px] gap-5">
+          <div className="text-[#122A48] flex justify-center items-center text-[15px]">
             <p className="font-bold">Barangay</p>
-
-            <div className="flex gap-3">
-              <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-9 w-50">
-                <FaSearch size={14} className="text-[#C6C6C8]" />
-                <Input disabled placeholder="Search Barangay..." className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-full" />
-              </div>
-
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="cursor-pointer py-[17px] w-40 text-xs border border-[#C6C6C8] bg-[#FAFCFD] rounded-lg">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="All" className="p-2 text-xs">All Barangay</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
 
         {/* total cards */}
-        <div className="flex justify-between w-full">
+        <div className="grid grid-cols-3 gap-3 w-full">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-100 flex items-center p-3 gap-3 bg-[#FAFCFD]">
+            <div key={i} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 bg-[#FAFCFD]">
               <Skeleton className="h-9 w-9 rounded-lg flex-shrink-0" />
               <div className="flex flex-col gap-1.5">
                 <Skeleton className="h-5 w-8" />
@@ -55,29 +44,49 @@ export function BarangaySkeleton() {
         </div>
 
         {/* table */}
-        <div className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col h-132">
-          <Skeleton className="h-4 w-28 mx-3 mb-2" />
+        <div ref={panelRef} className="bg-[#FAFCFD] rounded-lg border-2 border-[#C6C6C8] mt-2 pt-2 shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] flex flex-col flex-1 min-h-[528px]">
+          <div className="flex justify-between items-center mx-3 mb-2">
+            <Skeleton className="h-4 w-28" />
 
-          <Table>
-            <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
-              <TableRow>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
-                <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(7)].map((_, i) => (
-                <TableRow key={i} className="border-b border-[#C6C6C8]">
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-6" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-8 w-28 rounded-lg" /></TableCell>
-                  <TableCell className="h-14"><Skeleton className="h-8 w-24 rounded-lg" /></TableCell>
+            <div className="flex gap-3 items-center">
+              <div className="flex items-center bg-[#FAFCFD] border-2 border-[#C6C6C8] rounded-lg px-3 gap-2 h-8 w-50">
+                <FaSearch size={14} className="text-[#C6C6C8]" />
+                <Input disabled placeholder="Search Barangay..." className="text-xs bg-transparent border-0 rounded-lg placeholder:text-gray text-[#122A48] focus-visible:ring-0 h-7 w-full" />
+              </div>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="cursor-pointer py-3 w-40 text-xs border border-[#C6C6C8] bg-[#FAFCFD] rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="All" className="p-2 text-xs">All Barangay</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className="bg-[#e8eef1b4] border-[#727272]">
+                <TableRow>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-16">ID</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/3">BARANGAY</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">LOCATION</TableHead>
+                  <TableHead className="text-[#727272] text-left text-xs font-semibold w-1/4">ACTIONS</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[...Array(rows)].map((_, i) => (
+                  <TableRow key={i} className="border-b border-[#C6C6C8]">
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-6" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-3.5 w-28" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-8 w-28 rounded-lg" /></TableCell>
+                    <TableCell className="h-14"><Skeleton className="h-8 w-24 rounded-lg" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           <div className="mt-auto flex items-center justify-between px-4 py-3 border-t border-[#C6C6C8]">
             <Skeleton className="h-4 w-24" />

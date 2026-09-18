@@ -143,10 +143,11 @@ export default function ReportsListScreen() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || refreshing) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-[#f8fafc]">
-        <ActivityIndicator size="large" color="#16a34a" />
+      <SafeAreaView className="flex-1 items-center justify-center gap-3">
+        <ActivityIndicator color="#2F6FED" />
+        <Text>Loading...</Text>
       </SafeAreaView>
     );
   }

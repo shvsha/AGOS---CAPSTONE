@@ -1,6 +1,7 @@
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from .utils import generate_otp, send_otp_email, store_otp, verify_otp, is_verified, clear_verified
 from django.contrib.auth import authenticate
@@ -64,6 +65,7 @@ class LoginView(APIView):
             )
 
             is_secure = not settings.DEBUG
+            cookie_samesite = 'None' if is_secure else 'Lax'
 
             response = Response({
                 'user': user_data
@@ -71,21 +73,21 @@ class LoginView(APIView):
 
             response.set_cookie(
                 key='access_token', value=access_token, max_age=7*24*60*60,
-                httponly=True, secure=is_secure, samesite='Lax', path='/',
+                httponly=True, secure=is_secure, samesite=cookie_samesite, path='/',
             )
             response.set_cookie(
                 key='refresh_token', value=refresh_token, max_age=7*24*60*60,
-                httponly=True, secure=is_secure, samesite='Lax', path='/',
+                httponly=True, secure=is_secure, samesite=cookie_samesite, path='/',
             )
             response.set_cookie(
                 key='user', value=json.dumps(dict(user_data)), max_age=7*24*60*60,
-                httponly=False, secure=is_secure, samesite='Lax', path='/',
+                httponly=False, secure=is_secure, samesite=cookie_samesite, path='/',
             )
 
             return response
 
         return Response(
-            {'error': 'Invalid credentials'},
+            {'error': 'Email or password is incorrect. Check your credentials and try again.'},
             status=status.HTTP_401_UNAUTHORIZED
         )
 
@@ -129,6 +131,9 @@ class UserListView(generics.ListCreateAPIView):
         return UserSerializer
     
     def perform_create(self, serializer):
+        if serializer.validated_data.get('user_role') == 'Admin':
+            User.objects.filter(user_role='Admin', status='Active').update(status='Inactive')
+
         user = serializer.save()
         log_action(
             user=self.request.user,
@@ -148,6 +153,30 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     # log actions
     def perform_update(self, serializer):
         old_status = serializer.instance.status
+        instance = serializer.instance
+
+        is_deactivating_admin = (
+            instance.user_role == 'Admin'
+            and old_status == 'Active'
+            and serializer.validated_data.get('status') == 'Inactive'
+        )
+        if is_deactivating_admin:
+            other_active_admin_exists = User.objects.filter(
+                user_role='Admin', status='Active'
+            ).exclude(pk=instance.pk).exists()
+            if not other_active_admin_exists:
+                raise ValidationError({
+                    'error': 'Cannot deactivate this Admin account. There must always be at least one active Admin — activate another Admin first.'
+                })
+
+        is_reactivating_admin = (
+            instance.user_role == 'Admin'
+            and old_status == 'Inactive'
+            and serializer.validated_data.get('status') == 'Active'
+        )
+        if is_reactivating_admin:
+            User.objects.filter(user_role='Admin', status='Active').exclude(pk=instance.pk).update(status='Inactive')
+
         user = serializer.save()
         log_action(
             user=self.request.user,
@@ -315,10 +344,11 @@ class TokenRefreshView(APIView):
             return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
 
         is_secure = not settings.DEBUG
+        cookie_samesite = 'None' if is_secure else 'Lax'
         response = Response({'access': new_access})
         response.set_cookie(
             key='access_token', value=new_access, max_age=7*24*60*60,
-            httponly=True, secure=is_secure, samesite='None', path='/',
+            httponly=True, secure=is_secure, samesite=cookie_samesite, path='/',
         )
         return response
 
@@ -369,13 +399,13 @@ class MobileLoginView(APIView):
 
         if not user:
             return Response(
-                {'error': 'Invalid credentials'},
+                {'error': 'Email or password is incorrect. Check your credentials and try again.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
         if user.status == 'Inactive':
             return Response(
-                {'error': 'Account is inactive'},
+                {'error': 'This account is inactive. Please try another account.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 

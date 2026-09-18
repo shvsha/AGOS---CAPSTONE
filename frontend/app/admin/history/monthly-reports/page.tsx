@@ -9,6 +9,9 @@ import { SearchFilter } from "@/components/SearchFilter"
 import { MonthlyReportsSkeleton } from "@/components/Skeleton/Admin/HistorySkeleton/MonthlyReportsSkeleton"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
+import { useFillRows } from "@/components/hooks/useFillRows"
+import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
+import { SpinnerIcon } from "@/components/SpinnerIcon"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -100,41 +103,52 @@ export default function MonthlyReports() {
   }
   const monthOptions = getMonthOptions()
   const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
+  const [selectedMonth, setSelectedMonth] = useState<string>("All")
 
   const q = search.toLowerCase()
   const filteredReports = municipalReports
-    .filter(report => report.report_month.startsWith(selectedMonth))
+    .filter(report => selectedMonth === "All" || report.report_month.startsWith(selectedMonth))
     .sort((a, b) => b.municipal_report_id - a.municipal_report_id)
     .filter(report =>
       [report.generated_by_details?.first_name, report.generated_by_details?.last_name]
         .some(field => field?.toLowerCase().includes(q))
     )
+  
+  const { panelRef, tableWrapRef, rows } = useFillRows({
+    rowHeight: 56,
+    initialRows: 7,
+    deps: [loading],
+  })
+  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredReports, rows)
 
-  const { paginated, currentPage, setCurrentPage, totalItems, itemsPerPage } = usePagination(filteredReports, 6)
+    // summary cards — reflect the month filter (not the text search)
+  const cardScopedReports = municipalReports.filter(r => selectedMonth === "All" || r.report_month.startsWith(selectedMonth))
 
-    // summary cards
-  const total = municipalReports.length
-  const totalRecyclable = municipalReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
-  const totalBiodegredable = municipalReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
-  const totalResidualOthers = municipalReports.reduce((sum, r) => sum + r.total_residual_waste_kg + (r.total_special_waste_kg ?? 0), 0)
+  const total = cardScopedReports.length
+  const totalRecyclable = cardScopedReports.reduce((sum, r) => sum + r.total_bote_kg + r.total_bakal_kg + r.total_karton_kg + r.total_papel_kg + r.total_plastic_kg, 0)
+  const totalBiodegredable = cardScopedReports.reduce((sum, r) => sum + r.total_biodegradable_kg, 0)
+  const totalResidualOthers = cardScopedReports.reduce((sum, r) => sum + r.total_residual_waste_kg + (r.total_special_waste_kg ?? 0), 0)
 
-  const handleExport = async (reportId: number) => {
-    setExportingId(reportId)
-    try {
-      await exportPdf(`/api/municipal-reports/${reportId}/export/`, {}, "municipal-mrf-report.pdf")
-    } catch {
-      addToast("Failed to export report.", "error")
-    } finally {
-      setExportingId(null)
+  const { requestExport, ExportDialogs } = useExportDialog<{ id: number; reportMonth: string }>(
+    async ({ id }) => {
+      try {
+        await exportPdf(`/api/municipal-reports/${id}/export/`, {}, "municipal-mrf-report.pdf")
+      } catch {
+        addToast("Failed to export report.", "error")
+      }
+    },
+    {
+      description: ({ reportMonth }) => (
+        <>Are you sure you want to export this compiled MRF report for <strong>{formatReportMonth(reportMonth)}</strong>?</>
+      ),
     }
-  }
+  )
   
   if (loading) return <MonthlyReportsSkeleton/>
   
   return (
     <>
-      <div className="hidden md:flex flex-col">
+      <div className="hidden md:flex md:flex-col md:h-full">
         {/* filter */}
         <div className="flex gap-2">
 
@@ -147,6 +161,7 @@ export default function MonthlyReports() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper" className=" text-xs cursor-pointer w-40 min-w-0 !max-h-70 overflow-y-auto">
+              <SelectItem className="p-2 text-xs cursor-pointer text-[#122A48]" value="All">All Months</SelectItem>
               {monthOptions.map(m => (
                 <SelectItem key={m.value} className="p-2 text-xs  cursor-pointer text-[#122A48]" value={m.value}>
                   {m.label}
@@ -158,14 +173,14 @@ export default function MonthlyReports() {
         </div>
 
         {/* total cards */}
-        <div className="flex justify-between w-full text-[#122A48] mt-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full text-[#122A48] mt-2">
           {[
             { icon: <FileText size={20} color="#D48A00" />, bg: "bg-[#EED7AA]", count: total, label: "Total Compiled Reports" },
             { icon: <Recycle size={20} color="#582579" />, bg: "bg-[#E1CDE3]", count: totalRecyclable, label: "Total Recyclable (kg)" },
             { icon: <Leaf   size={20} color="#2C7B3C" />, bg: "bg-[#B2FBC1]", count: totalBiodegredable, label: "Total Biodegradable (kg)" },
             { icon: <Blocks size={20} color="#1565BC" />, bg: "bg-[#1565BC61]", count: totalResidualOthers, label: "Total Residual/Others (kg)" },
           ].map(card => (
-            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 w-75 flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
+            <div key={card.label} className="rounded-lg border-2 border-[#C6C6C8] h-17 min-[2560px]:h-20 min-[3840px]:h-24 w-full flex items-center p-3 gap-3 relative bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)]">
               <div className={`${card.bg} rounded-lg p-2`}>{card.icon}</div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-[#122A48] leading-tight">{card.count}</span>
@@ -176,42 +191,19 @@ export default function MonthlyReports() {
         </div>
 
         {/* table */}
-        <div className='h-132 mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col'>
-          <Table>
-            <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-10 rounded-lg'>
-              <TableRow>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>ID</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>DATE</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>VERIFIED BY</TableHead>
-                <TableHead className='font-semibold text-left text-xs text-[#727272]'>ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fetchError ? (
+        <div ref={panelRef} className='flex-1 min-h-[528px] mt-2 bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] rounded-lg flex flex-col'>
+          <div ref={tableWrapRef}>
+            <Table>
+              <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC] h-10 rounded-lg'>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-25">
-                    <div className="flex flex-col justify-center items-center gap-3 py-20">
-                      <p className="text-[#D81010] font-semibold text-base">Failed to load compiled barangay reports. Please try again later.</p>
-                      <Button onClick={() => reportsCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#727272] text-[#122A48] px-3 py-2 hover:bg-gray-100">Retry</Button>
-                    </div>
-                  </TableCell>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>ID</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>DATE</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>VERIFIED BY</TableHead>
+                  <TableHead className='font-semibold text-left text-xs text-[#727272]'>ACTIONS</TableHead>
                 </TableRow>
-              ) : filteredReports.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-43">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-full bg-[#E5E5E6] p-4">
-                        <FileText size={36} color="#727272" />
-                      </div>
-                      <p className="text-[#122A48] font-bold">No compiled barangay monthly reports in the system</p>
-                      <p className="text-[#727272] text-sm">
-                        No compiled barangay monthly reports have been created yet.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginated.map(report => (
+              </TableHeader>
+              <TableBody>
+                {!fetchError && filteredReports.length > 0 && paginated.map(report => (
                   <TableRow key={report.municipal_report_id} className="border-b border-[#C6C6C8] text-xs">
                       <TableCell className="text-[#122A48] text-left h-14">{report.municipal_report_id}</TableCell>
                       <TableCell className="text-[#122A48] text-left h-14">{formatReportMonth(report.report_month)}</TableCell>
@@ -230,20 +222,56 @@ export default function MonthlyReports() {
                         </Button>
 
                         <Button
-                          onClick={() => handleExport(report.municipal_report_id)}
-                          disabled={exportingId === report.municipal_report_id}
+                          onClick={() =>
+                            requestExport({
+                              id: report.municipal_report_id,
+                              reportMonth: report.report_month,
+                            })
+                          }
                           className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
                         >
                           <FileDown size={16} className="mr-1" />
-                          {exportingId === report.municipal_report_id ? "Exporting..." : "Export PDF"}
+                          Export PDF
                         </Button>
                       </TableCell>
                   </TableRow>
-                ))
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
+          {fetchError && (
+            <div className="flex-1 flex flex-col justify-center items-center gap-3">
+              {reportsCache.retrying ? (
+                <div className="flex flex-col items-center gap-3">
+                  <SpinnerIcon size={32} color="#D81010" />
+                  <p className="text-[#D81010] font-semibold text-base">Retrying...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-[#D81010] text-center">
+                    <p className="font-semibold">Failed to load compiled barangay reports</p>
+                    <p className="text-sm">Please try again later</p>
+                  </div>
+                  <Button onClick={() => reportsCache.refetch()} className="cursor-pointer bg-transparent rounded-lg border border-[#D81010] text-[#D81010] px-3 py-2 hover:bg-gray-100">Retry</Button>
+                </>
               )}
-            </TableBody>
-          </Table>
+            </div>
+          )}
+
+
+
+          {!fetchError && filteredReports.length === 0 && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-sm">
+              <div className="rounded-full bg-[#E5E5E6] p-3">
+                <FileText size={30} color="#727272" />
+              </div>
+              <p className="text-[#122A48] font-bold">No compiled barangay monthly reports in the system</p>
+              <p className="text-[#727272] text-xs">
+                No compiled barangay monthly reports have been created yet.
+              </p>
+            </div>
+          )}
 
           <div className='mt-auto'>
             <TablePagination
@@ -257,6 +285,8 @@ export default function MonthlyReports() {
 
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {ExportDialogs}
     </>
   )
 }

@@ -1,10 +1,13 @@
 import os
 import logging
+import tempfile
+import shutil
 from datetime import timedelta
 from django.utils import timezone
 
 from .models import BackupConfig, BackupLog
 from .services import create_backup_archive
+from .supabase_backup import upload_backup_to_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +22,12 @@ def run_scheduled_backup_check():
     """
     Runs daily. Decides internally whether a scheduled backup is
     actually due, based on BackupConfig.frequency and the last
-    successful scheduled backup's timestamp.
+    successful scheduled backup's timestamp. Uploads the result to
+    Supabase Storage rather than the (ephemeral, on Render) local disk.
     """
     config = BackupConfig.objects.first()
 
     if not config or not config.auto_backup_enabled:
-        return
-
-    if not config.server_backup_path or not os.path.isdir(config.server_backup_path):
-        logger.warning("Scheduled backup skipped: server_backup_path is missing or invalid.")
-        BackupLog.objects.create(
-            backup_type='scheduled',
-            status='failed',
-            error_message='server_backup_path is missing or invalid.',
-        )
         return
 
     last_success = BackupLog.objects.filter(
@@ -44,14 +39,19 @@ def run_scheduled_backup_check():
         if timezone.now() < due_at:
             return  # not due yet
 
+    tmp_dir = tempfile.mkdtemp()
     try:
-        archive_path = create_backup_archive(config.server_backup_path)
+        archive_path = create_backup_archive(tmp_dir)
+        file_name = os.path.basename(archive_path)
+
+        upload_backup_to_supabase(archive_path, file_name)
+
         BackupLog.objects.create(
             backup_type='scheduled',
             status='success',
-            file_name=os.path.basename(archive_path),
+            file_name=file_name,
         )
-        logger.info("Scheduled backup completed: %s", archive_path)
+        logger.info("Scheduled backup uploaded to Supabase: %s", file_name)
     except Exception as e:
         BackupLog.objects.create(
             backup_type='scheduled',
@@ -59,3 +59,5 @@ def run_scheduled_backup_check():
             error_message=str(e),
         )
         logger.exception("Scheduled backup failed.")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)

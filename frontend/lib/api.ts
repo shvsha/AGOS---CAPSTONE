@@ -1,6 +1,38 @@
-import { logout, ACCOUNT_INACTIVE_MESSAGE } from '@/lib/auth'
+import { logout, ACCOUNT_INACTIVE_MESSAGE, shouldSuppressInactiveRedirect } from '@/lib/auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
+
+export const SERVER_UNREACHABLE_MESSAGE =
+  'Cannot connect to the server. Please check your connection and try again.'
+
+export const REQUEST_TIMEOUT_MESSAGE = 'Took too long to respond. Please try again.'
+const DEFAULT_TIMEOUT_MS = 30000
+
+async function safeFetch(url: string, options: RequestInit, timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw { error: REQUEST_TIMEOUT_MESSAGE }
+    }
+    throw { error: SERVER_UNREACHABLE_MESSAGE }
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+async function safeJson(res: Response) {
+  const text = await res.text()
+  if (!text) return {}
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw { error: `Something went wrong on the server (status ${res.status}). Please try again later.` }
+  }
+}
 
 async function refreshAccessToken(): Promise<boolean> {
   try {
@@ -29,12 +61,12 @@ function buildHeaders(): HeadersInit {
 
 // fetch with auto retry on 401
 async function fetchWithRefresh(url: string, options: RequestInit): Promise<Response> {
-  let res = await fetch(url, options)
+  let res = await safeFetch(url, options)
 
   if (res.status === 401) {
     const refreshed = await refreshAccessToken()
     if (!refreshed) throw { detail: 'Session expired.' }
-    res = await fetch(url, options)
+    res = await safeFetch(url, options)
   }
 
   if (res.status === 403) {
@@ -61,7 +93,7 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -72,7 +104,7 @@ export const api = {
       headers: buildHeaders(),
       credentials: 'include',
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -84,7 +116,7 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -96,7 +128,7 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },
@@ -108,7 +140,7 @@ export const api = {
       credentials: 'include',
     })
     if (!res.ok) {
-      const result = await res.json()
+      const result = await safeJson(res)
       throw result
     }
     return true
@@ -117,13 +149,13 @@ export const api = {
 
 export const publicApi = {
   post: async (endpoint: string, data?: unknown) => {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
+    const res = await safeFetch(`${BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify(data),
     })
-    const result = await res.json()
+    const result = await safeJson(res)
     if (!res.ok) throw result
     return result
   },

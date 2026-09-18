@@ -4,27 +4,23 @@
 import { useEffect, useRef, useState } from "react"
 
 // icons
-import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert, Bell } from "lucide-react"
+import { DatabaseBackup, Download, Upload, TriangleAlert, ShieldAlert, Bell, Trash2, CheckCircle, X } from "lucide-react"
 
 // lib
 import { api } from "@/lib/api"
 import { resolveSoundUrl} from '@/lib/soundUtils'
+import { DIALOG_COLOR } from "@/lib/constant"
 
-//d shadcn components
+// shadcn components
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
 import { DialogModal } from "@/components/DialogModal"
-import { Toast } from "@/components/Toast"
-import { useToast } from "@/components/hooks/useToast"
 
 // components 
 import { SpinnerIcon } from "@/components/SpinnerIcon"
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
 
 // table pagination
 import { usePagination } from "@/components/hooks/usePagination";
@@ -68,6 +64,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 export default function Page() {
   const { toasts, addToast, removeToast } = useToast()
 
+  // us
+  const [deleteSoundDialog, setDeleteSoundDialog] = useState<{ open: boolean; sound: UploadedSound | null; tier: "critical" | "warning" | "info" | null }>({ open: false, sound: null, tier: null })
+  const [deleteLoadingDialog, setDeleteLoadingDialog] = useState(false)
+  const [deleteSuccessDialog, setDeleteSuccessDialog] = useState<{ open: boolean; filename: string }>({ open: false, filename: "" })
+
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState<BackupConfig | null>(null)
   const [logs, setLogs] = useState<BackupLog[]>([])
@@ -76,7 +77,6 @@ export default function Page() {
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState(false)
 
-  const [pathInput, setPathInput] = useState("")
   const [frequencyInput, setFrequencyInput] = useState<"daily" | "weekly" | "monthly">("weekly")
   const [autoEnabled, setAutoEnabled] = useState(false)
 
@@ -88,6 +88,14 @@ export default function Page() {
   const [selectedRestorePoint, setSelectedRestorePoint] = useState<RestorePoint | null>(null)
   const [confirmServerRestoreOpen, setConfirmServerRestoreOpen] = useState(false)
   const [restoringFromServer, setRestoringFromServer] = useState(false)
+
+  const [manualBackupConfirmOpen, setManualBackupConfirmOpen] = useState(false)
+  const [saveSoundConfirmOpen, setSaveSoundConfirmOpen] = useState(false)
+  const [saveBackupConfirmOpen, setSaveBackupConfirmOpen] = useState(false)
+
+  const [actionLoadingDialog, setActionLoadingDialog] = useState<{ open: boolean; title: string; description: string }>({ open: false, title: "", description: "" })
+  const [actionSuccessDialog, setActionSuccessDialog] = useState<{ open: boolean; title: string; description: string }>({ open: false, title: "", description: "" })
+  const [actionErrorDialog, setActionErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: "" })
 
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [tierValues, setTierValues] = useState({
@@ -117,7 +125,6 @@ export default function Page() {
         api.get("/api/alert-sounds/"),
       ])
       setConfig(configRes)
-      setPathInput(configRes.server_backup_path ?? "")
       setFrequencyInput(configRes.frequency)
       setAutoEnabled(configRes.auto_backup_enabled)
       setLogs(logsRes)
@@ -141,24 +148,45 @@ export default function Page() {
   }, [])
 
   async function handleSaveConfig() {
-    setSavingConfig(true)
+    setSaveBackupConfirmOpen(false)
+    setActionLoadingDialog({ open: true, title: "Saving Settings", description: "Please wait while your backup schedule is being saved..." })
     try {
       await api.patch("/api/backup/config/", {
         auto_backup_enabled: autoEnabled,
         frequency: frequencyInput,
-        server_backup_path: pathInput,
       })
-      addToast("Backup settings saved.")
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionSuccessDialog({ open: true, title: "Settings Saved", description: "Your backup schedule has been saved successfully." })
       loadData()
     } catch (err: any) {
-      addToast(err?.error || "Failed to save backup settings.", "error")
-    } finally {
-      setSavingConfig(false)
+      console.error(err)
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionErrorDialog({ open: true, message: err?.error || "Failed to save backup settings." })
     }
   }
 
   async function handleManualBackup() {
+    setManualBackupConfirmOpen(false)
     setBackingUp(true)
+        setActionLoadingDialog({ open: true, title: "Creating Backup", description: "Please wait while your backup is being created. This might take a minute..." })
+    let handle: any = null
+    if ('showSaveFilePicker' in window) {
+      try {
+        handle = await (window as any).showSaveFilePicker({
+          suggestedName: `agos_backup_${Date.now()}.zip`,
+          types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }],
+        })
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          // user cancelled the save dialog — bail out before hitting the backend at all
+          setActionLoadingDialog({ open: false, title: "", description: "" })
+          setBackingUp(false)
+          return
+        }
+        // picker failed for some other reason — fall back to the classic download below
+      }
+    }
+
     try {
       const res = await fetch(`${BASE_URL}/api/backup/manual/`, {
         method: "GET",
@@ -172,19 +200,28 @@ export default function Page() {
       const match = disposition?.match(/filename="?([^"]+)"?/)
       const filename = match?.[1] || `agos_backup_${Date.now()}.zip`
 
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.URL.revokeObjectURL(url)
+      if (handle) {
+        const writable = await handle.createWritable()
+        await writable.write(blob)
+        await writable.close()
+      } else {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.URL.revokeObjectURL(url)
+      }
 
-      addToast("Backup downloaded successfully.")
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionSuccessDialog({ open: true, title: "Backup Created", description: "Your backup has been created successfully." })
       loadData()
-    } catch {
-      addToast("Failed to create backup.", "error")
+    } catch (err) {
+      console.error(err)
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionErrorDialog({ open: true, message: "Failed to create backup." })
     } finally {
       setBackingUp(false)
     }
@@ -202,28 +239,45 @@ export default function Page() {
 
   async function handleConfirmRestore() {
     if (!selectedFile) return
+    setConfirmRestoreOpen(false)
     setRestoring(true)
+    setActionLoadingDialog({ open: true, title: "Restoring System", description: "Please wait while your system is being restored. This might take a minute — you'll be logged out automatically once it's done." })
     try {
       const formData = new FormData()
       formData.append("backup_file", selectedFile)
 
-      const res = await fetch(`${BASE_URL}/api/backup/restore/`, {
-        method: "POST",
+      const tokenRes = await fetch(`${BASE_URL}/api/auth/ws-token/`, {
+        method: "GET",
         credentials: "include",
+      })
+      if (!tokenRes.ok) throw new Error("Could not authenticate for restore.")
+      const { token } = await tokenRes.json()
+
+      const RENDER_URL = "https://agos-capstone.onrender.com"
+      const res = await fetch(`${RENDER_URL}/api/backup/restore/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result?.error || "Restore failed")
+      let result: any = {}
+      try {
+        result = await res.json()
+      } catch {
+        // Response wasn't valid JSON (e.g. a server crash with no body) — fall back gracefully
+      }
+      if (!res.ok) throw new Error(result?.error || "Restore failed. Please check your backup file and try again.")
 
-      addToast("System restored successfully. Restart the backend for AI model changes to take effect.")
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionSuccessDialog({ open: true, title: "Restore Complete", description: "System restored successfully. Restart the backend for AI model changes to take effect." })
       loadData()
     } catch (err: any) {
-      addToast(err?.message || "Restore failed.", "error")
+      console.error(err)
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionErrorDialog({ open: true, message: err?.message || "Restore failed." })
     } finally {
       setRestoring(false)
       setSelectedFile(null)
-      setConfirmRestoreOpen(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
@@ -235,19 +289,23 @@ export default function Page() {
 
   async function handleConfirmServerRestore() {
     if (!selectedRestorePoint) return
+    setConfirmServerRestoreOpen(false)
     setRestoringFromServer(true)
+    setActionLoadingDialog({ open: true, title: "Restoring System", description: "Please wait while your system is being restored. This might take a minute — you'll be logged out automatically once it's done." })
     try {
       await api.post("/api/backup/restore-from-server/", {
         file_name: selectedRestorePoint.file_name,
       })
-      addToast("System restored successfully. Restart the backend for AI model changes to take effect.")
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionSuccessDialog({ open: true, title: "Restore Complete", description: "System restored successfully. Restart the backend for AI model changes to take effect." })
       loadData()
     } catch (err: any) {
-      addToast(err?.error || "Restore failed.", "error")
+      console.error(err)
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionErrorDialog({ open: true, message: err?.error || "Restore failed." })
     } finally {
       setRestoringFromServer(false)
       setSelectedRestorePoint(null)
-      setConfirmServerRestoreOpen(false)
     }
   }
 
@@ -263,8 +321,13 @@ export default function Page() {
         credentials: "include",
         body: formData,
       })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result?.error || "Upload failed")
+      let result: any = {}
+      try {
+        result = await res.json()
+      } catch {
+        // Response wasn't valid JSON (e.g. a server crash with no body) — fall back gracefully
+      }
+      if (!res.ok) throw new Error(result?.error || "Upload failed. Please check your sound file and try again.")
       addToast("Sound uploaded successfully.")
       loadData()
     } catch (err: any) {
@@ -275,8 +338,50 @@ export default function Page() {
     }
   }
 
+  const handleDeleteSound = async () => {
+    const sound = deleteSoundDialog.sound
+    const tier = deleteSoundDialog.tier
+    if (!sound) return
+    setDeleteSoundDialog({ open: false, sound: null, tier: null })
+    setDeleteLoadingDialog(true)
+
+    try {
+      await api.delete(`/api/alert-sounds/${sound.sound_id}/`)
+
+      setUploadedSounds(prev => prev.filter(s => s.sound_id !== sound.sound_id))
+
+      // Figure out the updated tier values (any tier using this sound falls back to preset)
+      let didResetATier = false
+      const updatedTierValues = { ...tierValues }
+      for (const t of ["critical", "warning", "info"] as const) {
+        if (updatedTierValues[t] === sound.file) {
+          updatedTierValues[t] = `preset:${t}`
+          didResetATier = true
+        }
+      }
+      setTierValues(updatedTierValues)
+
+      if (didResetATier) {
+        await api.patch("/api/alert-sounds/config/", {
+          sound_enabled: soundEnabled,
+          critical_sound: updatedTierValues.critical,
+          warning_sound: updatedTierValues.warning,
+          info_sound: updatedTierValues.info,
+        })
+      }
+
+      setDeleteLoadingDialog(false)
+      setDeleteSuccessDialog({ open: true, filename: sound.original_filename })
+    } catch (err) {
+      console.error(err)
+      setDeleteLoadingDialog(false)
+      addToast('Failed to delete sound.', 'error')
+    }
+  }
+
   async function handleSaveSoundConfig() {
-    setSavingSoundConfig(true)
+    setSaveSoundConfirmOpen(false)
+    setActionLoadingDialog({ open: true, title: "Saving Settings", description: "Please wait while your alert sound settings are being saved..." })
     try {
       await api.patch("/api/alert-sounds/config/", {
         sound_enabled: soundEnabled,
@@ -284,23 +389,22 @@ export default function Page() {
         warning_sound: tierValues.warning,
         info_sound: tierValues.info,
       })
-      addToast("Alert sound settings saved.")
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionSuccessDialog({ open: true, title: "Settings Saved", description: "Your alert sound settings have been saved successfully." })
     } catch (err: any) {
-      addToast(err?.error || "Failed to save.", "error")
-    } finally {
-      setSavingSoundConfig(false)
+      console.error(err)
+      setActionLoadingDialog({ open: false, title: "", description: "" })
+      setActionErrorDialog({ open: true, message: err?.error || "Failed to save alert sound settings." })
     }
   }
 
 
   return (
     <>
-      <Toast toasts={toasts} onRemove={removeToast} />
-
-      <div className="hidden md:flex flex-col gap-3">
+      <div className="hidden md:flex md:flex-col md:h-full gap-3 md:pb-4">
 
         {/* Alert Sound section */}
-        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex flex-col gap-3">
+        <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex flex-col gap-3 flex-1">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-[#58D07159]">
               <Bell className="w-4 h-4" color="#2C7B3C" />
@@ -308,71 +412,97 @@ export default function Page() {
             <h2 className="font-bold text-[#122A48] text-base">Alert Sound</h2>
           </div>
 
-          <div className="flex items-center justify-between border border-[#C6C6C8] rounded-lg p-3">
-            <label className="text-[#122A48] text-xs font-medium">Enable alert sounds</label>
-            <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${soundEnabled ? "bg-[#2C7B3C]" : "bg-[#C6C6C8]"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${soundEnabled ? "translate-x-5" : "translate-x-0"}`} />
-            </button>
-          </div>
-
-          {(["critical", "warning", "info"] as const).map((tier) => (
-            <div key={tier} className="border border-[#C6C6C8] rounded-lg p-3 flex items-center justify-between gap-3">
-              <span className="text-[#122A48] text-xs font-medium capitalize w-16">{tier}</span>
-
-              <Select
-                value={tierValues[tier]}
-                onValueChange={(v) => setTierValues(prev => ({ ...prev, [tier]: v }))}
-              >
-                <SelectTrigger className="cursor-pointer flex-1 h-8 text-xs border-[#C6C6C8]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value={`preset:${tier}`}>Default ({tier})</SelectItem>
-                  {uploadedSounds.map((s) => (
-                    <SelectItem key={s.sound_id} value={s.file}>
-                      {s.original_filename}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch(() => {})}
-                className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-8 text-xs cursor-pointer"
-              >
-                ▶ Preview
-              </Button>
+          {loading ? (
+            <div className="flex justify-center items-center h-90">
+              <div className="flex flex-col items-center gap-3 -mt-10">
+                <SpinnerIcon size={24} color="#122A48" />
+                <p className="text-[#122A48]">Loading...</p>
+              </div>
             </div>
-          ))}
+          ) : (
+            <>
+              <div className="flex items-center justify-between border border-[#C6C6C8] rounded-lg p-3">
+                <label className="text-[#122A48] text-xs font-medium">Enable alert sounds</label>
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${soundEnabled ? "bg-[#2C7B3C]" : "bg-[#C6C6C8]"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${soundEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
 
-          <div className="flex items-center justify-between">
-            <input
-              ref={soundFileInputRef}
-              type="file"
-              accept="audio/*"
-              onChange={handleUploadSound}
-              className="hidden"
-            />
-            <Button
-              onClick={() => soundFileInputRef.current?.click()}
-              disabled={uploadingSound}
-              className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-9 text-xs cursor-pointer flex items-center gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              {uploadingSound ? "Uploading..." : "Upload Custom Sound"}
-            </Button>
+              {(["critical", "warning", "info"] as const).map((tier) => (
+                <div key={tier} className="border border-[#C6C6C8] rounded-lg p-3 flex items-center justify-between gap-3">
+                  <span className="text-[#122A48] text-xs font-medium capitalize w-16">{tier}</span>
 
-            <Button
-              onClick={handleSaveSoundConfig}
-              disabled={savingSoundConfig}
-              className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer"
-            >
-              {savingSoundConfig ? "Saving..." : "Save Settings"}
-            </Button>
-          </div>
+                  <Select
+                    value={tierValues[tier]}
+                    onValueChange={(v) => setTierValues(prev => ({ ...prev, [tier]: v }))}
+                  >
+                    <SelectTrigger className="cursor-pointer flex-1 h-8 text-xs border-[#C6C6C8]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value={`preset:${tier}`}>Default ({tier})</SelectItem>
+                      {uploadedSounds.map((s) => (
+                        <SelectItem key={s.sound_id} value={s.file}>
+                          {s.original_filename}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    onClick={() => new Audio(resolveSoundUrl(tierValues[tier])).play().catch((err) => console.error('Playback failed:', err))}
+                    className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-8 text-xs cursor-pointer"
+                  >
+                    ▶ Preview
+                  </Button>
+
+                  <button
+                    disabled={tierValues[tier].startsWith("preset:")}
+                    onClick={() => {
+                      const sound = uploadedSounds.find(s => s.file === tierValues[tier])
+                      if (sound) setDeleteSoundDialog({ open: true, sound, tier })
+                    }}
+                    className={`rounded-lg border p-2 h-8 w-8 flex items-center justify-center flex-shrink-0 ${
+                      tierValues[tier].startsWith("preset:")
+                        ? "border-[#C6C6C8] text-[#C6C6C8] cursor-not-allowed"
+                        : "border-[#C6C6C8] text-[#D81010] hover:bg-[#FFE5E5] cursor-pointer"
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between">
+                <input
+                  ref={soundFileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleUploadSound}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => soundFileInputRef.current?.click()}
+                  disabled={uploadingSound}
+                  className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-3 h-9 text-xs cursor-pointer flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingSound ? "Uploading..." : "Upload Custom Sound"}
+                </Button>
+
+                <Button
+                  onClick={() => setSaveSoundConfirmOpen(true)}
+                  disabled={savingSoundConfig}
+                  className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer"
+                >
+                  {savingSoundConfig ? "Saving..." : "Save Settings"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Backup & Restore section */}
@@ -407,7 +537,7 @@ export default function Page() {
                       : "Never"}
                   </span>
                   <Button
-                    onClick={handleManualBackup}
+                    onClick={() => setManualBackupConfirmOpen(true)}
                     disabled={backingUp}
                     className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer flex items-center gap-2"
                   >
@@ -447,16 +577,6 @@ export default function Page() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[#122A48] text-xs font-medium">Server backup path</label>
-                  <Input
-                    value={pathInput}
-                    onChange={(e) => setPathInput(e.target.value)}
-                    placeholder="e.g. C:\Users\admin\Desktop\agos_scheduled_backups"
-                    className="h-6 py-4 !text-xs border-[#C6C6C8]"
-                  />
-                </div>
-
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[#727272] text-xs flex items-center gap-1 flex-wrap">
                     Last scheduled backup:{" "}
@@ -478,7 +598,7 @@ export default function Page() {
                     )}
                   </span>
                   <Button
-                    onClick={handleSaveConfig}
+                    onClick={() => setSaveBackupConfirmOpen(true)}
                     disabled={savingConfig}
                     className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-4 h-8 text-xs cursor-pointer"
                   >
@@ -529,9 +649,9 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-1 min-h-[456px]">
                 {/* Restore Points */}
-                <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2 flex-1 h-114 overflow-auto-y">
+                <div className="border border-[#C6C6C8] rounded-lg p-3 flex flex-col gap-2 flex-1 h-full overflow-auto-y">
                   <h3 className="font-semibold text-[#122A48] text-sm">Restore Points</h3>
                   <p className="text-[#727272] text-xs">
                     Snapshots available on the server, from scheduled and manual backups.
@@ -571,7 +691,7 @@ export default function Page() {
                 </div>
 
                 {/* Backup History */}
-                <div className="border border-[#C6C6C8] rounded-lg flex-1">
+                <div className="border border-[#C6C6C8] rounded-lg flex-1 flex flex-col h-full">
                   <h3 className="font-semibold text-[#122A48] text-sm p-3">Recent Backup Activity</h3>
                   <Table>
                     <TableHeader className='bg-[#e8eef1b4] border border-[#CFD8DC]'>
@@ -604,14 +724,6 @@ export default function Page() {
                               </span>
                             </TableCell>
                             <TableCell className="text-xs">{log.triggered_by_name}</TableCell>
-                            <TableCell className="text-xs flex justify-center">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${
-                                log.status === 'failed'   ? 'bg-[#FFE5E5] text-[#D81010]' :
-                                'bg-[#B2FBC173] text-[#2C7B3C]'
-                              }`}>
-                                {log.status === 'failed' ? 'Failed' : 'Success'}
-                              </span>
-                            </TableCell>
                             <TableCell className="text-xs">
                               {log.status === 'failed' && log.error_message ? (
                                 <span className="text-[#D81010] max-w-50 block truncate" title={log.error_message}>
@@ -658,10 +770,11 @@ export default function Page() {
           <>
             This will overwrite your current database, media files, and AI models with
             the contents of <strong>{selectedFile?.name}</strong>. This action cannot be undone.
+            You will be logged out automatically once it completes, and will need to sign in again.
           </>
         }
         cancelLabel="Cancel"
-        confirmLabel={restoring ? "Restoring..." : "Restore"}
+        confirmLabel="Restore"
       />
 
       <DialogModal
@@ -675,12 +788,132 @@ export default function Page() {
         description={
           <>
             This will overwrite your current database, media files, and AI models with
-            the contents of <strong>{selectedRestorePoint?.file_name}</strong>. This action cannot be undone.
+            the contents of <strong>{selectedFile?.name}</strong>. This action cannot be undone.
+            You will be logged out automatically once it completes, and will need to sign in again.
           </>
         }
         cancelLabel="Cancel"
         confirmLabel={restoringFromServer ? "Restoring..." : "Restore"}
       />
+
+      <DialogModal
+        open={deleteSoundDialog.open}
+        onClose={() => setDeleteSoundDialog({ open: false, sound: null, tier: null })}
+        onConfirm={handleDeleteSound}
+        color={DIALOG_COLOR.lightred}
+        icon={Trash2}
+        iconColor={DIALOG_COLOR.red}
+        title="Delete Sound"
+        description={
+          <>
+            Are you sure you want to delete <strong>{deleteSoundDialog.sound?.original_filename}</strong>? This cannot be undone.
+          </>
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+      />
+
+      {/* Deleting Sound — Loading */}
+      <DialogModal
+        open={deleteLoadingDialog}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title="Deleting Sound"
+        description="Please wait while the sound is being deleted."
+      />
+
+      {/* Sound Deleted — Success */}
+      <DialogModal
+        open={deleteSuccessDialog.open}
+        onClose={() => setDeleteSuccessDialog({ open: false, filename: "" })}
+        onConfirm={() => setDeleteSuccessDialog({ open: false, filename: "" })}
+        color={DIALOG_COLOR.lightgreen}
+        icon={CheckCircle}
+        iconColor={DIALOG_COLOR.green}
+        title="Sound Deleted"
+        description={
+          <>
+            <strong>{deleteSuccessDialog.filename}</strong> has been deleted successfully.
+          </>
+        }
+        confirmLabel="OK"
+      />
+
+      <DialogModal
+        open={manualBackupConfirmOpen}
+        onClose={() => setManualBackupConfirmOpen(false)}
+        onConfirm={handleManualBackup}
+        color={DIALOG_COLOR.lightblue}
+        icon={Download}
+        iconColor={DIALOG_COLOR.blue}
+        title="Create Backup?"
+        description="This will create a full backup (database, media, and AI models) and let you choose where to save it. Continue?"
+        cancelLabel="Cancel"
+        confirmLabel="Backup Now"
+      />
+
+      <DialogModal
+        open={saveBackupConfirmOpen}
+        onClose={() => setSaveBackupConfirmOpen(false)}
+        onConfirm={handleSaveConfig}
+        color={DIALOG_COLOR.lightblue}
+        icon={DatabaseBackup}
+        iconColor={DIALOG_COLOR.blue}
+        title="Save Backup Schedule?"
+        description="This will update your automatic backup schedule settings."
+        cancelLabel="Cancel"
+        confirmLabel="Save Settings"
+      />
+
+      <DialogModal
+        open={saveSoundConfirmOpen}
+        onClose={() => setSaveSoundConfirmOpen(false)}
+        onConfirm={handleSaveSoundConfig}
+        color={DIALOG_COLOR.lightblue}
+        icon={Bell}
+        iconColor={DIALOG_COLOR.blue}
+        title="Save Alert Sound Settings?"
+        description="This will update your alert sound preferences."
+        cancelLabel="Cancel"
+        confirmLabel="Save Settings"
+      />
+
+      {/* Shared: Loading */}
+      <DialogModal
+        open={actionLoadingDialog.open}
+        color={DIALOG_COLOR.lightblue}
+        icon={SpinnerIcon}
+        iconColor={DIALOG_COLOR.blue}
+        title={actionLoadingDialog.title}
+        description={actionLoadingDialog.description}
+      />
+
+      {/* Shared: Success */}
+      <DialogModal
+        open={actionSuccessDialog.open}
+        onConfirm={() => setActionSuccessDialog({ open: false, title: "", description: "" })}
+        color={DIALOG_COLOR.lightgreen}
+        icon={CheckCircle}
+        iconColor={DIALOG_COLOR.green}
+        title={actionSuccessDialog.title}
+        description={actionSuccessDialog.description}
+        confirmLabel="OK"
+      />
+
+      {/* Shared: Error */}
+      <DialogModal
+        open={actionErrorDialog.open}
+        onConfirm={() => setActionErrorDialog({ open: false, message: "" })}
+        color={DIALOG_COLOR.lightred}
+        icon={X}
+        iconColor={DIALOG_COLOR.red}
+        title="Something Went Wrong"
+        description={actionErrorDialog.message}
+        confirmLabel="Okay"
+      />
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

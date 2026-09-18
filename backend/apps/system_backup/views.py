@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from .supabase_backup import list_supabase_backups, download_backup_from_supabase
 from django.http import FileResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -153,23 +154,10 @@ class RestorePointListView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        config = BackupConfig.objects.filter(config_id=1).first()
-
-        if not config or not config.server_backup_path or not os.path.isdir(config.server_backup_path):
+        try:
+            entries = list_supabase_backups()
+        except Exception:
             return Response([])
-
-        entries = []
-        for filename in os.listdir(config.server_backup_path):
-            if not filename.endswith('.zip'):
-                continue
-            full_path = os.path.join(config.server_backup_path, filename)
-            entries.append({
-                'file_name': filename,
-                'size_bytes': os.path.getsize(full_path),
-                'modified_at': datetime.fromtimestamp(os.path.getmtime(full_path)).isoformat(),
-            })
-
-        entries.sort(key=lambda e: e['modified_at'], reverse=True)
         return Response(entries)
 
 
@@ -182,37 +170,40 @@ class RestoreFromServerView(APIView):
         if not file_name:
             return Response({'error': 'file_name is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        config = BackupConfig.objects.filter(config_id=1).first()
-        if not config or not config.server_backup_path:
-            return Response({'error': 'No server backup path configured.'}, status=status.HTTP_400_BAD_REQUEST)
-
         # Prevent path traversal — only allow a bare filename, not "../../something"
         safe_name = os.path.basename(file_name)
-        full_path = os.path.join(config.server_backup_path, safe_name)
 
-        if not os.path.isfile(full_path):
-            return Response({'error': f'Backup file not found: {safe_name}'}, status=status.HTTP_404_NOT_FOUND)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            local_path = os.path.join(tmp_dir, safe_name)
 
-        try:
-            restore_backup_archive(full_path)
+            try:
+                download_backup_from_supabase(safe_name, local_path)
+            except Exception as e:
+                return Response(
+                    {'error': f'Backup file not found in storage: {safe_name}'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-            BackupLog.objects.create(
-                backup_type='restore',
-                status='success',
-                triggered_by=request.user,
-                file_name=safe_name,
-            )
-            return Response({'message': 'System restored successfully.'})
+            try:
+                restore_backup_archive(local_path)
 
-        except Exception as e:
-            BackupLog.objects.create(
-                backup_type='restore',
-                status='failed',
-                triggered_by=request.user,
-                file_name=safe_name,
-                error_message=str(e),
-            )
-            return Response(
-                {'error': f'Restore failed: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+                BackupLog.objects.create(
+                    backup_type='restore',
+                    status='success',
+                    triggered_by=request.user,
+                    file_name=safe_name,
+                )
+                return Response({'message': 'System restored successfully.'})
+
+            except Exception as e:
+                BackupLog.objects.create(
+                    backup_type='restore',
+                    status='failed',
+                    triggered_by=request.user,
+                    file_name=safe_name,
+                    error_message=str(e),
+                )
+                return Response(
+                    {'error': f'Restore failed: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
