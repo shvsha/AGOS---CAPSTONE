@@ -9,7 +9,8 @@ from .serializers import SensorReadingSerializer
 from apps.sensor_nodes.models import SensorNode
 from apps.users.permissions import IsAdminOrMENRO, IsIoTDevice, IoTDeviceAuthentication
 from apps.users.authentication import CookieJWTAuthentication
-
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 class SensorReadingListView(generics.ListCreateAPIView):
     queryset = SensorReading.objects.all().order_by('-timestamp')
