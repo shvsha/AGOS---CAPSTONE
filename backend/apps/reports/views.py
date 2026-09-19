@@ -5,22 +5,22 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.db.models import Sum
-from .models import BarangayMonthlyReport, ReportMedia, MunicipalMonthlyReport
-from .serializers import ( BarangayMonthlyReportSerializer, ReportMediaSerializer, MunicipalMonthlyReportSerializer )
-from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsBarangay, IsAdminOrMENROOrBarangay, IsAdminOrMENROOfficer, CanAccessOwnBarangayReport, CanAccessOwnBarangayReportMedia
+from .models import CanalMonitoringReport, ReportMedia
+from .serializers import CanalMonitoringReportSerializer, ReportMediaSerializer
+from apps.users.permissions import (
+    IsBarangay, IsAdminOrMENROOrBarangay, IsAdminOrMENROOfficer,
+    CanAccessOwnCanalReport, CanAccessOwnCanalReportMedia,
+)
 from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
-from .services import sync_municipal_report
 from django.shortcuts import get_object_or_404
 from agos_backend.pdf_utils import render_custom_pdf, get_logo_data_uri
-from apps.barangay.models import Barangay
 
 
-class BarangayMonthlyReportListView(generics.ListCreateAPIView):
-    serializer_class = BarangayMonthlyReportSerializer
+class CanalMonitoringReportListView(generics.ListCreateAPIView):
+    serializer_class = CanalMonitoringReportSerializer
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['status', 'report_month', 'barangay']
+    filterset_fields = ['barangay', 'severity']
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -30,101 +30,82 @@ class BarangayMonthlyReportListView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.user_role == 'Barangay':
-            return BarangayMonthlyReport.objects.filter(
+            return CanalMonitoringReport.objects.filter(
                 barangay=user.barangay
-            ).order_by('-submitted_at')
-        return BarangayMonthlyReport.objects.exclude(status='Draft').order_by('-submitted_at')
-    
+            ).order_by('-date_observed')
+        return CanalMonitoringReport.objects.filter(is_submitted=True).order_by('-date_observed')
+
     def perform_create(self, serializer):
         report = serializer.save(
             barangay=self.request.user.barangay,
-            submitted_by=self.request.user,
-            status=self.request.data.get('status', 'Pending'),
+            reported_by=self.request.user,
         )
         log_action(
             user=self.request.user,
-            action='Submitted Barangay Monthly Report',
-            affected_table='tbl_barangay_monthly_report',
-            new_value=f"barangay: {report.barangay.barangay_name}, month: {report.report_month}",
+            action='Filed Canal Monitoring Report',
+            affected_table='tbl_canal_monitoring_reports',
+            new_value=f"barangay: {report.barangay.barangay_name}, observed: {report.date_observed}",
             ip_address=self.request.META.get('REMOTE_ADDR')
         )
 
 
-class BarangayMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = BarangayMonthlyReport.objects.all()
-    serializer_class = BarangayMonthlyReportSerializer
-    lookup_field = 'monthly_report_id'
-    permission_classes = [CanAccessOwnBarangayReport]
-
-    def perform_update(self, serializer):
-        report = serializer.save()
-        if report.status == 'Reviewed':
-            sync_municipal_report(report.report_month, generated_by=self.request.user)
+class CanalMonitoringReportDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = CanalMonitoringReport.objects.all()
+    serializer_class = CanalMonitoringReportSerializer
+    lookup_field = 'report_id'
+    permission_classes = [CanAccessOwnCanalReport]
 
 
-class BarangayMonthlyReportExportView(APIView):
+class CanalMonitoringReportExportView(APIView):
     """
-    GET /api/barangay-reports/<id>/export/
-    Exports a single barangay's monthly MRF report as PDF.
+    GET /api/canal-reports/<id>/export/
+    Exports a single canal monitoring report as PDF.
     Same access rule as the detail view: Admin/MENRO any report,
     Barangay only their own.
     """
-    permission_classes = [CanAccessOwnBarangayReport]
+    permission_classes = [CanAccessOwnCanalReport]
 
-    def get(self, request, monthly_report_id):
-        report = get_object_or_404(BarangayMonthlyReport, monthly_report_id=monthly_report_id)
+    def get(self, request, report_id):
+        report = get_object_or_404(CanalMonitoringReport, report_id=report_id)
         self.check_object_permissions(request, report)
-
-        barangay_name = report.barangay.barangay_name
-        month_year = report.report_month.strftime("%B %Y")
 
         context = {
             "logo_data_uri": get_logo_data_uri(),
-            "barangay_name": barangay_name,
-            "month_year": month_year,
             "report": report,
             "generated_by": f"{request.user.first_name} {request.user.last_name}",
         }
 
-        filename = f"{barangay_name}-MRF-{report.report_month.strftime('%b-%Y')}.pdf"
+        filename = f"{report.barangay.barangay_name}-Canal-Report-{report.date_observed.strftime('%b-%d-%Y')}.pdf"
 
         return render_custom_pdf(
-            "exports/barangay_monthly_report.html",
+            "exports/canal_monitoring_report.html",
             context,
             filename=filename,
         )
 
 
-class MyBarangayReportView(APIView):
+class MyReportsListView(generics.ListAPIView):
     """
-    GET /api/barangay-reports/mine/?report_month=YYYY-MM-DD
-    Returns the current Barangay user's report for that month, or 404 if none exists yet.
-    Barangay-only — scoped to request.user.barangay, no barangay param needed/trusted.
+    GET /api/canal-reports/mine/
+    Returns every report filed by the current Barangay user's own
+    barangay. Replaces the old single-per-month "mine" lookup — since
+    reports are per-incident now, not one-per-month, this is a list.
+    Barangay-only — scoped to request.user.barangay, no barangay param
+    needed/trusted.
     """
+    serializer_class = CanalMonitoringReportSerializer
     permission_classes = [IsBarangay]
 
-    def get(self, request):
-        report_month = request.query_params.get('report_month')
-        if not report_month:
-            return Response({'error': 'report_month is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        report = BarangayMonthlyReport.objects.filter(
-            barangay=request.user.barangay,
-            report_month=report_month,
-        ).first()
-
-        if not report:
-            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        return Response(
-            BarangayMonthlyReportSerializer(report, context={'request': request}).data
-        )
+    def get_queryset(self):
+        return CanalMonitoringReport.objects.filter(
+            barangay=self.request.user.barangay
+        ).order_by('-date_observed')
 
 
 class ReportMediaListView(generics.ListAPIView):
     queryset = ReportMedia.objects.all()
     serializer_class = ReportMediaSerializer
-    permission_classes = [IsAdminOrMENROOfficer ]
+    permission_classes = [IsAdminOrMENROOfficer]
 
 
 class ReportMediaUploadView(APIView):
@@ -133,9 +114,9 @@ class ReportMediaUploadView(APIView):
 
     def post(self, request):
         file = request.FILES.get('file')
-        media_category = request.data.get('media_category', 'Sensor_Detection')
+        media_category = request.data.get('media_category', 'Additional_Evidence')
         clog_event_id = request.data.get('clog_event_id')
-        monthly_report_id = request.data.get('monthly_report_id')
+        report_id = request.data.get('report_id')
 
         if not file:
             return Response(
@@ -162,13 +143,13 @@ class ReportMediaUploadView(APIView):
             except ClogEvent.DoesNotExist:
                 pass
 
-        if monthly_report_id:
+        if report_id:
             try:
-                report = BarangayMonthlyReport.objects.get(monthly_report_id=monthly_report_id)
+                report = CanalMonitoringReport.objects.get(report_id=report_id)
                 if request.user.user_role == 'Barangay' and report.barangay_id != request.user.barangay_id:
                     return Response({'error': 'Not your report.'}, status=status.HTTP_403_FORBIDDEN)
-                media.monthly_report = report
-            except BarangayMonthlyReport.DoesNotExist:
+                media.report = report
+            except CanalMonitoringReport.DoesNotExist:
                 pass
 
         media.save()
@@ -182,8 +163,8 @@ class ReportMediaDetailView(generics.RetrieveDestroyAPIView):
     queryset = ReportMedia.objects.all()
     serializer_class = ReportMediaSerializer
     lookup_field = 'media'
-    permission_classes = [CanAccessOwnBarangayReportMedia]
-    
+    permission_classes = [CanAccessOwnCanalReportMedia]
+
 
 class ReportMediaByClogEventView(generics.ListAPIView):
     serializer_class = ReportMediaSerializer
@@ -192,83 +173,3 @@ class ReportMediaByClogEventView(generics.ListAPIView):
     def get_queryset(self):
         event_id = self.kwargs['event_id']
         return ReportMedia.objects.filter(clog_event_id=event_id)
-
-
-class MunicipalMonthlyReportListView(generics.ListAPIView):
-    queryset = MunicipalMonthlyReport.objects.all().order_by('-generated_at')
-    serializer_class = MunicipalMonthlyReportSerializer
-    permission_classes = [IsAdminOrMENROOfficer ]
-
-    def perform_update(self, serializer):
-        old_status = serializer.instance.status
-        report = serializer.save()
-        log_action(
-            user=self.request.user,
-            action='Updated Municipal Report Status',
-            affected_table='tbl_municipal_monthly_report',
-            old_value=old_status,
-            new_value=report.status,
-            ip_address=self.request.META.get('REMOTE_ADDR')
-        )
-
-
-class MunicipalMonthlyReportDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = MunicipalMonthlyReport.objects.all()
-    serializer_class = MunicipalMonthlyReportSerializer
-    lookup_field = 'municipal_report_id'
-    permission_classes = [IsAdminOrMENROOfficer ]
-
-
-class MunicipalMonthlyReportExportView(APIView):
-    """
-    GET /api/municipal-reports/<id>/export/
-    Exports the compiled municipal MRF report as PDF — one row per
-    barangay (blank cells where no reviewed report exists for the
-    month) plus the municipal report's own TOTAL row.
-    Admin/MENRO only, same as the detail view.
-    """
-    permission_classes = [IsAdminOrMENROOfficer]
-
-    def get(self, request, municipal_report_id):
-        report = get_object_or_404(MunicipalMonthlyReport, municipal_report_id=municipal_report_id)
-
-        all_barangays = Barangay.objects.all().order_by('barangay_name')
-        barangay_reports = BarangayMonthlyReport.objects.filter(
-            report_month=report.report_month,
-            status='Reviewed',
-        ).select_related('barangay')
-
-        reports_by_barangay = {br.barangay_id: br for br in barangay_reports}
-
-        barangay_rows = []
-        for b in all_barangays:
-            br = reports_by_barangay.get(b.barangay_id)
-            barangay_rows.append({
-                "barangay_name": b.barangay_name,
-                "bote_kg": br.bote_kg if br else "",
-                "bakal_kg": br.bakal_kg if br else "",
-                "papel_kg": br.papel_kg if br else "",
-                "plastic_kg": br.plastic_kg if br else "",
-                "karton_kg": br.karton_kg if br else "",
-                "amount_sold": br.amount_sold if br else None,
-                "biodegradable_kg": br.biodegradable_kg if br else "",
-                "residual_waste_kg": br.residual_waste_kg if br else "",
-                "special_waste_kg": br.special_waste_kg if br else "",
-            })
-
-        context = {
-            "logo_data_uri": get_logo_data_uri(),
-            "month_year": report.report_month.strftime("%B %Y"),
-            "month_label": report.report_month.strftime("%B").upper(),
-            "barangay_rows": barangay_rows,
-            "report": report,
-            "generated_by": f"{request.user.first_name} {request.user.last_name}",
-        }
-
-        filename = f"Municipal-MRF-{report.report_month.strftime('%b-%Y')}.pdf"
-
-        return render_custom_pdf(
-            "exports/municipal_monthly_report.html",
-            context,
-            filename=filename,
-        )

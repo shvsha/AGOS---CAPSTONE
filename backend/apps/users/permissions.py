@@ -168,3 +168,59 @@ class CanAccessOwnBarangayReportMedia(BasePermission):
                 return report.status == 'Draft'
             return True
         return False
+
+
+class CanAccessOwnCanalReport(BasePermission):
+    """
+    Used for CanalMonitoringReportDetailView.
+    Admin/MENRO/MENRO_Staff: read-only on any report (they receive
+    reports, they don't edit or approve them).
+    Barangay: full GET/PATCH/DELETE on their own barangay's reports
+    only. No Draft-gating — there's no review workflow on this model.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        if not user.is_authenticated:
+            return False
+        if user.user_role in ['Admin', 'MENRO', 'MENRO_Staff']:
+            return request.method in ['GET', 'HEAD', 'OPTIONS']
+        if user.user_role == 'Barangay':
+            return True
+        return False
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.user_role in ['Admin', 'MENRO', 'MENRO_Staff']:
+            return obj.is_submitted
+        if user.user_role == 'Barangay':
+            return obj.barangay_id == user.barangay_id
+        return False
+
+
+class CanAccessOwnCanalReportMedia(BasePermission):
+    """
+    Used for ReportMediaDetailView.
+    Admin/MENRO/MENRO_Staff: full access.
+    Barangay: GET/DELETE only on media attached to their own
+    barangay's report.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        if not user.is_authenticated:
+            return False
+        if user.user_role in ['Admin', 'MENRO', 'MENRO_Staff']:
+            return True
+        if user.user_role == 'Barangay':
+            return request.method in ['GET', 'DELETE']
+        return False
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.user_role in ['Admin', 'MENRO', 'MENRO_Staff']:
+            return True
+        if user.user_role == 'Barangay':
+            report = obj.report
+            if not report or report.barangay_id != user.barangay_id:
+                return False
+            return True
+        return False
