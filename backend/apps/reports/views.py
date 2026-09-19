@@ -80,6 +80,7 @@ def _signatory_rows(report):
 
 class CanalMonitoringReportListView(generics.ListCreateAPIView):
     serializer_class = CanalMonitoringReportSerializer
+    pagination_class = None
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['barangay', 'severity']
 
@@ -174,6 +175,7 @@ class MyReportsListView(generics.ListAPIView):
     needed/trusted.
     """
     serializer_class = CanalMonitoringReportSerializer
+    pagination_class = None
     permission_classes = [IsBarangay]
 
     def get_queryset(self):

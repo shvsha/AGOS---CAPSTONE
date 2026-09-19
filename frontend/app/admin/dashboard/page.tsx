@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
-import ReportProgressBar from "@/components/MonthlyReportProgressBar"
+import ReportOutcomeBar from "@/components/ReportOutcomeBar"
+import FollowUpDialog from "@/components/ReportOutcomeBar/FollowUpDialog"
 import { ALERT_STYLE, WASTE_STYLE } from '@/lib/constant'
 import { usePolling } from "@/components/hooks/usePolling"
 import { useFillRows } from "@/components/hooks/useFillRows"
@@ -21,6 +22,8 @@ import { DashboardSkeleton } from "@/components/Skeleton/Admin/DashboardSkeleton
 
 // auth
 import { fetchWithAuth } from "@/lib/auth"
+import { monthOf, formatMonthLabel } from "@/lib/reportOptions"
+import type { CanalMonitoringReport } from "@/types/report"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { usePageCache } from "@/components/hooks/usePageCache"
 
@@ -84,20 +87,6 @@ type Alert = {
   timestamp: string
   is_read: boolean
   alert_context?: Record<string, any> 
-}
-
-type BarangayReports = {
-  monthly_report_id: number
-  barangay: number
-  report_month: string
-  submitted_by: number | null
-  verified_by: number | null
-  submitted_at: string
-  status: 'Draft' | 'Pending' | 'Reviewed'
-  barangay_details: {
-    barangay_id: number
-    barangay_name: string
-  } | null
 }
 
 type NodeHealth = {
@@ -194,21 +183,9 @@ export default function Dashboard() {
   const [continuityDialog, setContinuityDialog] = useState(false)
 
   const now = new Date()
-  const getMonthOptions = () => {
-    const months = []
-    const year = now.getFullYear()
-    for (let m = 0; m < 12; m++) {
-      const d = new Date(year, m, 1)
-      months.push({
-        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: d.toLocaleString('default', { month: 'long', year: 'numeric' }),
-      })
-    }
-    return months
-  }
-  const monthOptions = getMonthOptions()
+
   const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthValue)
+  const currentMonthLabel = formatMonthLabel(currentMonthValue)
 
   // fetchers — each returns its parsed data instead of only calling setState
   const fetchSensorNodesRaw = async (): Promise<SensorNodes[]> => {
@@ -220,9 +197,9 @@ export default function Dashboard() {
     } catch { return [] }
   }
 
-  const fetchMonthlyReportsRaw = async (): Promise<BarangayReports[]> => {
+  const fetchReportsRaw = async (): Promise<CanalMonitoringReport[]> => {
     try {
-      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangay-reports/`)
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/canal-reports/`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       return data.results ?? data
@@ -276,7 +253,7 @@ export default function Dashboard() {
 
   // cached data, all fetched together via refetchAll below (autoFetch: false)
   const sensorNodes = usePageCache('dashboard:sensorNodes', fetchSensorNodesRaw, [] as SensorNodes[], { autoFetch: false })
-  const barangayReports = usePageCache('dashboard:barangayReports', fetchMonthlyReportsRaw, [] as BarangayReports[], { autoFetch: false })
+  const barangayReports = usePageCache('dashboard:canalReports', fetchReportsRaw, [] as CanalMonitoringReport[], { autoFetch: false })
   const alerts = usePageCache('dashboard:alerts', fetchAlertsRaw, [] as Alert[], { autoFetch: false })
   const nodeHealth = usePageCache('dashboard:nodeHealth', fetchNodeHealthRaw, [] as NodeHealth[], { autoFetch: false })
   const clogEvents = usePageCache('dashboard:clogEvents', fetchClogEventsRaw, [] as ClogEvents[], { autoFetch: false })
@@ -315,9 +292,7 @@ export default function Dashboard() {
   })
   const resolvedClog = resolvedClogsThisMonth.length
 
-  const reviewedReportsThisMonth = barangayReports.data.filter(
-    r => r.report_month.startsWith(selectedMonth) && r.status === 'Reviewed'
-  )
+  const reportsThisMonth = barangayReports.data.filter(r => monthOf(r) === currentMonthValue)
 
   // health helpers
   const latestHealthByNode = new Map<number, NodeHealth>()
@@ -484,13 +459,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* monthly report progress */}
+            {/* cleanup outcomes this month */}
             <div onClick={() => setReportProgressDialog(true)} className="cursor-pointer hover:opacity-80">
-              <ReportProgressBar
-                reports={reviewedReportsThisMonth}
-                totalBarangays={barangays.data.length}
-                month={monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth}
-              />
+              <ReportOutcomeBar reports={reportsThisMonth} periodLabel={currentMonthLabel} />
             </div>
           </div>
           
@@ -985,49 +956,14 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Report Progress Dialog */}
-      <Dialog open={reportProgressDialog} onOpenChange={setReportProgressDialog}>
-        <DialogContent className="[&>button]:hidden text-[#122A48] w-[420px]">
-          <DialogHeader>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-[#2C7B3C29]">
-                  <MapPinned size={16} color="#2C7B3C" />
-                </div>
-                <p className="font-bold text-sm">
-                  Reviewed Reports — {monthOptions.find(m => m.value === selectedMonth)?.label ?? selectedMonth} ({reviewedReportsThisMonth.length})
-                </p>
-              </div>
-              <button onClick={() => setReportProgressDialog(false)} className="cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
-          </DialogHeader>
-
-          <DialogTitle className="sr-only">Reviewed Barangay Reports</DialogTitle>
-          <hr />
-
-          <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
-            {reviewedReportsThisMonth.length === 0 ? (
-              <p className="text-xs text-[#727272] text-center py-6">No reviewed reports yet this month.</p>
-            ) : (
-              reviewedReportsThisMonth.map(report => (
-                <div key={report.monthly_report_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-[#E5E5E6]">
-                  <p className="text-xs font-semibold">{report.barangay_details?.barangay_name ?? '—'}</p>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534]">Reviewed</span>
-                    <p className="text-[10px] text-[#727272] mt-1">
-                      {new Date(report.submitted_at).toLocaleString('en-PH', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Needs follow-up dialog */}
+      <FollowUpDialog
+        open={reportProgressDialog}
+        onOpenChange={setReportProgressDialog}
+        reports={reportsThisMonth}
+        periodLabel={currentMonthLabel}
+        onView={(r) => router.push(`/admin/history/barangay-reports/view-barangay-report/?id=${r.report_id}`)}
+      />
 
       {/* Battery Voltage Dialog */}
       <Dialog open={batteryDialog} onOpenChange={setBatteryDialog}>

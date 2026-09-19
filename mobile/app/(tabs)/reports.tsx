@@ -106,7 +106,8 @@ export default function ReportsListScreen() {
   const submittedCount = reports.filter((r) => r.is_submitted).length;
   const inProgressCount = reports.filter((r) => !r.is_submitted).length;
 
-  const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const thisMonthCount = reports.filter(
     (r) => r.is_submitted && (r.date_observed ?? "").startsWith(currentMonth)
   ).length;
