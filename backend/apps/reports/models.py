@@ -59,24 +59,18 @@ class CanalMonitoringReport(models.Model):
     obstruction_coverage = models.CharField(max_length=10, choices=OBSTRUCTION_COVERAGE_CHOICES, null=True, blank=True)
     water_flow_condition = models.CharField(max_length=10, choices=WATER_FLOW_CHOICES, null=True, blank=True)
 
-    # Waste Composition — coarse categories, estimated amount each (kg)
+    # Waste Composition — estimated amount per category (kg)
     waste_plastic_kg = models.FloatField(null=True, blank=True)
+    waste_food_wrapper_kg = models.FloatField(null=True, blank=True)  # snack / junk-food packaging
     waste_paper_cardboard_kg = models.FloatField(null=True, blank=True)
     waste_glass_kg = models.FloatField(null=True, blank=True)
     waste_organic_kg = models.FloatField(null=True, blank=True)
     waste_metal_kg = models.FloatField(null=True, blank=True)
     waste_foam_kg = models.FloatField(null=True, blank=True)
+    waste_textile_kg = models.FloatField(null=True, blank=True)  # clothes, towels, etc.
+    waste_ewaste_kg = models.FloatField(null=True, blank=True)  # batteries, vapes, electronics
     waste_other_kg = models.FloatField(null=True, blank=True)
     waste_other_label = models.CharField(max_length=100, blank=True)
-
-    # Waste Composition — detailed item counts/estimates
-    item_plastic_bottle = models.IntegerField(null=True, blank=True)
-    item_plastic_bag = models.IntegerField(null=True, blank=True)
-    item_food_wrapper = models.IntegerField(null=True, blank=True)
-    item_bottle_cap = models.IntegerField(null=True, blank=True)
-    item_styrofoam_foam = models.IntegerField(null=True, blank=True)
-    item_other = models.IntegerField(null=True, blank=True)
-    item_other_label = models.CharField(max_length=100, blank=True)
 
     # Barangay Response
     assigned_personnel = models.CharField(max_length=150, null=True, blank=True)
@@ -108,7 +102,8 @@ class CanalMonitoringReport(models.Model):
         db_table = 'tbl_canal_monitoring_reports'
 
     def __str__(self):
-        return f"Report {self.report_id} — {self.barangay.barangay_name} ({self.date_observed.date()})"
+        when = self.date_observed.date() if self.date_observed else "draft"
+        return f"Report {self.report_id} — {self.barangay.barangay_name} ({when})"
 
 
 def report_media_upload_path(instance, filename):
