@@ -206,10 +206,13 @@ def call_ai_service(image_bytes: bytes):
 # How far back to look for the MQTT-created anchor reading that these
 # frames belong to. MQTT fires first in the device's loop and is a tiny
 # payload (near-instant); HTTP frame upload is the slow multipart leg
-# that follows. 30s comfortably covers normal timing plus some slack
-# for a slow cellular window, without being so wide it risks attaching
-# frames to a stale, unrelated reading from a prior cycle.
-MQTT_MATCH_WINDOW_SECONDS = 30
+# that follows. Originally set to 30s, but field testing on a
+# weak-signal device (~-95dBm) showed the frame upload alone taking
+# ~46s under poor cellular conditions, causing legitimate uploads to
+# 409 even though MQTT had succeeded. Widened to give real-world slow
+# connections realistic room, while still bounded enough to avoid
+# attaching frames to a stale, unrelated reading from a prior cycle.
+MQTT_MATCH_WINDOW_SECONDS = 90
 
 
 class SensorReadingWithFlowView(APIView):

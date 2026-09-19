@@ -74,7 +74,7 @@ class AlertSerializer(serializers.ModelSerializer):
                     'signal_strength': health.signal_strength,
                     'sensor_continuity': health.sensor_continuity,
                     'health_status': health.status,
-                    'checked_at': health.checked_at,
+                    'checked_at': health.checked_at.isoformat() if health.checked_at else None,
                 }
             return {}
 
