@@ -7,6 +7,7 @@ from .views import (
     SensorNodeMarkMaintenanceView, SensorNodeMarkAvailableView,
     SensorNodeForceSleepView, SensorNodeCancelForceSleepView,
     MaintenanceLogListView, MaintenanceLogExportView,
+    NodeAssignmentHistoryView,
 )
 
 urlpatterns = [
@@ -27,4 +28,5 @@ urlpatterns = [
     path('sensor-nodes/<int:node_id>/cancel-force-sleep/', SensorNodeCancelForceSleepView.as_view(), name='sensor-node-cancel-force-sleep'),
     path('maintenance-logs/', MaintenanceLogListView.as_view(), name='maintenance-log-list'),
     path('maintenance-logs/export/', MaintenanceLogExportView.as_view(), name='maintenance-log-export'),
+    path('sensor-nodes/<int:node_id>/assignment-history/', NodeAssignmentHistoryView.as_view(), name='sensor-node-assignment-history'),
 ]

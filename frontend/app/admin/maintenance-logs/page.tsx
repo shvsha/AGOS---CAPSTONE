@@ -25,7 +25,7 @@ import { SearchFilter } from "@/components/SearchFilter"
 import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { Toast } from "@/components/Toast"
-import { AuditSkeleton } from "@/components/Skeleton/Admin/AuditSkeleton"
+import { MaintenanceLogsSkeleton } from "@/components/Skeleton/Admin/MaintenanceLogsSkeleton"
 
 
 type MaintenanceLog = {
@@ -46,6 +46,7 @@ type MaintenanceLog = {
   } | null
   started_at: string
   resolved_at: string | null
+  closed_reason: 'Fixed' | 'Retired' | null
 }
 
 function getMonthOptions() {
@@ -141,7 +142,7 @@ export default function MaintenanceLogs() {
 
   usePolling(async () => { await logsCache.refetch() }, 30000)
 
-  if (loading) return <AuditSkeleton />
+  if (loading) return <MaintenanceLogsSkeleton />
 
   return (
     <div className="w-full h-full flex flex-col gap-2 max-w-full box-border">
@@ -202,6 +203,7 @@ export default function MaintenanceLogs() {
                 <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>NODE</TableHead>
                 <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>REASON</TableHead>
                 <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>DATE MARKED</TableHead>
+                <TableHead className='font-semibold text-left text-[#727272] text-xs px-1 whitespace-nowrap'>DATE FIXED</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -213,6 +215,13 @@ export default function MaintenanceLogs() {
                   </TableCell>
                   <TableCell className="text-[#122A48] text-left text-[12px] max-w-md px-2 h-7 truncate">{l.reason}</TableCell>
                   <TableCell className="text-[#122A48] text-left text-[12px] px-2 h-7 whitespace-nowrap">{new Date(l.started_at).toLocaleString()}</TableCell>
+                  <TableCell className="text-[#122A48] text-left text-[12px] px-2 h-7 whitespace-nowrap">
+                    {l.resolved_at ? (
+                      new Date(l.resolved_at).toLocaleString()
+                    ) : (
+                      <span className="inline-block px-2 py-0.5 rounded-full bg-[#FFF3CD] text-[#8A6D00] text-[11px] font-medium">Ongoing</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

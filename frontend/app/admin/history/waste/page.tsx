@@ -448,7 +448,7 @@ export default function Waste() {
                   {/* location */}
                   <div className="flex justify-between text-xs mt-1">
                     <p>Location</p>
-                    <p className="text-left">{selectedWaste.node_details.barangay_details.barangay_name}</p>
+                    <p className="text-left">{selectedWaste.node_details.barangay_details?.barangay_name ?? '—'}</p>
                   </div>
                   {/* reading id */}
                   <div className="flex justify-between text-xs mt-1">

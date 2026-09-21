@@ -135,13 +135,6 @@ class ReportMedia(models.Model):
         blank=True,
         db_column='report_id'
     )
-    clog_event_id = models.ForeignKey(
-        'clog_events.ClogEvent',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        db_column='event_id'
-    )
     media_category = models.CharField(max_length=20, choices=MEDIA_CATEGORY_CHOICES, default='Additional_Evidence')
     file_path = models.FileField(upload_to=report_media_upload_path, null=True, blank=True)
     media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES, default='Image')
