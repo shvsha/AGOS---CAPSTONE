@@ -4,8 +4,8 @@ from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import SensorNode, SystemHealthLog, MaintenanceLog
-from .serializers import SensorNodeSerializer, SystemHealthLogSerializer, MaintenanceLogSerializer
+from .models import SensorNode, SystemHealthLog, MaintenanceLog, NodeAssignmentHistory
+from .serializers import SensorNodeSerializer, SystemHealthLogSerializer, MaintenanceLogSerializer, NodeAssignmentHistorySerializer
 from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from apps.users.authentication import CookieJWTAuthentication
 from apps.rainfall.services import get_effective_condition, AlertThreshold
@@ -16,6 +16,7 @@ from agos_backend.pdf_utils import render_to_pdf
 from .utils import send_device_key_email 
 from apps.audit_logs.utils import log_action
 from django.utils import timezone
+from .services import assign_node, release_node, sync_assignment_change
 
 
 class SensorNodeListView(generics.ListCreateAPIView):
@@ -63,22 +64,38 @@ class SensorNodeDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         instance = self.get_object()
+        prev_hotspot_id = instance.hotspot_id
+        prev_hotspot_name = instance.hotspot.name if instance.hotspot else '—'
         hotspot = serializer.validated_data.get('hotspot', instance.hotspot)
 
         # If hotspot is being set, mark Occupied; if being cleared, mark Available
         if 'hotspot' in serializer.validated_data:
             availability_status = 'Occupied' if hotspot else 'Available'
             node = serializer.save(availability_status=availability_status)
+            sync_assignment_change(
+                node,
+                prev_hotspot_id,
+                user=self.request.user,
+                installed_at=serializer.validated_data.get('installed_at'),
+            )
             log_action(
                 user=self.request.user,
                 action='Assigned Node' if hotspot else 'Unassigned Node',
                 affected_table='tbl_sensor_nodes',
-                old_value=f"hotspot: {instance.hotspot.name if instance.hotspot else '—'}",
+                old_value=f"hotspot: {prev_hotspot_name}",
                 new_value=f"hotspot: {hotspot.name if hotspot else '—'}",
                 ip_address=self.request.META.get('REMOTE_ADDR')
             )
         else:
             node = serializer.save()
+            # Install-date-only edit on the current assignment
+            if 'installed_at' in serializer.validated_data:
+                sync_assignment_change(
+                    node,
+                    prev_hotspot_id,
+                    user=self.request.user,
+                    installed_at=serializer.validated_data['installed_at'],
+                )
             log_action(
                 user=self.request.user,
                 action='Updated Node',
@@ -134,11 +151,9 @@ class SensorNodeUnassignView(APIView):
         if node.availability_status == 'Retired':
             return Response({'error': 'Retired nodes cannot be unassigned'}, status=status.HTTP_400_BAD_REQUEST)
 
-        node.hotspot = None
-        node.barangay = None
-        node.availability_status = 'Available'
+        release_node(node, reason='Unassigned', user=request.user)
         node.status = 'Active'
-        node.save()
+        node.save(update_fields=['status'])
 
         log_action(
             user=request.user,
@@ -169,10 +184,13 @@ class SensorNodeRetireView(APIView):
         if node.availability_status == 'Retired':
             return Response({'error': 'Node is already retired'}, status=status.HTTP_400_BAD_REQUEST)
 
-        node.hotspot = None
-        node.barangay = None
-        node.availability_status = 'Retired'
-        node.save()
+        release_node(node, reason='Retired', user=request.user, availability_status='Retired')
+
+        open_log = MaintenanceLog.objects.filter(node=node, resolved_at__isnull=True).order_by('-started_at').first()
+        if open_log:
+            open_log.resolved_at = timezone.now()
+            open_log.closed_reason = 'Retired'
+            open_log.save(update_fields=['resolved_at', 'closed_reason'])
 
         log_action(
             user=request.user,
@@ -240,6 +258,12 @@ class SensorNodeForceSleepView(APIView):
         if node.availability_status == 'Retired':
             return Response({'error': 'Retired nodes cannot be put to sleep'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if node.status == 'Maintenance':
+            return Response({'error': 'Nodes under maintenance cannot be forced to sleep'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not node.hotspot:
+            return Response({'error': 'Node must have a hotspot assigned to be forced to sleep'}, status=status.HTTP_400_BAD_REQUEST)
+
         minutes = request.data.get('minutes')
         try:
             minutes = int(minutes)
@@ -248,6 +272,10 @@ class SensorNodeForceSleepView(APIView):
 
         if minutes <= 0:
             return Response({'error': 'minutes must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
+
+        MAX_FORCE_SLEEP_MINUTES = 72 * 60
+        if minutes > MAX_FORCE_SLEEP_MINUTES:
+            return Response({'error': 'Forced sleep cannot exceed 72 hours'}, status=status.HTTP_400_BAD_REQUEST)
 
         node.forced_sleep_until = timezone.now() + timedelta(minutes=minutes)
         node.save()
@@ -382,12 +410,39 @@ class SystemHealthLogListView(generics.ListCreateAPIView):
 
 
 class SystemHealthLogByNodeView(generics.ListAPIView):
+    """
+    Health history for one node — the Health History tab on Node
+    Management. Supports:
+      ?status=Normal|Warning|Critical
+      ?from=YYYY-MM-DD&to=YYYY-MM-DD  (inclusive, by checked_at date)
+      ?page_size=N                    (default 20, matches other tables)
+    """
     serializer_class = SystemHealthLogSerializer
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
         node_id = self.kwargs['node_id']
-        return SystemHealthLog.objects.filter(node__node_id=node_id).order_by('-checked_at')
+        qs = SystemHealthLog.objects.filter(node__node_id=node_id).order_by('-checked_at')
+
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+
+        date_from = self.request.query_params.get('from')
+        if date_from:
+            qs = qs.filter(checked_at__date__gte=date_from)
+
+        date_to = self.request.query_params.get('to')
+        if date_to:
+            qs = qs.filter(checked_at__date__lte=date_to)
+
+        return qs
+
+    def paginate_queryset(self, queryset):
+        page_size = self.request.query_params.get('page_size')
+        if page_size:
+            self.paginator.page_size = min(int(page_size), 100)
+        return super().paginate_queryset(queryset)
 
 
 class SystemHealthLogExportView(APIView):
@@ -468,8 +523,9 @@ class SensorNodeMarkMaintenanceView(APIView):
             return Response({'error': 'A reason is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         previous_status = node.status
+        release_node(node, reason='Maintenance', user=request.user)
         node.status = 'Maintenance'
-        node.save()
+        node.save(update_fields=['status'])
 
         MaintenanceLog.objects.create(node=node, reason=reason, marked_by=request.user)
 
@@ -487,7 +543,10 @@ class SensorNodeMarkMaintenanceView(APIView):
 
 class SensorNodeMarkAvailableView(APIView):
     """
-    Reverts a node from Maintenance back to Active and closes its open MaintenanceLog entry.
+    Marks a node fixed. Either assigns it to a hotspot (the normal path,
+    using the same modal as Node Assignment) or, if the body sends
+    skip_assignment: true, returns it to the unassigned pool instead —
+    for a node that's repaired but not ready to be deployed yet.
     """
     permission_classes = [IsAdmin]
 
@@ -500,20 +559,42 @@ class SensorNodeMarkAvailableView(APIView):
         if node.status != 'Maintenance':
             return Response({'error': 'Node is not currently under maintenance'}, status=status.HTTP_400_BAD_REQUEST)
 
+        skip_assignment = bool(request.data.get('skip_assignment'))
+
+        if not skip_assignment:
+            hotspot_id = request.data.get('hotspot')
+            if not hotspot_id:
+                return Response(
+                    {'error': 'A hotspot is required, or set skip_assignment to true.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                from apps.hotspots.models import Hotspot
+                hotspot = Hotspot.objects.get(hotspot_id=hotspot_id)
+            except Hotspot.DoesNotExist:
+                return Response({'error': 'Hotspot not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            if SensorNode.objects.filter(hotspot=hotspot).exclude(availability_status='Retired').exists():
+                return Response({'error': 'This hotspot is already occupied by an active node.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            installed_at = request.data.get('installed_at')
+            assign_node(node, hotspot, installed_at=installed_at, user=request.user)
+
         node.status = 'Active'
-        node.save()
+        node.save(update_fields=['status'])
 
         open_log = MaintenanceLog.objects.filter(node=node, resolved_at__isnull=True).order_by('-started_at').first()
         if open_log:
             open_log.resolved_at = timezone.now()
-            open_log.save()
+            open_log.closed_reason = 'Fixed'
+            open_log.save(update_fields=['resolved_at', 'closed_reason'])
 
         log_action(
             user=request.user,
             action='Marked Node Available',
             affected_table='tbl_sensor_nodes',
             old_value="status: Maintenance",
-            new_value="status: Active",
+            new_value=f"status: Active — {'assigned to ' + hotspot.name if not skip_assignment else 'no hotspot'}",
             ip_address=request.META.get('REMOTE_ADDR')
         )
 
@@ -551,9 +632,14 @@ class MaintenanceLogExportView(APIView):
             except ValueError:
                 pass
 
-        columns = ["Node", "Reason", "Date Marked"]
+        columns = ["Node", "Reason", "Date Marked", "Date Fixed"]
         rows = [
-            [m.node.node_name, m.reason, m.started_at.strftime("%b %d, %Y %I:%M %p")]
+            [
+                m.node.node_name,
+                m.reason,
+                m.started_at.strftime("%b %d, %Y %I:%M %p"),
+                m.resolved_at.strftime("%b %d, %Y %I:%M %p") if m.resolved_at else "Ongoing",
+            ]
             for m in qs
         ]
 
@@ -572,3 +658,28 @@ class MaintenanceLogExportView(APIView):
             orientation="landscape",
             filename=f"maintenance-logs-{month}.pdf" if month else "maintenance-logs.pdf",
         )
+
+
+class NodeAssignmentHistoryView(generics.ListAPIView):
+    """Every hotspot this node has been assigned to, newest first."""
+    serializer_class = NodeAssignmentHistorySerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        qs = NodeAssignmentHistory.objects.filter(
+            node_id=self.kwargs['node_id']
+        ).select_related('node', 'assigned_by', 'ended_by').order_by('-started_at')
+
+        reason = self.request.query_params.get('reason')
+        if reason == 'current':
+            qs = qs.filter(ended_at__isnull=True)
+        elif reason:
+            qs = qs.filter(end_reason=reason)
+
+        return qs
+
+    def paginate_queryset(self, queryset):
+        page_size = self.request.query_params.get('page_size')
+        if page_size:
+            self.paginator.page_size = min(int(page_size), 200)
+        return super().paginate_queryset(queryset)

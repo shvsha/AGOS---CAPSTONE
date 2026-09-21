@@ -155,7 +155,7 @@ export default function Analytics() {
   const wasteByBarangay = allBarangays
     .map(b => {
       const total = wasteClassification
-        .filter(w => w.node_details.barangay_details.barangay_id === b.barangay_id)
+        .filter(w => w.node_details.barangay_details?.barangay_id === b.barangay_id)
         .reduce((sum, w) => sum + (w.estimated_volume || 0), 0)
       return { barangay_id: b.barangay_id, barangay_name: b.barangay_name, total }
     })

@@ -34,9 +34,30 @@ class SensorReadingByNodeView(generics.ListAPIView):
 
     def get_queryset(self):
         node_id = self.kwargs['node_id']
-        return SensorReading.objects.filter(
-            node__node_id=node_id
-        ).order_by('-timestamp')
+        qs = SensorReading.objects.filter(node__node_id=node_id).order_by('-timestamp')
+
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(reading_status=status_param)
+
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        hotspot_param = request.query_params.get('hotspot')
+        if hotspot_param:
+            from apps.sensor_nodes.services import hotspot_at
+            queryset = [
+                r for r in queryset
+                if hotspot_at(r.node, r.timestamp)[1] == hotspot_param
+            ]
+
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page if page is not None else queryset, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
 
 # Tunable constants

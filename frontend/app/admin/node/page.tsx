@@ -5,7 +5,7 @@ import { FaPlus } from "react-icons/fa"
 import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Mail, BadgeCheck } from "lucide-react"
 
 // react
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 
 // shadcn
@@ -94,10 +94,39 @@ export default function NodeManagement() {
 
   // readings state
   const [readingsDialog, setReadingsDialog] = useState<DialogState>({ open: false, node: null })
+  const [readingsHotspotFilter, setReadingsHotspotFilter] = useState('All Hotspots')
+  const [readingsHotspotOptions, setReadingsHotspotOptions] = useState<string[]>([])
+  const [historyTab, setHistoryTab] = useState<'readings' | 'health' | 'hotspot'>('readings')
   const [nodeReadings, setNodeReadings] = useState<SensorReading[]>([])
   const [readingsLoading, setReadingsLoading] = useState(false)
   const [readingsError, setReadingsError] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<number | null>(null)
+  const [readingsStatusFilter, setReadingsStatusFilter] = useState('All Status')
+  const [readingsPage, setReadingsPage] = useState(1)
+  const [readingsHasNext, setReadingsHasNext] = useState(false)
+  const [readingsHasPrev, setReadingsHasPrev] = useState(false)
+  const readingsFetchKeyRef = useRef('')
+
+  // health history state
+  const [healthLogs, setHealthLogs] = useState<any[]>([])
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [healthError, setHealthError] = useState(false)
+  const [healthStatusFilter, setHealthStatusFilter] = useState<string>('')
+  const [healthFrom, setHealthFrom] = useState('')
+  const [healthTo, setHealthTo] = useState('')
+  const [healthPage, setHealthPage] = useState(1)
+  const [healthHasNext, setHealthHasNext] = useState(false)
+  const [healthHasPrev, setHealthHasPrev] = useState(false)
+
+  // Hotspot History tab
+  const [hotspotHistory, setHotspotHistory] = useState<any[]>([])
+  const [hotspotHistoryLoading, setHotspotHistoryLoading] = useState(false)
+  const [hotspotHistoryError, setHotspotHistoryError] = useState(false)
+  const [hotspotReasonFilter, setHotspotReasonFilter] = useState('All')
+  const [hotspotHistoryPage, setHotspotHistoryPage] = useState(1)
+  const [hotspotHistoryHasNext, setHotspotHistoryHasNext] = useState(false)
+  const [hotspotHistoryHasPrev, setHotspotHistoryHasPrev] = useState(false)
+  const hotspotHistoryFetchKeyRef = useRef('')
 
   const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
@@ -142,7 +171,6 @@ export default function NodeManagement() {
   const available = sensorNodes.filter(n => n.availability_status === 'Available').length
   const occupied  = sensorNodes.filter(n => n.availability_status === 'Occupied').length
 
-
   useEffect(() => {
     if (nodeFormDialog.node) {
       setNodeCode(nodeFormDialog.node.node_name?.replace(/^SN-/, '') ?? '')
@@ -165,27 +193,73 @@ export default function NodeManagement() {
     }
   }, [nodeFormDialog.open])
 
+  const healthFetchKeyRef = useRef('')
+
+  useEffect(() => {
+    if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'health') return
+
+    const key = `${readingsDialog.node.node_id}|${healthStatusFilter}|${healthFrom}|${healthTo}|${healthPage}`
+    if (healthFetchKeyRef.current === key) return
+    healthFetchKeyRef.current = key
+
+    const fetchHealth = async () => {
+      setHealthLoading(true)
+      setHealthError(false)
+      try {
+        const params = new URLSearchParams({ page: String(healthPage) })
+        if (healthStatusFilter) params.set('status', healthStatusFilter)
+        if (healthFrom) params.set('from', healthFrom)
+        if (healthTo) params.set('to', healthTo)
+
+        const res = await fetchWithAuth(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/system-health/node/${readingsDialog.node!.node_id}/?${params.toString()}`
+        )
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setHealthLogs(data.results ?? data)
+        setHealthHasNext(!!data.next)
+        setHealthHasPrev(!!data.previous)
+      } catch {
+        setHealthError(true)
+      } finally {
+        setHealthLoading(false)
+      }
+    }
+    fetchHealth()
+  }, [readingsDialog.open, readingsDialog.node, historyTab, healthStatusFilter, healthFrom, healthTo, healthPage])
+
+  useEffect(() => { setHealthPage(1) }, [healthStatusFilter, healthFrom, healthTo])
+  useEffect(() => { setReadingsPage(1) }, [readingsStatusFilter, readingsHotspotFilter])
+  useEffect(() => { setHotspotHistoryPage(1) }, [hotspotReasonFilter])
+
   const resetForm = () => {
     setNodeCode('')
     setFieldErrors({})
   }
 
   useEffect(() => {
-    if (!readingsDialog.open || !readingsDialog.node) {
-      setNodeReadings([])
-      return
-    }
+    if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'readings') return
+
+    const key = `${readingsDialog.node.node_id}|${readingsStatusFilter}|${readingsHotspotFilter}|${readingsPage}`
+    if (readingsFetchKeyRef.current === key) return
+    readingsFetchKeyRef.current = key
 
     const fetchReadings = async () => {
       setReadingsLoading(true)
       setReadingsError(false)
       try {
+        const params = new URLSearchParams({ page: String(readingsPage) })
+        if (readingsStatusFilter !== 'All Status') params.set('status', readingsStatusFilter)
+        if (readingsHotspotFilter !== 'All Hotspots') params.set('hotspot', readingsHotspotFilter)
+
         const res = await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/node/${readingsDialog.node!.node_id}/`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/node/${readingsDialog.node!.node_id}/?${params.toString()}`
         )
         if (!res.ok) throw new Error()
         const data = await res.json()
         setNodeReadings(data.results ?? data)
+        setReadingsHasNext(!!data.next)
+        setReadingsHasPrev(!!data.previous)
       } catch {
         setReadingsError(true)
       } finally {
@@ -193,7 +267,38 @@ export default function NodeManagement() {
       }
     }
     fetchReadings()
-  }, [readingsDialog.open, readingsDialog.node])
+  }, [readingsDialog.open, readingsDialog.node, historyTab, readingsStatusFilter, readingsHotspotFilter, readingsPage])
+
+  useEffect(() => {
+    if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'hotspot') return
+
+    const key = `${readingsDialog.node.node_id}|${hotspotReasonFilter}|${hotspotHistoryPage}`
+    if (hotspotHistoryFetchKeyRef.current === key) return
+    hotspotHistoryFetchKeyRef.current = key
+
+    const fetchHotspotHistory = async () => {
+      setHotspotHistoryLoading(true)
+      setHotspotHistoryError(false)
+      try {
+        const params = new URLSearchParams({ page: String(hotspotHistoryPage) })
+        if (hotspotReasonFilter !== 'All') params.set('reason', hotspotReasonFilter)
+
+        const res = await fetchWithAuth(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/${readingsDialog.node!.node_id}/assignment-history/?${params.toString()}`
+        )
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setHotspotHistory(data.results ?? data)
+        setHotspotHistoryHasNext(!!data.next)
+        setHotspotHistoryHasPrev(!!data.previous)
+      } catch {
+        setHotspotHistoryError(true)
+      } finally {
+        setHotspotHistoryLoading(false)
+      }
+    }
+    fetchHotspotHistory()
+  }, [readingsDialog.open, readingsDialog.node, historyTab, hotspotReasonFilter, hotspotHistoryPage])
   
   useEffect(() => {
     function handleClickOutside() {
@@ -204,6 +309,46 @@ export default function NodeManagement() {
       return () => document.removeEventListener("click", handleClickOutside)
     }
   }, [openMenuId])
+
+  useEffect(() => {
+    if (!readingsDialog.open || !readingsDialog.node) { setReadingsHotspotOptions([]); return }
+    const fetchOptions = async () => {
+      try {
+        const res = await fetchWithAuth(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/${readingsDialog.node!.node_id}/assignment-history/?page_size=200`
+        )
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        const rows = data.results ?? data
+        const names = Array.from(new Set(rows.map((r: any) => r.hotspot_name).filter(Boolean))) as string[]
+        setReadingsHotspotOptions(names)
+      } catch { setReadingsHotspotOptions([]) }
+    }
+    fetchOptions()
+  }, [readingsDialog.open, readingsDialog.node])
+
+  useEffect(() => {
+    if (!readingsDialog.open || !readingsDialog.node) {
+      setNodeReadings([])
+      return
+    }
+    setHistoryTab('readings')
+
+    setReadingsStatusFilter('All Status')
+    setReadingsHotspotFilter('All Hotspots')
+    setReadingsPage(1)
+    readingsFetchKeyRef.current = ''
+
+    setHealthStatusFilter('')
+    setHealthFrom('')
+    setHealthTo('')
+    setHealthPage(1)
+    healthFetchKeyRef.current = ''
+
+    setHotspotReasonFilter('All')
+    setHotspotHistoryPage(1)
+    hotspotHistoryFetchKeyRef.current = ''
+  }, [readingsDialog.open, readingsDialog.node])
 
 
   // handlers
@@ -414,26 +559,39 @@ export default function NodeManagement() {
                         <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_id}</TableCell>
                         <TableCell className="text-[#122A48] text-left h-14 text-xs">{node.node_name}</TableCell>
                         <TableCell className="text-left h-14 text-xs">
-                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
-                            node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
-                            node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
-                            'bg-[#DBEAFE] text-[#1565BC]'
-                          }`}>
-                            <span className={`text-xs w-1.5 h-1.5 rounded-full ${
-                              node.availability_status === 'Available' ? 'bg-[#1D8104]' :
-                              node.availability_status === 'Retired'   ? 'bg-[#727272]' :
-                              'bg-[#1565BC]'
-                            }`} />
-                            <p className="text-xs">{node.availability_status}</p>
-                          </span>
+                          {node.status === 'Maintenance' ? (
+                            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-[#EDE4FC] text-[#7C3AED]">
+                              <span className="text-xs w-1.5 h-1.5 rounded-full bg-[#7C3AED]" />
+                              <p className="text-xs">Under Maintenance</p>
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold ${
+                              node.availability_status === 'Available' ? 'bg-[#B2FBC173] text-[#2C7B3C]' :
+                              node.availability_status === 'Retired'   ? 'bg-[#E5E5E6] text-[#727272]' :
+                              'bg-[#DBEAFE] text-[#1565BC]'
+                            }`}>
+                              <span className={`text-xs w-1.5 h-1.5 rounded-full ${
+                                node.availability_status === 'Available' ? 'bg-[#1D8104]' :
+                                node.availability_status === 'Retired'   ? 'bg-[#727272]' :
+                                'bg-[#1565BC]'
+                              }`} />
+                              <p className="text-xs">{node.availability_status}</p>
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-[#122A48] flex gap-2 justify-left items-left h-14 text-xs relative">
                           {/* Available */}
                           {node.availability_status === 'Available' && (
                             <>
                               <Button
-                                onClick={() => setNodeFormDialog({ open: true, node })}
-                                className="text-xs flex gap-2 text-[#122A48] rounded-lg bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border border-[#1565BC80] py-3.5 px-3"
+                                onClick={() => { if (node.status !== 'Maintenance') setNodeFormDialog({ open: true, node }) }}
+                                disabled={node.status === 'Maintenance'}
+                                title={node.status === 'Maintenance' ? 'Cannot edit a node while it is under maintenance' : undefined}
+                                className={`text-xs flex gap-2 rounded-lg border py-3.5 px-3 ${
+                                  node.status === 'Maintenance'
+                                    ? 'text-[#A0A0A0] bg-[#F0F0F0] border-[#D0D0D0] cursor-not-allowed'
+                                    : 'text-[#122A48] bg-[#CDE3DE45] hover:bg-[#75928a45] cursor-pointer border-[#1565BC80]'
+                                }`}
                               >
                                 <SquarePen size={16} /> Edit
                               </Button>
@@ -458,7 +616,7 @@ export default function NodeManagement() {
                                       onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
                                       className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
                                     >
-                                      <History size={14} /> View Readings
+                                      <History size={14} /> View History
                                     </button>
                                     <button
                                       onClick={() => { setOpenMenuId(null); setDecommissionDialog({ open: true, node }) }}
@@ -502,7 +660,7 @@ export default function NodeManagement() {
                                       onClick={() => { setOpenMenuId(null); setReadingsDialog({ open: true, node }) }}
                                       className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs text-[#1565BC] hover:bg-[#DBEAFE] cursor-pointer"
                                     >
-                                      <History size={14} /> View Readings
+                                      <History size={14} /> View History
                                     </button>
                                     <button
                                       onClick={() => { setOpenMenuId(null); setUnassignDialog({ open: true, node }) }}
@@ -535,7 +693,7 @@ export default function NodeManagement() {
                                 onClick={() => setReadingsDialog({ open: true, node })}
                                 className="flex gap-2 text-[#1565BC] rounded-lg bg-[#DBEAFE] hover:bg-[#bfdcfb] cursor-pointer border border-[#C6C6C8] py-4.5 px-3"
                               >
-                                <History size={16} /> View Readings
+                                <History size={14} /> View History
                               </Button>
                             </>
                           )}
@@ -687,20 +845,66 @@ export default function NodeManagement() {
       {/* Readings History Dialog */}
       <Dialog open={readingsDialog.open}>
         <DialogContent className="[&>button]:hidden p-0 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-[800px] max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <div className="flex justify-between items-center p-2 md:p-3 border-b border-[#C6C6C8]">
-              <div className="flex flex-col">
-                <p className="font-bold text-sm md:text-base">{readingsDialog.node?.node_name}</p>
-                <p className="text-[11px] text-[#727272]">Sensor Readings History</p>
-              </div>
-              <button className="cursor-pointer" onClick={() => setReadingsDialog({ open: false, node: null })}>
-                <X size={16} />
-              </button>
+        <DialogHeader>
+          <div className="flex justify-between items-center p-2 md:p-3 border-b border-[#C6C6C8] -mb-3">
+            <div className="flex flex-col">
+              <p className="font-bold text-sm md:text-base">{readingsDialog.node?.node_name}</p>
+              <p className="text-[11px] text-[#727272]">Node History</p>
             </div>
-          </DialogHeader>
-          <DialogTitle className="sr-only">Water Level Readings History</DialogTitle>
+            <button className="cursor-pointer" onClick={() => setReadingsDialog({ open: false, node: null })}>
+              <X size={16} />
+            </button>
+          </div>
+        </DialogHeader>
+        <DialogTitle className="sr-only">Node History</DialogTitle>
 
-          <div className="flex-1 overflow-y-auto -mt-4">
+        <div className="flex gap-1 px-2 md:px-3 border-b border-[#C6C6C8] -mb-4">
+          {([
+            { key: 'readings', label: 'Readings History' },
+            { key: 'health', label: 'Health History' },
+            { key: 'hotspot', label: 'Hotspot History' },
+          ] as const).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setHistoryTab(t.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-t-lg cursor-pointer border-b-2 ${
+                historyTab === t.key
+                  ? 'border-[#1565BC] text-[#1565BC]'
+                  : 'border-transparent text-[#727272] hover:text-[#122A48]'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+          {historyTab === 'readings' && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex flex-wrap gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8]">
+              <Select value={readingsStatusFilter} onValueChange={setReadingsStatusFilter}>
+                <SelectTrigger className="text-xs cursor-pointer w-32 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="w-32 min-w-0">
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Normal">Normal</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Warning">Warning</SelectItem>
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={readingsHotspotFilter} onValueChange={setReadingsHotspotFilter}>
+                <SelectTrigger className="text-xs cursor-pointer w-40 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                  <SelectValue placeholder="Hotspot" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="w-40 min-w-0">
+                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Hotspots">All Hotspots</SelectItem>
+                  {readingsHotspotOptions.map(name => (
+                    <SelectItem key={name} className="cursor-pointer p-2 text-xs text-[#122A48]" value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
                 <TableRow>
@@ -732,12 +936,12 @@ export default function NodeManagement() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  nodeReadings.map(r => (
+                nodeReadings.map(r => (
                     <TableRow key={r.reading_id} className="border-b border-[#C6C6C8] text-xs">
                       <TableCell className="text-center h-11">
                         {new Date(r.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
                       </TableCell>
-                      <TableCell className="text-center h-11">{r.node_details.hotspot_details.name}</TableCell>
+                      <TableCell className="text-center h-11">{r.node_details.hotspot_details?.name ?? '—'}</TableCell>
                       <TableCell className="text-center h-11">{r.water_level != null ? `${r.water_level} cm` : '—'}</TableCell>
                       <TableCell className="text-center h-11">{r.water_flow_rate != null ? `${Number(r.water_flow_rate).toFixed(5)} m/s` : '—'}</TableCell>
                       <TableCell className="text-center h-11">{r.clog_pct != null ? `${r.clog_pct} %` : '—'}</TableCell>
@@ -755,7 +959,188 @@ export default function NodeManagement() {
                 )}
               </TableBody>
             </Table>
+
+            <div className="flex justify-between items-center px-3 py-2 border-t border-[#C6C6C8] mt-auto">
+              <p className="text-xs text-[#727272]">Page {readingsPage}</p>
+              <div className="flex gap-2">
+                <button disabled={!readingsHasPrev} onClick={() => setReadingsPage(p => Math.max(1, p - 1))}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-[#C6C6C8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                  Previous
+                </button>
+                <button disabled={!readingsHasNext} onClick={() => setReadingsPage(p => p + 1)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-[#C6C6C8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
+          )}
+
+          {historyTab === 'health' && (
+            <div className="flex-1 overflow-y-auto flex flex-col">
+              <div className="flex flex-wrap gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8]">
+                <Select value={healthStatusFilter || 'All Status'} onValueChange={v => setHealthStatusFilter(v === 'All Status' ? '' : v)}>
+                  <SelectTrigger className="text-xs cursor-pointer w-32 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-32 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Normal">Normal</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Warning">Warning</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <input
+                  type="date"
+                  value={healthFrom}
+                  onChange={e => setHealthFrom(e.target.value)}
+                  className="text-xs border border-[#C6C6C8] rounded-lg px-2 py-1.5"
+                />
+                <span className="text-xs text-[#727272]">to</span>
+                <input
+                  type="date"
+                  value={healthTo}
+                  onChange={e => setHealthTo(e.target.value)}
+                  className="text-xs border border-[#C6C6C8] rounded-lg px-2 py-1.5"
+                />
+                {(healthStatusFilter || healthFrom || healthTo) && (
+                  <button
+                    onClick={() => { setHealthStatusFilter(''); setHealthFrom(''); setHealthTo('') }}
+                    className="text-xs text-[#1565BC] hover:underline cursor-pointer"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                  <TableRow>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">CHECKED AT</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">STATUS</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">BATTERY</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">SIGNAL</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">SENSOR</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {healthError ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#D81010] font-semibold text-sm">Failed to load health history.</p></TableCell></TableRow>
+                  ) : healthLoading ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#727272] text-sm">Loading...</p></TableCell></TableRow>
+                  ) : healthLogs.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#727272] text-sm">No health checks match these filters.</p></TableCell></TableRow>
+                  ) : (
+                    healthLogs.map(h => (
+                      <TableRow key={h.health_id} className="border-b border-[#C6C6C8] text-xs">
+                        <TableCell className="text-center h-11">{new Date(h.checked_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}</TableCell>
+                        <TableCell className="text-center h-11">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                            h.status === 'Critical' ? 'bg-[#FFE5E5] text-[#D81010]' :
+                            h.status === 'Warning'  ? 'bg-[#F4E4A7] text-[#E4B600]' :
+                            'bg-[#B2FBC173] text-[#2C7B3C]'
+                          }`}>{h.status}</span>
+                        </TableCell>
+                        <TableCell className="text-center h-11">{h.battery_voltage != null ? `${h.battery_voltage} V` : '—'}</TableCell>
+                        <TableCell className="text-center h-11">{h.signal_strength != null ? `${h.signal_strength} dBm` : '—'}</TableCell>
+                        <TableCell className="text-center h-11">{h.sensor_continuity == null ? '—' : h.sensor_continuity ? 'OK' : 'Fault'}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              <div className="flex justify-between items-center px-3 py-2 border-t border-[#C6C6C8] mt-auto">
+                <p className="text-xs text-[#727272]">Page {healthPage}</p>
+                <div className="flex gap-2">
+                  <button
+                    disabled={!healthHasPrev}
+                    onClick={() => setHealthPage(p => Math.max(1, p - 1))}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-[#C6C6C8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={!healthHasNext}
+                    onClick={() => setHealthPage(p => p + 1)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-[#C6C6C8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {historyTab === 'hotspot' && (
+            <div className="flex-1 overflow-y-auto flex flex-col">
+              <div className="flex gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8]">
+                <Select value={hotspotReasonFilter} onValueChange={setHotspotReasonFilter}>
+                  <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Reason" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-36 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All">All</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="current">Current</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Reassigned">Reassigned</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Maintenance">Maintenance</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Unassigned">Unassigned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Table>
+                <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
+                  <TableRow>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">HOTSPOT</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">BARANGAY</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">FROM</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">TO</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">REASON</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {hotspotHistoryError ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#D81010] font-semibold text-sm">Failed to load hotspot history.</p></TableCell></TableRow>
+                  ) : hotspotHistoryLoading ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#727272] text-sm">Loading...</p></TableCell></TableRow>
+                  ) : hotspotHistory.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#727272] text-sm">No assignment history yet.</p></TableCell></TableRow>
+                  ) : (
+                    hotspotHistory.map(h => (
+                      <TableRow key={h.history_id} className="border-b border-[#C6C6C8] text-xs">
+                        <TableCell className="text-center h-11">{h.hotspot_name || '—'}</TableCell>
+                        <TableCell className="text-center h-11">{h.barangay_name || '—'}</TableCell>
+                        <TableCell className="text-center h-11">{new Date(h.started_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-center h-11">
+                          {h.ended_at ? new Date(h.ended_at).toLocaleDateString() : (
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-[#B2FBC173] text-[#2C7B3C] text-[11px] font-medium">Current</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center h-11">{h.end_reason || '—'}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              <div className="flex justify-between items-center px-3 py-2 border-t border-[#C6C6C8] mt-auto">
+                <p className="text-xs text-[#727272]">Page {hotspotHistoryPage}</p>
+                <div className="flex gap-2">
+                  <button disabled={!hotspotHistoryHasPrev} onClick={() => setHotspotHistoryPage(p => Math.max(1, p - 1))}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-[#C6C6C8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                    Previous
+                  </button>
+                  <button disabled={!hotspotHistoryHasNext} onClick={() => setHotspotHistoryPage(p => p + 1)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-[#C6C6C8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </DialogContent>
       </Dialog>
 
