@@ -312,6 +312,9 @@ class SensorReadingWithFlowView(APIView):
         reading.clog_pct        = clog_pct
         reading.save(update_fields=['water_flow_rate', 'water_flow', 'clog_pct'])
 
+        from apps.sensor_readings.services import evaluate_clog
+        evaluate_clog(reading)
+
         if clog_pct is not None and clog_pct >= CLASSIFY_THRESHOLD:
             self._handle_clog_classification(
                 node=node,
@@ -331,7 +334,6 @@ class SensorReadingWithFlowView(APIView):
         from apps.alerts.models import Alert
         from django.utils import timezone
         from datetime import timedelta
-        from apps.sensor_readings.signals import get_clog_severity
         from apps.waste_classification.utils import estimate_weight_kg
 
         ai_result = call_ai_service(frame_bytes)

@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Mail, BadgeCheck } from "lucide-react"
+import { RadioTower, CheckCircle, SquarePen, MapPinPlus, MapPinPen, MapPin, Check, X, Unplug, History, MoreVertical, CircleOff, KeyRound, Mail, BadgeCheck, FileDown } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback, useRef } from "react"
@@ -25,11 +25,16 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { NodeSkeleton } from "@/components/Skeleton/Admin/NodeSkeleton"
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { useFillRows } from "@/components/hooks/useFillRows"
+import { PrintReport } from "@/components/PrintReport/PrintReport"
+import { useToast } from "@/components/hooks/useToast"
+import { Toast } from "@/components/Toast"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
 import { fetchWithAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
+import { printReport } from "@/lib/printReport"
+import { getUser } from "@/lib/auth"
 
 type SensorNode = {
   node_id: number
@@ -60,10 +65,10 @@ type SensorReading = {
 }
 
 
-
-
 export default function NodeManagement() {
   const router = useRouter()
+
+  const { toasts, addToast, removeToast } = useToast()
 
   // fetch raw data
   const fetchNodesRaw = async (): Promise<SensorNode[]> => {
@@ -136,6 +141,7 @@ export default function NodeManagement() {
     description: "Processing details. Please wait.",
   })
 
+  // dialog states
   const [nodeFormDialog, setNodeFormDialog] = useState<DialogState>({ open: false, node: null })
   const [loadingDialog, setLoadingDialog] = useState<DialogState>({ open: false })
   const [confirmDialog, setConfirmDialog] = useState<DialogState>({ open: false })
@@ -143,6 +149,13 @@ export default function NodeManagement() {
   const [unassignDialog, setUnassignDialog] = useState<DialogState>({ open: false, node: null })
   const [decommissionDialog, setDecommissionDialog] = useState<DialogState>({ open: false, node: null })
   const [decommissionGuardDialog, setDecommissionGuardDialog] = useState<DialogState>({ open: false, node: null })
+
+  // history print/export states
+  const [historyExporting, setHistoryExporting] = useState(false)
+  const [historyPrintRows, setHistoryPrintRows] = useState<(string | number)[][]>([])
+  const [historyPrintColumns, setHistoryPrintColumns] = useState<string[]>([])
+  const [historyPrintTitle, setHistoryPrintTitle] = useState('')
+  const [triggerPrint, setTriggerPrint] = useState(false)
 
   const [keyModal, setKeyModal] = useState<{ open: boolean; email: string; nodeName: string; fromAdd: boolean }>({ open: false, email: '', nodeName: '', fromAdd: false })
   const [regenerateConfirmDialog, setRegenerateConfirmDialog] = useState<DialogState>({ open: false })
@@ -170,6 +183,16 @@ export default function NodeManagement() {
   const total     = sensorNodes.filter(n => n.availability_status !== 'Retired').length
   const available = sensorNodes.filter(n => n.availability_status === 'Available').length
   const occupied  = sensorNodes.filter(n => n.availability_status === 'Occupied').length
+
+  useEffect(() => {
+    if (triggerPrint) {
+      printReport()
+      setTriggerPrint(false)
+    }
+  }, [triggerPrint])
+
+  const currentUser = getUser()
+  const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Admin'
 
   useEffect(() => {
     if (nodeFormDialog.node) {
@@ -350,6 +373,18 @@ export default function NodeManagement() {
     hotspotHistoryFetchKeyRef.current = ''
   }, [readingsDialog.open, readingsDialog.node])
 
+  const fetchAllPages = async (baseUrl: string): Promise<any[]> => {
+    let url: string | null = baseUrl
+    let all: any[] = []
+    while (url) {
+      const res = await fetchWithAuth(url)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      all = all.concat(data.results ?? data)
+      url = data.next ?? null
+    }
+    return all
+  }
 
   // handlers
   const handleConfirmationDialog = () => {
@@ -483,8 +518,63 @@ export default function NodeManagement() {
     }
   }
 
-  if (loading) return <NodeSkeleton/>
+  const handleExportHistory = async () => {
+    if (!readingsDialog.node) return
+    setHistoryExporting(true)
+    try {
+      if (historyTab === 'readings') {
+        const params = new URLSearchParams()
+        if (readingsStatusFilter !== 'All Status') params.set('status', readingsStatusFilter)
+        if (readingsHotspotFilter !== 'All Hotspots') params.set('hotspot', readingsHotspotFilter)
+        const all = await fetchAllPages(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/node/${readingsDialog.node.node_id}/?${params.toString()}`)
+        setHistoryPrintColumns(["Timestamp", "Hotspot Name", "Water Level", "Flow Rate", "Clog %", "Status"])
+        setHistoryPrintRows(all.map(r => [
+          new Date(r.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }),
+          r.node_details.hotspot_details?.name ?? '—',
+          r.water_level != null ? `${r.water_level} cm` : '—',
+          r.water_flow_rate != null ? `${Number(r.water_flow_rate).toFixed(5)} m/s` : '—',
+          r.clog_pct != null ? `${r.clog_pct} %` : '—',
+          r.reading_status,
+        ]))
+        setHistoryPrintTitle(`${readingsDialog.node.node_name} — Readings History`)
+      } else if (historyTab === 'health') {
+        const params = new URLSearchParams()
+        if (healthStatusFilter) params.set('status', healthStatusFilter)
+        if (healthFrom) params.set('from', healthFrom)
+        if (healthTo) params.set('to', healthTo)
+        const all = await fetchAllPages(`${process.env.NEXT_PUBLIC_API_URL}/api/system-health/node/${readingsDialog.node.node_id}/?${params.toString()}`)
+        setHistoryPrintColumns(["Checked At", "Status", "Battery", "Signal", "Sensor"])
+        setHistoryPrintRows(all.map(h => [
+          new Date(h.checked_at).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }),
+          h.status,
+          h.battery_voltage != null ? `${h.battery_voltage} V` : '—',
+          h.signal_strength != null ? `${h.signal_strength} dBm` : '—',
+          h.sensor_continuity == null ? '—' : h.sensor_continuity ? 'OK' : 'Fault',
+        ]))
+        setHistoryPrintTitle(`${readingsDialog.node.node_name} — Health History`)
+      } else {
+        const params = new URLSearchParams()
+        if (hotspotReasonFilter !== 'All') params.set('reason', hotspotReasonFilter)
+        const all = await fetchAllPages(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/${readingsDialog.node.node_id}/assignment-history/?${params.toString()}`)
+        setHistoryPrintColumns(["Hotspot", "Barangay", "From", "To", "Reason"])
+        setHistoryPrintRows(all.map(h => [
+          h.hotspot_name || '—',
+          h.barangay_name || '—',
+          new Date(h.started_at).toLocaleDateString(),
+          h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Current',
+          h.end_reason || '—',
+        ]))
+        setHistoryPrintTitle(`${readingsDialog.node.node_name} — Hotspot History`)
+      }
+      setTriggerPrint(true)
+    } catch {
+      addToast('Failed to export history.', 'error')
+    } finally {
+      setHistoryExporting(false)
+    }
+  }
 
+  if (loading) return <NodeSkeleton/>
 
   return (
     <>
@@ -880,30 +970,39 @@ export default function NodeManagement() {
 
           {historyTab === 'readings' && (
           <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-wrap gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8]">
-              <Select value={readingsStatusFilter} onValueChange={setReadingsStatusFilter}>
-                <SelectTrigger className="text-xs cursor-pointer w-32 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent position="popper" className="w-32 min-w-0">
-                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
-                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Normal">Normal</SelectItem>
-                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Warning">Warning</SelectItem>
-                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Critical">Critical</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8] justify-between">
+              <div className="flex gap-3">
+                <Select value={readingsStatusFilter} onValueChange={setReadingsStatusFilter}>
+                  <SelectTrigger className="text-xs cursor-pointer w-32 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-32 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Normal">Normal</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Warning">Warning</SelectItem>
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Select value={readingsHotspotFilter} onValueChange={setReadingsHotspotFilter}>
-                <SelectTrigger className="text-xs cursor-pointer w-40 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                  <SelectValue placeholder="Hotspot" />
-                </SelectTrigger>
-                <SelectContent position="popper" className="w-40 min-w-0">
-                  <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Hotspots">All Hotspots</SelectItem>
-                  {readingsHotspotOptions.map(name => (
-                    <SelectItem key={name} className="cursor-pointer p-2 text-xs text-[#122A48]" value={name}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select value={readingsHotspotFilter} onValueChange={setReadingsHotspotFilter}>
+                  <SelectTrigger className="text-xs cursor-pointer w-40 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                    <SelectValue placeholder="Hotspot" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-40 min-w-0">
+                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Hotspots">All Hotspots</SelectItem>
+                    {readingsHotspotOptions.map(name => (
+                      <SelectItem key={name} className="cursor-pointer p-2 text-xs text-[#122A48]" value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Button onClick={handleExportHistory} disabled={historyExporting} className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white text-xs">
+                  <FileDown size={14} className="mr-1" />
+                  {historyExporting ? 'Preparing...' : 'Export'}
+                </Button>
+              </div>
             </div>
             <Table>
               <TableHeader className="bg-[#e8eef1b4] border border-[#CFD8DC]">
@@ -978,39 +1077,48 @@ export default function NodeManagement() {
 
           {historyTab === 'health' && (
             <div className="flex-1 overflow-y-auto flex flex-col">
-              <div className="flex flex-wrap gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8]">
-                <Select value={healthStatusFilter || 'All Status'} onValueChange={v => setHealthStatusFilter(v === 'All Status' ? '' : v)}>
-                  <SelectTrigger className="text-xs cursor-pointer w-32 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" className="w-32 min-w-0">
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Normal">Normal</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Warning">Warning</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-                <input
-                  type="date"
-                  value={healthFrom}
-                  onChange={e => setHealthFrom(e.target.value)}
-                  className="text-xs border border-[#C6C6C8] rounded-lg px-2 py-1.5"
-                />
-                <span className="text-xs text-[#727272]">to</span>
-                <input
-                  type="date"
-                  value={healthTo}
-                  onChange={e => setHealthTo(e.target.value)}
-                  className="text-xs border border-[#C6C6C8] rounded-lg px-2 py-1.5"
-                />
-                {(healthStatusFilter || healthFrom || healthTo) && (
-                  <button
-                    onClick={() => { setHealthStatusFilter(''); setHealthFrom(''); setHealthTo('') }}
-                    className="text-xs text-[#1565BC] hover:underline cursor-pointer"
-                  >
-                    Clear filters
-                  </button>
-                )}
+              <div className="flex flex-wrap gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8] justify-between">
+                <div className="flex gap-2">
+                  <Select value={healthStatusFilter || 'All Status'} onValueChange={v => setHealthStatusFilter(v === 'All Status' ? '' : v)}>
+                    <SelectTrigger className="text-xs cursor-pointer w-32 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="w-32 min-w-0">
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All Status">All Status</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Normal">Normal</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Warning">Warning</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <input
+                    type="date"
+                    value={healthFrom}
+                    onChange={e => setHealthFrom(e.target.value)}
+                    className="text-xs border border-[#C6C6C8] rounded-lg px-2 py-1.5"
+                  />
+                  <span className="text-xs text-[#727272]">to</span>
+                  <input
+                    type="date"
+                    value={healthTo}
+                    onChange={e => setHealthTo(e.target.value)}
+                    className="text-xs border border-[#C6C6C8] rounded-lg px-2 py-1.5"
+                  />
+                  {(healthStatusFilter || healthFrom || healthTo) && (
+                    <button
+                      onClick={() => { setHealthStatusFilter(''); setHealthFrom(''); setHealthTo('') }}
+                      className="text-xs text-[#1565BC] hover:underline cursor-pointer"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <Button onClick={handleExportHistory} disabled={historyExporting} className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white text-xs">
+                    <FileDown size={14} className="mr-1" />
+                    {historyExporting ? 'Preparing...' : 'Export'}
+                  </Button>
+                </div>
               </div>
 
               <Table>
@@ -1074,20 +1182,29 @@ export default function NodeManagement() {
 
           {historyTab === 'hotspot' && (
             <div className="flex-1 overflow-y-auto flex flex-col">
-              <div className="flex gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8]">
-                <Select value={hotspotReasonFilter} onValueChange={setHotspotReasonFilter}>
-                  <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
-                    <SelectValue placeholder="Reason" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" className="w-36 min-w-0">
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All">All</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="current">Current</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Reassigned">Reassigned</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Maintenance">Maintenance</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
-                    <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Unassigned">Unassigned</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex gap-2 items-center p-2 md:p-3 border-b border-[#C6C6C8] justify-between">
+                <div>
+                  <Select value={hotspotReasonFilter} onValueChange={setHotspotReasonFilter}>
+                    <SelectTrigger className="text-xs cursor-pointer w-36 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+                      <SelectValue placeholder="Reason" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="w-36 min-w-0">
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="All">All</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="current">Current</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Reassigned">Reassigned</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Retired">Retired</SelectItem>
+                      <SelectItem className="cursor-pointer p-2 text-xs text-[#122A48]" value="Unassigned">Unassigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Button onClick={handleExportHistory} disabled={historyExporting} className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white text-xs">
+                    <FileDown size={14} className="mr-1" />
+                    {historyExporting ? 'Preparing...' : 'Export'}
+                  </Button>
+                </div>
               </div>
 
               <Table>
@@ -1303,6 +1420,15 @@ export default function NodeManagement() {
         description={errorDialog.message}
         confirmLabel="Okay"
       />
+
+      <PrintReport
+        reportTitle={historyPrintTitle}
+        columns={historyPrintColumns}
+        rows={historyPrintRows}
+        generatedBy={generatedBy}
+      />
+
+      <Toast toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

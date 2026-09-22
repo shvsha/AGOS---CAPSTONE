@@ -16,18 +16,19 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
-import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 import StyledBadge from "../StyledBadge"
+import { PrintCanalReport } from "@/components/PrintReport/PrintCanalReport"
 
 // lib
 import { fetchWithAuth } from "@/lib/auth"
-import { exportPdf } from "@/lib/exportPDF"
 import {
   SEVERITY_STYLE, FINAL_CONDITION_LABEL, FINAL_CONDITION_STYLE,
   WATER_LEVEL_LABEL, OBSTRUCTION_LABEL, WATER_FLOW_LABEL,
   WASTE_CATEGORIES, formatDateTime, filedByName,
 } from "@/lib/reportOptions"
 import type { CanalMonitoringReport, ReportMedia } from "@/types/report"
+import { printReport } from "@/lib/printReport"
+import { getUser } from "@/lib/auth"
 
 type Props = {
   id: string | null
@@ -230,6 +231,7 @@ export default function CanalReportDetail({ id, backHref }: Props) {
   const [retrying, setRetrying] = useState(false)
   const [activeTab, setActiveTab] = useState<"details" | "photos">("details")
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [printRequested, setPrintRequested] = useState(false)
 
   const fetchReport = async (isRetry = false) => {
     if (!id) {
@@ -254,14 +256,38 @@ export default function CanalReportDetail({ id, backHref }: Props) {
 
   useEffect(() => { fetchReport() }, [id])
 
-  const { requestExport, ExportDialogs } = useExportDialog(async () => {
-    if (!report) return
-    try {
-      await exportPdf(`/api/canal-reports/${report.report_id}/export/`, {}, "canal-monitoring-report.pdf")
-    } catch {
-      addToast("Failed to export the report.", "error")
+  useEffect(() => {
+    if (!printRequested || !report) return
+
+    const urls = [
+      '/ROS-logo.jpg',
+      ...report.media.filter(m => m.file_url).map(m => m.file_url!),
+    ]
+
+    let remaining = urls.length
+    let finished = false
+    const finish = () => {
+      if (finished) return
+      finished = true
+      printReport()
+      setPrintRequested(false)
     }
-  }, { description: "Are you sure you want to export this canal monitoring report as a PDF?" })
+
+    urls.forEach(url => {
+      const img = new window.Image()
+      img.onload = img.onerror = () => {
+        remaining -= 1
+        if (remaining === 0) finish()
+      }
+      img.src = url
+    })
+
+    const timeout = setTimeout(finish, 4000)
+    return () => clearTimeout(timeout)
+  }, [printRequested, report])
+
+const currentUser = getUser()
+const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Admin'
 
   if (loading) {
     return (
@@ -310,11 +336,11 @@ export default function CanalReportDetail({ id, backHref }: Props) {
             </div>
           </div>
           <Button
-            onClick={() => requestExport()}
+            onClick={() => setPrintRequested(true)}
             className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white"
           >
             <FileDown size={16} className="mr-1" />
-            Export PDF
+            Export
           </Button>
         </div>
 
@@ -355,7 +381,7 @@ export default function CanalReportDetail({ id, backHref }: Props) {
 
       <Toast toasts={toasts} onRemove={removeToast} />
 
-      {ExportDialogs}
+      {report && <PrintCanalReport report={report} generatedBy={generatedBy} />}
     </>
   )
 }
