@@ -381,7 +381,9 @@ export default function NodeManagement() {
       if (!res.ok) throw new Error()
       const data = await res.json()
       all = all.concat(data.results ?? data)
-      url = data.next ?? null
+      if (!data.next) { url = null; continue }
+      const nextUrl = new URL(data.next)
+      url = `${process.env.NEXT_PUBLIC_API_URL}${nextUrl.pathname}${nextUrl.search}`
     }
     return all
   }

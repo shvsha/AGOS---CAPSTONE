@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation"
 
 // lib
 import { fetchWithAuth } from "@/lib/auth"
-import { exportPdf } from "@/lib/exportPDF"
 import {
   SEVERITY_STYLE, FINAL_CONDITION_LABEL, FINAL_CONDITION_STYLE,
   formatDate, monthOf, filedByName, buildMonthOptions
 } from "@/lib/reportOptions"
+import { printReport } from "@/lib/printReport"
+import { getUser } from "@/lib/auth"
 
 // shadcn
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
@@ -27,9 +28,9 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
 import { useFillRows } from "@/components/hooks/useFillRows"
-import { useExportDialog } from "@/components/ExportDialog/useExportDialog"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import StyledBadge from "@/components/StyledBadge"
+import { PrintCanalReport } from "@/components/PrintReport/PrintCanalReport"
 
 // types
 import type { CanalMonitoringReport, ReportBarangay, ReportSeverity } from "@/types/report"
@@ -72,6 +73,8 @@ export default function BarangayReports() {
   const [filterBarangay, setFilterBarangay] = useState("All")
   const [filterSeverity, setFilterSeverity] = useState("All")
 
+  const [printingReport, setPrintingReport] = useState<CanalMonitoringReport | null>(null)
+
   const monthOptions = buildMonthOptions(reports)
 
   const filteredReports = reports
@@ -99,20 +102,37 @@ export default function BarangayReports() {
     refetchAll()
   }, [])
 
-  const { requestExport, ExportDialogs } = useExportDialog<{ id: number; barangay: string }>(
-    async ({ id }) => {
-      try {
-        await exportPdf(`/api/canal-reports/${id}/export/`, {}, "canal-monitoring-report.pdf")
-      } catch {
-        addToast("Failed to export report.", "error")
-      }
-    },
-    {
-      description: ({ barangay }) => (
-        <>Are you sure you want to export the canal monitoring report for <strong>{barangay}</strong>?</>
-      ),
+  useEffect(() => {
+    if (!printingReport) return
+
+    const urls = [
+      '/ROS-logo.jpg',
+      ...printingReport.media.filter(m => m.file_url).map(m => m.file_url!),
+    ]
+
+    let remaining = urls.length
+    let finished = false
+    const finish = () => {
+      if (finished) return
+      finished = true
+      printReport()
     }
-  )
+
+    urls.forEach(url => {
+      const img = new window.Image()
+      img.onload = img.onerror = () => {
+        remaining -= 1
+        if (remaining === 0) finish()
+      }
+      img.src = url
+    })
+
+    const timeout = setTimeout(finish, 4000)
+    return () => clearTimeout(timeout)
+  }, [printingReport])
+
+  const currentUser = getUser()
+  const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Admin'
 
   if (loading) return <BarangayReportsSkeleton/>
 
@@ -222,16 +242,11 @@ export default function BarangayReports() {
                           </Button>
 
                           <Button
-                            onClick={() =>
-                              requestExport({
-                                id: report.report_id,
-                                barangay: report.barangay_details?.barangay_name ?? "this barangay",
-                              })
-                            }
+                            onClick={() => setPrintingReport(report)}
                             className="text-xs bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer"
                           >
                             <FileDown size={16} className="mr-1" />
-                            Export PDF
+                            Export
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -298,7 +313,7 @@ export default function BarangayReports() {
       </div>
 
       <Toast toasts={toasts} onRemove={removeToast} />
-      {ExportDialogs}
+      {printingReport && <PrintCanalReport report={printingReport} generatedBy={generatedBy} />}
     </>
   )
 }
