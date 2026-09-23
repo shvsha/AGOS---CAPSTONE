@@ -9,12 +9,11 @@ import { useEffect, useState } from "react";
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
 import { HealthSkeleton } from "@/components/Skeleton/Admin/HealthSkeleton";
-import { useExportDialog } from "@/components/ExportDialog/useExportDialog";
-import { exportPdf } from "@/lib/exportPDF";
 import { useToast } from "@/components/hooks/useToast";
 import { Toast } from "@/components/Toast";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 import { AssignNodeDialog, AssignNodeDialogPayload } from "@/components/AssignNodeDialog"
+import { PrintReport } from "@/components/PrintReport/PrintReport"
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -25,6 +24,8 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field"
 // lib
 import { api } from "@/lib/api"
 import { DIALOG_COLOR } from "@/lib/constant"
+import { printReport } from "@/lib/printReport"
+import { getUser } from "@/lib/auth"
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -448,17 +449,32 @@ export default function Health() {
     }
   }
 
-  const { requestExport, ExportDialogs } = useExportDialog(async () => {
-    try {
-      await exportPdf(
-        "/api/system-health/export/",
-        {},
-        "system-health.pdf"
-      )
-    } catch {
-      addToast("Failed to export system health.", "error")
-    }
-  }, { description: "Are you sure you want to export the current system health summary as a PDF?" })
+  const printRows = allNodes
+    .filter(n => n.hotspot_details != null || n.status === 'Maintenance')
+    .sort((a, b) => a.node_name.localeCompare(b.node_name))
+    .map(n => {
+      const latest = latestHealthByNode.get(n.node_id)
+      if (!latest) {
+        return [n.node_name, n.barangay_details?.barangay_name ?? '—', n.status, '—', '—', '—', '—', 'No data yet']
+      }
+      return [
+        n.node_name,
+        n.barangay_details?.barangay_name ?? '—',
+        n.status,
+        latest.battery_voltage != null ? latest.battery_voltage.toFixed(1) : '—',
+        latest.battery_voltage != null ? `${getBatteryPct(latest.battery_voltage)}%` : '—',
+        latest.signal_strength != null ? `${latest.signal_strength}` : '—',
+        latest.sensor_continuity === true ? 'OK' : latest.sensor_continuity === false ? 'FAIL' : '—',
+        latest.checked_at ? new Date(latest.checked_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+      ]
+    })
+
+  const currentUser = getUser()
+  const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Admin'
+
+  const handlePrint = () => {
+    printReport()
+  }
 
   if (loading) return <HealthSkeleton/>
 
@@ -470,9 +486,9 @@ export default function Health() {
         <div className="flex w-full mb-2 justify-between items-center">
           <p className="text-[#122A48] font-bold text-[15px]">Sensor Nodes Health</p>
 
-          <Button onClick={() => requestExport()} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
+          <Button onClick={handlePrint} className="bg-[#2fd45b] hover:bg-[#28b54e] cursor-pointer">
             <FileDown size={16} className="mr-1" />
-            Export PDF
+            Export
           </Button>
         </div>
         
@@ -506,7 +522,7 @@ export default function Health() {
                 .map(n => ({
                   latitude:  n.latitude,
                   longitude: n.longitude,
-                  label:     n.node_name,
+                  label:     `${n.node_name} – ${n.barangay_details?.barangay_name ?? ''}`,
                   condition:
                     n.status === 'Maintenance' ? 'Maintenance' :
                     !n.is_online                ? 'Sleep' :
@@ -515,6 +531,7 @@ export default function Health() {
                 }))}
                 zoom={13}
                 colorMode="health"
+                showMarkerPopups={false}
               />
             </div>
           </div>
@@ -1022,7 +1039,13 @@ export default function Health() {
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />
-      {ExportDialogs}
+
+      <PrintReport
+        reportTitle="System Health Summary"
+        columns={["Node", "Barangay", "Status", "Battery (V)", "Battery %", "Signal (dBm)", "Sensor", "Last Checked"]}
+        rows={printRows}
+        generatedBy={generatedBy}
+      />
      </>
    )
  }

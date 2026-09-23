@@ -6,7 +6,7 @@ import type { ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
 // icons
-import { Leaf, Recycle, Trash2, Biohazard, RadioTower, Droplets, TriangleAlert, MapPinned, Siren, Activity, Battery, Signal, ScanSearch, X} from "lucide-react"
+import { Leaf, Recycle, Trash2, Biohazard, RadioTower, Droplets, TriangleAlert, MapPinned, Siren, Activity, Battery, Signal, ScanSearch, X, MapPin, Waves, Droplet} from "lucide-react"
 
 // shadcn
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -45,6 +45,22 @@ const WASTE_ICONS: Record<string, ReactNode> = {
   None:            <Trash2 size={18} />,
 }
 
+function getStatusBadge(status: string) {
+  const styles: Record<string, string> = {
+    Normal:   "bg-[#58D07159] text-[#2C7B3C]",
+    Warning:  "bg-[#D8921059] text-[#D48A00]",
+    Critical: "bg-[#D8101059] text-[#D81010]",
+    Maintenance: "bg-[#7C3AED29] text-[#7C3AED]",
+  }
+  const style = styles[status] ?? "bg-gray-100 text-gray-500"
+
+  return (
+    <span className={`text-xs font-medium px-3 py-1 rounded-full ${style}`}>
+      {status}
+    </span>
+  )
+}
+
 
 type SensorNodes = {
   node_id: number
@@ -59,6 +75,11 @@ type SensorNodes = {
   water_flow_rate: number | null
   clog_pct: number | null
   health_status: string
+  latitude: number | null
+  longitude: number | null
+  is_online: boolean
+  is_force_sleeping: boolean
+  last_reading_at: string | null
 }
 
 type ClogEvents = {
@@ -186,6 +207,16 @@ export default function Dashboard() {
 
   const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const currentMonthLabel = formatMonthLabel(currentMonthValue)
+
+  const [selectedNode, setSelectedNode] = useState<SensorNodes | null>(null)
+  const [nodeDialog, setNodeDialog] = useState({ open: false })
+
+  const handleSelectNode = (nodeId: number) => {
+    const node = sensorNodes.data.find(n => n.node_id === nodeId)
+    if (!node) return
+    setSelectedNode(node)
+    setNodeDialog({ open: true })
+  }
 
   // fetchers — each returns its parsed data instead of only calling setState
   const fetchSensorNodesRaw = async (): Promise<SensorNodes[]> => {
@@ -445,16 +476,21 @@ export default function Dashboard() {
               <div className="flex-1 overflow-hidden rounded-b-lg">
                 <AgosMapWrapper
                   markers={sensorNodes.data
-                    .filter(n => n.hotspot_details?.latitude != null && n.hotspot_details?.longitude != null)
-                    .filter(n => n.availability_status === 'Occupied')
+                    .filter(n => n.latitude != null && n.longitude != null)
+                    .filter(n => n.availability_status === 'Occupied' || n.status === 'Maintenance')
                     .map(n => ({
-                      latitude:  n.hotspot_details!.latitude,
-                      longitude: n.hotspot_details!.longitude,
+                      latitude:  n.latitude!,
+                      longitude: n.longitude!,
                       label:     `${n.node_name} – ${n.barangay_details?.barangay_name ?? ''}`,
-                      condition: n.condition ?? 'Normal',
+                      condition:
+                        n.status === 'Maintenance'            ? 'Maintenance' :
+                        (n.is_force_sleeping || !n.is_online) ? 'Sleep' :
+                        (n.condition ?? 'Normal'),
                       sublabel: `Water: ${n.water_level ?? '—'}cm | Clog: ${n.clog_pct ?? '—'}%`,
+                      onMarkerClick: () => handleSelectNode(n.node_id),
                     }))}
                   zoom={13}
+                  showMarkerPopups={false}
                 />
               </div>
             </div>
@@ -881,6 +917,85 @@ export default function Dashboard() {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Node Dialog */}
+      <Dialog open={nodeDialog.open} onOpenChange={(open) => setNodeDialog({ open })}>
+          <DialogContent className="w-[300px] text-[#122A48]">
+          <DialogHeader className="pr-8 -mb-2">
+            <DialogTitle className="flex items-center justify-between gap-2 font-bold">
+              <div className="flex gap-2">
+                <MapPin size={18} />
+                <p className="text-sm">{selectedNode?.barangay_details?.barangay_name}</p>
+              </div>
+              <div>
+                <p className="text-sm">{selectedNode?.node_name}</p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <hr />
+          
+          <div className="flex flex-col gap-1 -mt-1">
+            <div className="flex justify-between">
+              <p>Status:</p>
+              {selectedNode?.status === 'Maintenance'
+                ? getStatusBadge('Maintenance')
+                : getStatusBadge(selectedNode?.condition ?? 'Normal')}
+            </div>
+            <div className="flex justify-between">
+              <p>Clog Detection:</p>
+              <p>{selectedNode?.clog_pct != null ? `${selectedNode.clog_pct}%` : '— %'}</p>
+            </div>
+            <div className="flex justify-between">
+              <p>Last Updated:</p>
+              <p>
+                {selectedNode?.last_reading_at
+                  ? new Date(selectedNode.last_reading_at).toLocaleString('en-PH', {
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })
+                  : '—'}
+              </p>
+            </div>
+          </div>
+
+          <hr />
+
+          <div className="flex gap-7 -mt-1">
+            {/* water level */}
+            <div>
+              <div className="flex gap-1 items-center border-r">
+                <Droplet size={20} className="text-[#1565BC]"/>
+                <p className="text-center">Water Level:</p>
+              </div>
+
+              <div className="flex justify-center mt-2">
+                <p className="font-medium">
+                  {selectedNode?.water_level != null
+                    ? `${selectedNode.water_level} cm`
+                    : '— cm'}
+                </p>
+              </div>
+
+            </div>
+            
+            {/* water flow rate */}
+            <div>
+              <div className="flex gap-1 items-center border-l">
+                <Waves size={20} className="text-[#1565BC]"/>
+                <p className="text-center">Water Flow:</p>
+              </div>
+
+              <div className="flex justify-center mt-2">
+                <p className="font-medium">
+                  {selectedNode?.water_flow_rate != null
+                    ? `${Number(selectedNode.water_flow_rate).toFixed(5)} m/s`
+                    : '— m/s'}
+                </p>
+              </div>
+            </div>
+          </div>
+
         </DialogContent>
       </Dialog>
       

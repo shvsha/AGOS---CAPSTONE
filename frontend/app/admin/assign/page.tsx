@@ -417,7 +417,7 @@ export default function NodeAssignment() {
       {/* Assign Form Dialog */}
       <AssignNodeDialog
         open={assignFormDialog.open}
-        node={assignFormDialog.node}
+        node={assignFormDialog.node ?? null}
         allBarangays={allBarangays}
         allHotspotMarkers={allHotspotMarkers}
         loadingBarangays={loading}

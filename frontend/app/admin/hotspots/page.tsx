@@ -2,7 +2,7 @@
 
 // icons
 import { FaPlus } from "react-icons/fa"
-import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical, BadgeCheck, History } from "lucide-react"
+import { Target, Map, SquarePen, Trash2, X, Check, Navigation, MapPin, MapPinPlus, MapPinPen, CircleOff, MapPinCheck, ChevronDown, ChevronUp, MoreVertical, BadgeCheck, History, FileDown } from "lucide-react"
 
 // react
 import { useState, useEffect, useCallback, useRef, Fragment } from "react"
@@ -23,12 +23,15 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { HotspotsSkeleton } from "@/components/Skeleton/Admin/HotspotsSkeleton"
+import { PrintReport } from "@/components/PrintReport/PrintReport"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { printReport } from "@/lib/printReport"
+import { getUser } from "@/lib/auth"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -207,6 +210,21 @@ export default function HotspotManagement() {
   const [hotspotHistoryPage, setHotspotHistoryPage] = useState(1)
   const [hotspotHistoryHasNext, setHotspotHistoryHasNext] = useState(false)
   const [hotspotHistoryHasPrev, setHotspotHistoryHasPrev] = useState(false)
+
+  // history state
+  const [historyExporting, setHistoryExporting] = useState(false)
+  const [historyPrintRows, setHistoryPrintRows] = useState<(string | number)[][]>([])
+  const [triggerPrint, setTriggerPrint] = useState(false)
+
+  useEffect(() => {
+    if (triggerPrint) {
+      printReport()
+      setTriggerPrint(false)
+    }
+  }, [triggerPrint])
+
+  const currentUser = getUser()
+  const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : 'Admin'
 
   const { toasts, addToast, removeToast } = useToast()
 
@@ -548,6 +566,40 @@ export default function HotspotManagement() {
   const handleSuccessConfirm = () => {
     setSuccessDialog({ open: false })
     setActionResult(null)
+  }
+
+  const fetchAllPages = async (baseUrl: string): Promise<any[]> => {
+    let url: string | null = baseUrl
+    let all: any[] = []
+    while (url) {
+      const res = await fetchWithAuth(url)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      all = all.concat(data.results ?? data)
+      if (!data.next) { url = null; continue }
+      const nextUrl = new URL(data.next)
+      url = `${process.env.NEXT_PUBLIC_API_URL}${nextUrl.pathname}${nextUrl.search}`
+    }
+    return all
+  }
+
+  const handleExportHistory = async () => {
+    if (!hotspotHistoryDialog.hotspot) return
+    setHistoryExporting(true)
+    try {
+      const all = await fetchAllPages(`${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/${hotspotHistoryDialog.hotspot.hotspot_id}/assignment-history/`)
+      setHistoryPrintRows(all.map(h => [
+        h.node_name || '—',
+        new Date(h.started_at).toLocaleDateString(),
+        h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Current',
+        h.end_reason || '—',
+      ]))
+      setTriggerPrint(true)
+    } catch {
+      addToast('Failed to export history.', 'error')
+    } finally {
+      setHistoryExporting(false)
+    }
   }
 
   // selected barangay object for map center fallback
@@ -1156,9 +1208,15 @@ export default function HotspotManagement() {
                 <p className="font-bold text-sm md:text-base">{hotspotHistoryDialog.hotspot?.name}</p>
                 <p className="text-[11px] text-[#727272]">Node Assignment History</p>
               </div>
-              <button className="cursor-pointer" onClick={() => setHotspotHistoryDialog({ open: false, hotspot: null })}>
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleExportHistory} disabled={historyExporting} className="cursor-pointer bg-[#2fd45b] hover:bg-[#28b54e] text-white text-xs">
+                  <FileDown size={14} className="mr-1" />
+                  {historyExporting ? 'Preparing...' : 'Export'}
+                </Button>
+                <button className="cursor-pointer" onClick={() => setHotspotHistoryDialog({ open: false, hotspot: null })}>
+                  <X size={16} />
+                </button>
+              </div>
             </div>
           </DialogHeader>
           <DialogTitle className="sr-only">Node Assignment History</DialogTitle>
@@ -1310,6 +1368,13 @@ export default function HotspotManagement() {
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      <PrintReport
+        reportTitle={`${hotspotHistoryDialog.hotspot?.name ?? 'Hotspot'} — Assignment History`}
+        columns={["Node", "From", "To", "Reason"]}
+        rows={historyPrintRows}
+        generatedBy={generatedBy}
+      />
     </>
   )
 }
