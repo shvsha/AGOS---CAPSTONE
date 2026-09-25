@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, GeoJSON } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
-import { useEffect, useRef  } from "react"
+import { useEffect, useRef, useState } from "react"
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -327,6 +327,7 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
     : CONDITION_COLORS
   const hasMultiple = markers && markers.length > 0
   const hasSingle   = !!latitude && !!longitude
+  const [mapType, setMapType] = useState<'street' | 'satellite'>('street')
 
   const center: [number, number] = hasSingle
     ? [latitude, longitude]
@@ -347,10 +348,30 @@ export default function AgosMap({ latitude, longitude, label, zoom = 14, markers
       style={{ height: "100%", width: "100%" }}
       className="rounded-lg z-0"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      {mapType === 'satellite' ? (
+        <TileLayer
+          attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        />
+      ) : (
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+      )}
+
+      <div className="leaflet-top leaflet-right" style={{ marginTop: '46px' }}>
+        <div className="leaflet-control leaflet-bar">
+          <button
+            type="button"
+            onClick={() => setMapType(t => t === 'street' ? 'satellite' : 'street')}
+            title={mapType === 'street' ? 'Switch to satellite view' : 'Switch to street view'}
+            className="bg-white hover:bg-gray-100 cursor-pointer w-[30px] h-[30px] flex items-center justify-center text-[11px] font-semibold text-[#122A48] rounded-lg"
+          >
+            {mapType === 'street' ? 'Sat' : 'Map'}
+          </button>
+        </div>
+      </div>
       <MapClickHandler onMapClick={onMapClick} />
 
       {boundaryGeoJson && (
