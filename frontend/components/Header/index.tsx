@@ -36,6 +36,7 @@ const pageTitles: Record<string, string> = {
   "/admin/users/form": "User Management",
   "/admin/barangay": "Barangay Management",
   "/admin/barangay/form": "Barangay Management",
+  "/admin/signatories": "Signatory Management",
   "/admin/monitoring": "Monitoring",
   "/admin/alerts": "Alerts",
   "/admin/assign": "Node Assignment",

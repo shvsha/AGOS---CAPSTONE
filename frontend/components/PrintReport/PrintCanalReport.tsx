@@ -2,6 +2,8 @@
 
 import { createPortal } from "react-dom"
 import type { CanalMonitoringReport } from "@/types/report"
+import { useState, useEffect } from "react"
+import { api } from "@/lib/api"
 
 type PrintCanalReportProps = {
   report: CanalMonitoringReport
@@ -36,6 +38,21 @@ function kg(v: number | null) {
 }
 
 export function PrintCanalReport({ report, generatedBy }: PrintCanalReportProps) {
+  const [signatoryNames, setSignatoryNames] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const barangayId = report.barangay_details?.barangay_id
+    if (!barangayId) return
+
+    api.get(`/api/signatories/?barangay=${barangayId}`)
+      .then((slots: { position: string; active: { name: string } | null }[]) => {
+        const names: Record<string, string> = {}
+        slots.forEach(s => { if (s.active) names[s.position] = s.active.name })
+        setSignatoryNames(names)
+      })
+      .catch(() => {}) // fall back to blank signature lines, same as before this feature existed
+  }, [report.barangay_details?.barangay_id])
+
   if (typeof document === "undefined") return null
 
   const photoGroups = PHOTO_LABELS
@@ -144,13 +161,18 @@ export function PrintCanalReport({ report, generatedBy }: PrintCanalReportProps)
       )}
 
       <div className="print-canal-sig-grid">
-        {SIGNATORY_POSITIONS.map(pos => (
-          <div key={pos} className="print-canal-sig-cell">
-            <div className="print-canal-sig-space" />
-            <div className="print-canal-sig-name print-canal-sig-name-placeholder">Name of Signatory</div>
-            <div className="print-canal-sig-pos">{pos}</div>
-          </div>
-        ))}
+        {SIGNATORY_POSITIONS.map(pos => {
+          const name = signatoryNames[pos]
+          return (
+            <div key={pos} className="print-canal-sig-cell">
+              <div className="print-canal-sig-space" />
+              <div className={`print-canal-sig-name ${!name ? 'print-canal-sig-name-placeholder' : ''}`}>
+                {name || 'Name of Signatory'}
+              </div>
+              <div className="print-canal-sig-pos">{pos}</div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="print-footer">AGOS — Automated Geo-Based Obstruction Sensing System</div>
