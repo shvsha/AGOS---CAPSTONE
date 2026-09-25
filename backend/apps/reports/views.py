@@ -19,6 +19,7 @@ from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from agos_backend.pdf_utils import render_custom_pdf, get_logo_data_uri
+from apps.signatories.models import Signatory
 
 
 
@@ -70,11 +71,19 @@ def _photo_groups(report):
 
 def _signatory_rows(report):
     """
-    Placeholder until signatory management exists: the same four positions as the MRF
-    form, names left blank. Later, build this list from the barangay's saved signatories
-    instead. The template renders whatever comes back here, two per row.
+    Pulls each position's current active signatory for the report's barangay.
+    Positions with no signatory set yet fall back to a blank name, same as
+    before signatory management existed — so older/unset barangays don't
+    break the PDF.
     """
-    signatories = [{'name': '', 'position': p} for p in DEFAULT_SIGNATORY_POSITIONS]
+    active_by_position = {
+        s.position: s.name
+        for s in Signatory.objects.filter(barangay=report.barangay, status='Active')
+    }
+    signatories = [
+        {'name': active_by_position.get(p, ''), 'position': p}
+        for p in DEFAULT_SIGNATORY_POSITIONS
+    ]
     return [signatories[i:i + 2] for i in range(0, len(signatories), 2)]
 
 
