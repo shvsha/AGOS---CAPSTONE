@@ -63,11 +63,11 @@ class SensorReadingByNodeView(generics.ListAPIView):
 # Tunable constants
 
 TREND_WINDOW    = 5
-FLOW_NORMAL_MIN = 0.10
-FLOW_SLOW_MIN   = 0.02
+FLOW_NORMAL_MIN = 0.002
+FLOW_SLOW_MIN   = 0.001
 WEIGHT_FLOW     = 0.60
 WEIGHT_TREND    = 0.40
-MAX_FLOW_RATE   = 1.0
+MAX_FLOW_RATE   = 0.002
 MAX_TREND_RISE  = 5.0
 FRAME_COUNT     = 5
 
@@ -334,7 +334,6 @@ class SensorReadingWithFlowView(APIView):
         from apps.alerts.models import Alert
         from django.utils import timezone
         from datetime import timedelta
-        from apps.waste_classification.utils import estimate_weight_kg
 
         ai_result = call_ai_service(frame_bytes)
         classification_result = ai_result.get("classification") if ai_result else None
@@ -356,26 +355,16 @@ class SensorReadingWithFlowView(APIView):
 
         hotspot = node.hotspot if node else None
 
-        # Prefer the item-count-based estimate (YOLO) once a trained model
-        # exists. Until then, estimate_weight_from_detection returns
-        # (None, None) and we transparently fall back to the existing
-        # geometry-based formula — dominant_label/MobileNetV2 output is
-        # unaffected either way, only the weight number's source changes.
         detection = ai_result.get("detection") if ai_result else {}
         detected_kg = detection.get("estimated_kg")
         detected_counts = detection.get("counts_by_class")
+
         if detected_kg is not None:
             estimated_kg = detected_kg
             print(f"[DEBUG] estimated_kg from detection: {estimated_kg} counts={detected_counts}")
         else:
-            estimated_kg = estimate_weight_kg(
-                canal_width=hotspot.canal_width if hotspot else None,
-                sensor_height=hotspot.sensor_height if hotspot else None,
-                water_level=reading.water_level,
-                clog_pct=clog_pct,
-                waste_type=dominant_label,
-            )
-            estimated_kg = estimated_kg if estimated_kg is not None else 0.0
+            print(f"[WARN] YOLO returned no detection for reading {reading.reading_id} — defaulting estimated_kg to 0.0")
+            estimated_kg = 0.0
 
         classification = WasteClassification.objects.create(
             node=node,
