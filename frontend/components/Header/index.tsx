@@ -26,6 +26,7 @@ const SEVERITY_MAP: Record<string, "critical" | "warning" | "info"> = {
   Low_Battery: "info",
   Weak_Signal: "info",
   Sensor_Failure: "info",
+  Report_Submitted: "info",
 }
 
 

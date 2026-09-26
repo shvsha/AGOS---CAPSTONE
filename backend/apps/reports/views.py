@@ -20,7 +20,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from agos_backend.pdf_utils import render_custom_pdf, get_logo_data_uri
 from apps.signatories.models import Signatory
-
+from apps.alerts.models import Alert
 
 
 PHOTO_LABELS = [
@@ -123,6 +123,7 @@ class CanalMonitoringReportDetailView(generics.RetrieveUpdateDestroyAPIView):
         was_submitted = serializer.instance.is_submitted
         report = serializer.save()
         if report.is_submitted and not was_submitted:
+            Alert.objects.create(report=report, alert_type='Report_Submitted')
             log_action(
                 user=self.request.user,
                 action='Filed Canal Monitoring Report',
