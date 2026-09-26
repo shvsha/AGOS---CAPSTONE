@@ -147,10 +147,10 @@ export default function BarangayReports() {
 
             {/* month filter */}
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="cursor-pointer w-40 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent position="popper" className='w-40 min-w-0 !max-h-70 overflow-y-auto'>
+              <SelectContent position="popper" className='min-w-0 !max-h-70 overflow-y-auto'>
                 <SelectItem className="p-2 py-1 cursor-pointer text-[#122A48]" value="All">All Months</SelectItem>
                 {monthOptions.map(m => (
                   <SelectItem key={m.value} className="p-2 py-1 cursor-pointer text-[#122A48]" value={m.value}>
@@ -162,7 +162,7 @@ export default function BarangayReports() {
 
             {/* barangay filter (all barangay regardless if they are registered or not) */}
             <Select value={filterBarangay} onValueChange={setFilterBarangay}>
-              <SelectTrigger className="cursor-pointer w-40 px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer px-3 py-2 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue placeholder="All Barangays" />
               </SelectTrigger>
               <SelectContent position="popper" className="!max-h-70 overflow-y-auto">
@@ -179,10 +179,10 @@ export default function BarangayReports() {
 
             {/* severity filter */}
             <Select value={filterSeverity} onValueChange={setFilterSeverity}>
-              <SelectTrigger className="cursor-pointer w-40 px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
+              <SelectTrigger className="cursor-pointer px-3 py-3 bg-white border-2 border-[#C6C6C8] text-[#122A48] rounded-lg font-medium">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent position="popper" className="w-40 min-w-0">
+              <SelectContent position="popper" className="min-w-0">
                 <SelectItem value="All" className="p-2 py-1 cursor-pointer text-[#122A48]">All Severity</SelectItem>
                 {SEVERITY_FILTERS.map(s => (
                   <SelectItem key={s} value={s} className="p-2 py-1 cursor-pointer text-[#122A48]">{s}</SelectItem>
