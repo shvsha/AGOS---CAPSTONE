@@ -142,9 +142,28 @@ export default function BarangayReports() {
   }, [])
 
   const [printingReport, setPrintingReport] = useState<CanalMonitoringReport | null>(null)
+  const [signatoryNames, setSignatoryNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!printingReport) return
+
+    const resolveSignatories = async (): Promise<Record<string, string>> => {
+      if (printingReport.signatory_snapshot) {
+        return printingReport.signatory_snapshot
+      }
+      const barangayId = printingReport.barangay_details?.barangay_id
+      if (!barangayId) return {}
+      try {
+        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/signatories/?barangay=${barangayId}`)
+        if (!res.ok) return {}
+        const slots = await res.json()
+        const names: Record<string, string> = {}
+        slots.forEach((s: any) => { if (s.active) names[s.position] = s.active.name })
+        return names
+      } catch {
+        return {}
+      }
+    }
 
     const urls = [
       '/ROS-logo.jpg',
@@ -159,13 +178,17 @@ export default function BarangayReports() {
       printReport()
     }
 
-    urls.forEach(url => {
-      const img = new window.Image()
-      img.onload = img.onerror = () => {
-        remaining -= 1
-        if (remaining === 0) finish()
-      }
-      img.src = url
+    resolveSignatories().then(names => {
+      setSignatoryNames(names)
+      if (remaining === 0) { finish(); return }
+      urls.forEach(url => {
+        const img = new window.Image()
+        img.onload = img.onerror = () => {
+          remaining -= 1
+          if (remaining === 0) finish()
+        }
+        img.src = url
+      })
     })
 
     const timeout = setTimeout(finish, 4000)
@@ -352,7 +375,7 @@ export default function BarangayReports() {
 
       <Toast toasts={toasts} onRemove={removeToast} />
 
-      {printingReport && <PrintCanalReport report={printingReport} generatedBy={generatedBy} />}
+      {printingReport && <PrintCanalReport report={printingReport} generatedBy={generatedBy} signatoryNames={signatoryNames} />}
 
       <FollowUpDialog
         open={outcomeDialog}
