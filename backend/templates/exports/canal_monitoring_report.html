@@ -116,7 +116,7 @@
     <p class="meta">
       Report No. {{ report.report_id }}
       {% if report.reported_by %}&nbsp;|&nbsp; Filed by <span class="generated-by">{{ report.reported_by.first_name }} {{ report.reported_by.last_name }}</span>{% endif %}
-      &nbsp;|&nbsp; Exported by <span class="generated-by">{{ generated_by }}</span>, {% now "M d, Y g:i A" %}
+      &nbsp;|&nbsp; Prepared by <span class="generated-by">{{ generated_by }}</span>, {% now "M d, Y g:i A" %}
     </p>
   </div>
 

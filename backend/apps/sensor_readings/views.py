@@ -91,7 +91,7 @@ def compute_optical_flow(frames_bytes: list, camera_height_cm: float):
 
     img_height, img_width = first_frame.shape
     camera_height_m = camera_height_cm / 100.0
-    real_width_m = camera_height_m * 1.155
+    real_width_m = camera_height_m * 1.563
     pixels_per_meter = img_width / real_width_m if real_width_m > 0 else 1000
 
     lk_params = dict(
@@ -397,15 +397,21 @@ class SensorReadingWithFlowView(APIView):
             # re-alert while unresolved). Here we just patch the context
             # of the alert(s) tied to this event with the classification
             # data, since alert_context was empty at creation time.
-            Alert.objects.filter(event=open_event).update(
-                alert_context={
-                    'dominant_waste_type': dominant_label,
-                    'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
-                    'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
-                    'residual_pct':        round(percentages.get('residual', 0), 2),
-                    'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
-                    'confidence':          round(confidence, 2),
-                    'estimated_volume':    round(estimated_kg, 2),
-                }
-            )
+            classification_context = {
+                'dominant_waste_type': dominant_label,
+                'recyclable_pct':      round(percentages.get('recyclable', 0), 2),
+                'biodegradable_pct':   round(percentages.get('biodegradable', 0), 2),
+                'residual_pct':        round(percentages.get('residual', 0), 2),
+                'special_waste_pct':   round(percentages.get('special_waste', 0), 2),
+                'confidence':          round(confidence, 2),
+                'estimated_volume':    round(estimated_kg, 2),
+            }
+            # MERGE into each alert's existing context instead of replacing it.
+            # evaluate_clog() stores {'severity': ...} on every clog alert and
+            # reads it back to detect escalation; replacing the whole dict
+            # would erase that key and break the cooldown bypass.
+            # .update() per row (not .save()) keeps this free of signals.
+            for alert in Alert.objects.filter(event=open_event):
+                merged_context = {**(alert.alert_context or {}), **classification_context}
+                Alert.objects.filter(pk=alert.pk).update(alert_context=merged_context)
         # If classification is already linked, do nothing — alert already exists

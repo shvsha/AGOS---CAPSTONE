@@ -56,6 +56,13 @@ CHANNEL_LAYERS = {
     },
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379'),
+    }
+}
+
 APPEND_SLASH = False
 
 # Application definition
@@ -267,10 +274,25 @@ SIMPLE_JWT = {
 # ------------------------------
 
 # Email Settings (local/ google smtp)
+<<<<<<< HEAD
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = os.getenv('EMAIL_HOST')
 # EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
 # EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+=======
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# Email Settings (Deploy/BREVO)
+# EMAIL_BACKEND = 'anymail.backends.brevo.EmailBackend'
+# ANYMAIL = {
+#     'BREVO_API_KEY': os.getenv('BREVO_API_KEY'),
+# }
+>>>>>>> admin/page
 # EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 # EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
