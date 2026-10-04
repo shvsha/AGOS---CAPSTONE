@@ -29,6 +29,7 @@ import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
 import { usePageCache } from "@/components/hooks/usePageCache"
+import { sameText, sameNum } from "@/lib/formDiff"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -57,7 +58,8 @@ type Hotspot = {
   longitude: number
   canal_width: number | null
   canal_shape: string | null
-  sensor_height: number | null 
+  sensor_height: number | null
+  canal_depth: number | null
   is_occupied: boolean
   created_at: string
 }
@@ -204,6 +206,22 @@ export default function HotspotManagement() {
 
   const isEdit = !!formDialog.hotspot
 
+  const h = formDialog.hotspot
+  const isUnchanged = isEdit && !!h &&
+    sameText(barangay, h.barangay_details?.barangay_id) &&
+    sameText(hotspotCode, h.code) &&
+    sameText(description, h.description) &&
+    sameNum(latitude, h.latitude) &&
+    sameNum(longitude, h.longitude) &&
+    sameNum(canalWidth, h.canal_width) &&
+    sameText(canalShape, h.canal_shape ?? 'rectangular') &&
+    sameNum(sensorHeight, h.sensor_height) &&
+    sameNum(canalDepth, h.canal_depth)
+
+  const closeForm = () => setFormDialog({ open: false, hotspot: null})
+
+  const requestCancel = () => isUnchanged ? closeForm() : setCancelDialog({ open: true})
+
   const filtered = hotspots
     .filter(h => filterBarangay === "All" || String(h.barangay_details?.barangay_id) === filterBarangay)
     .filter(h =>
@@ -278,6 +296,7 @@ export default function HotspotManagement() {
         setCanalWidth(String(formDialog.hotspot.canal_width ?? ""))
         setCanalShape(formDialog.hotspot.canal_shape ?? "rectangular")
         setSensorHeight(String(formDialog.hotspot.sensor_height ?? ""))
+        setCanalDepth(String(formDialog.hotspot.canal_depth ?? ""))
         if (formDialog.hotspot.barangay_details?.barangay_name) {
           loadBoundary(formDialog.hotspot.barangay_details.barangay_name)
         }
@@ -304,6 +323,7 @@ export default function HotspotManagement() {
       setCanalWidth("")
       setCanalShape("rectangular")
       setSensorHeight("")
+      setCanalDepth("")
       setFieldErrors({})
       setBoundaryGeoJson(null)
       setBoundaryFallback(false)
@@ -425,6 +445,7 @@ export default function HotspotManagement() {
       return
     }
 
+    if (isUnchanged) { closeForm(); return }
     setConfirmDialog({ open: true })
   }
 
@@ -758,7 +779,7 @@ export default function HotspotManagement() {
                 </div>
               </div>
 
-              <button type="button" onClick={() => setCancelDialog({ open: true })} className="cursor-pointer flex-shrink-0">
+              <button type="button" onClick={requestCancel}className="cursor-pointer flex-shrink-0">
                 <X size={18} />
               </button>
             </div>
@@ -1044,7 +1065,7 @@ export default function HotspotManagement() {
             <div className="flex gap-3 justify-end p-4 -mt-5">
               <Button
                 type="button"
-                onClick={() => setCancelDialog({ open: true })}
+                onClick={requestCancel}
                 className="cursor-pointer hover:bg-[#e3ecf0] bg-[#FAFCFD] border border-[#C6C6C8] text-xs md:text-sm rounded-lg px-5 py-4 text-[#727272]"
               >
                 Cancel

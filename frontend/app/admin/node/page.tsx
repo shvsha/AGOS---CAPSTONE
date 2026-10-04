@@ -260,6 +260,16 @@ export default function NodeManagement() {
     setFieldErrors({})
   }
 
+  const originalNodeCode =
+    nodeFormDialog.node?.node_name?.replace(/^SN-/, '') ?? ''
+
+  const isUnchanged = isEdit && nodeCode.trim() === originalNodeCode.trim()
+
+  const closeForm = () => {
+    setNodeFormDialog({ open: false, node: null })
+    resetForm()
+  }
+
   useEffect(() => {
     if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'readings') return
 
@@ -394,6 +404,11 @@ export default function NodeManagement() {
     if (!nodeCode.trim()) errors.nodeCode = "This field is required."
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
+
+    if (isUnchanged) {
+      closeForm()
+      return
+    }
     setConfirmDialog({ open: true })
   }
 
@@ -916,7 +931,7 @@ export default function NodeManagement() {
             <div className="flex gap-3 justify-end p-4 -mt-2">
               <Button
                 type="button"
-                onClick={() => setCancelDialog({ open: true })}
+                onClick={() => (isUnchanged ? closeForm(): setCancelDialog({ open: true}))}
                 className="cursor-pointer hover:bg-[#e3ecf0] bg-[#FAFCFD] border border-[#C6C6C8] text-xs md:text-sm rounded-lg px-5 py-4 text-[#727272]"
               >
                 Cancel

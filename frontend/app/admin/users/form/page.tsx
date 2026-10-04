@@ -13,6 +13,7 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 
 // lib
 import { getErrorMessage } from "@/lib/utils";
+import { sameText } from "@/lib/formDiff";
 
 // icons
 import { UserPlus, SquarePen, MapPin, UserRound, ClipboardCheck, UserCheck, Check, AlertTriangle, CheckCircle, BadgeCheck, X } from "lucide-react";
@@ -65,6 +66,10 @@ function FormInner() {
   // form us
   const [formLoading, setFormLoading] = useState<boolean>(isEdit)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [original, setOriginal] = useState<{
+    fname: string; lname: string; email: string
+    role: string; position: string; barangayId: number | null
+  } | null>(null)
 
   // dialog us
   const [cancelDialog, setCancelDialog] = useState<DialogState>({
@@ -116,6 +121,14 @@ function FormInner() {
         setStatus(data.status)
         setPosition(data.position ?? '')
         setBarangayId(data.barangay_id ?? null)
+        setOriginal({
+          fname: data.first_name,
+          lname: data.last_name,
+          email: data.email,
+          role: data.user_role,
+          position: data.position ?? '',
+          barangayId: data.barangay_id ?? null,
+        })
       } catch (err) {
         setErrorDialog({ open: true, message: getErrorMessage(err) })
       } finally {
@@ -129,9 +142,23 @@ function FormInner() {
   const officeDisplay = (role === 'MENRO' || role === 'MENRO_Staff')
     ? MENRO_OFFICE
     : selectedBarangay?.barangay_name ?? 'Office/Barangay'
+  
+  const hasNoOfficer = (r: string) => r === 'Admin' || r === 'MENRO' || r === 'MENRO_Staff'
+
+  const isUnchanged = isEdit && !!original &&
+    sameText(fname, original.fname) &&
+    sameText(lname, original.lname) &&
+    sameText(email, original.email) &&
+    role === original.role &&
+    (hasNoOfficer(role) ||
+      (sameText(position, original.position) && barangayId === original.barangayId))
 
   // handlers
   const handleCancelDialog = () => {
+    if (isUnchanged) {
+      router.push('/admin/users')
+      return
+    }
     setCancelDialog({ open: true })
   }
   const handleCancelConfirm = () => {
@@ -164,6 +191,11 @@ function FormInner() {
       } else if (errors.email) {
         emailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
+      return
+    }
+
+    if (isUnchanged) {
+      router.push('/admin/users')
       return
     }
 

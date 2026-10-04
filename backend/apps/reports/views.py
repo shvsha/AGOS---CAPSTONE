@@ -100,6 +100,26 @@ def _snapshot_signatories(barangay):
         for s in Signatory.objects.filter(barangay=barangay, status='Active')
     }
 
+def _missing_signatory_positions(barangay):
+    """Positions with no Active signatory for this barangay."""
+    active = set(
+        Signatory.objects.filter(barangay=barangay, status='Active')
+        .values_list('position', flat=True)
+    )
+    return [p for p in DEFAULT_SIGNATORY_POSITIONS if p not in active]
+
+
+def _require_complete_signatories(barangay):
+    missing = _missing_signatory_positions(barangay)
+    if missing:
+        raise ValidationError({
+            'detail': (
+                'Your barangay needs a complete set of signatories before a report '
+                'can be submitted. Missing: ' + ', '.join(missing) +
+                '. Please contact your administrator.'
+            )
+        })
+
 
 class CanalMonitoringReportListView(generics.ListCreateAPIView):
     serializer_class = CanalMonitoringReportSerializer
@@ -121,6 +141,8 @@ class CanalMonitoringReportListView(generics.ListCreateAPIView):
         return CanalMonitoringReport.objects.filter(is_submitted=True).order_by('-date_observed')
 
     def perform_create(self, serializer):
+        if serializer.validated_data.get('is_submitted'):
+            _require_complete_signatories(self.request.user.barangay)
         report = serializer.save(
             barangay=self.request.user.barangay,
             reported_by=self.request.user,
@@ -139,6 +161,8 @@ class CanalMonitoringReportDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         was_submitted = serializer.instance.is_submitted
+        if serializer.validated_data.get('is_submmited') and not was_submitted:
+            _require_complete_signatories(serializer.instance.barangay)
         report = serializer.save()
         if report.is_submitted and not was_submitted:
             report.signatory_snapshot = _snapshot_signatories(report.barangay)
@@ -297,3 +321,15 @@ class ReportMediaByClogEventView(generics.ListAPIView):
         return ReportMedia.objects.filter(clog_event_id=event_id).filter(
             Q(report__isnull=True) | Q(report__is_submitted=True)
         )
+
+
+class SignatoryStatusView(APIView):
+    """
+    GET /api/canal-reports/signatory-status/
+    Lets the mobile app check whether the current barangay can submit.
+    """
+    permission_classes = [IsBarangay]
+
+    def get(self, request):
+        missing = _missing_signatory_positions(request.user.barangay)
+        return Response({'complete': not missing, 'missing': missing})

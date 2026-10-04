@@ -98,11 +98,30 @@ export default function Page() {
   const [actionErrorDialog, setActionErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: "" })
 
   const [soundEnabled, setSoundEnabled] = useState(true)
+
+  const [savedSound, setSavedSound] = useState<{
+    soundEnabled: boolean
+    tierValues: { critical: string; warning: string; info: string }
+  } | null>(null)
+
+  const backupUnchanged = 
+    !!config &&
+    autoEnabled === config.auto_backup_enabled &&
+    frequencyInput === config.frequency
+
   const [tierValues, setTierValues] = useState({
     critical: "preset:critical",
     warning: "preset:warning",
     info: "preset:info",
   })
+
+  const soundUnchanged = 
+    !!savedSound &&
+    soundEnabled === savedSound.soundEnabled &&
+    tierValues.critical === savedSound.tierValues.critical &&
+    tierValues.warning === savedSound.tierValues.warning &&
+    tierValues.info === savedSound.tierValues.info
+
   const [uploadedSounds, setUploadedSounds] = useState<UploadedSound[]>([])
   const [uploadingSound, setUploadingSound] = useState(false)
   const [savingSoundConfig, setSavingSoundConfig] = useState(false)
@@ -134,6 +153,14 @@ export default function Page() {
         critical: soundConfigRes.critical_sound,
         warning: soundConfigRes.warning_sound,
         info: soundConfigRes.info_sound,
+      })
+      setSavedSound({
+        soundEnabled: soundConfigRes.sound_enabled,
+        tierValues: {
+          critical: soundConfigRes.critical_sound,
+          warning: soundConfigRes.warning_sound,
+          info: soundConfigRes.info_sound,
+        },
       })
       setUploadedSounds(uploadedSoundsRes)
     } catch {
@@ -370,6 +397,7 @@ export default function Page() {
           warning_sound: updatedTierValues.warning,
           info_sound: updatedTierValues.info,
         })
+        setSavedSound({ soundEnabled, tierValues: updatedTierValues})
       }
 
       setDeleteLoadingDialog(false)
@@ -391,6 +419,7 @@ export default function Page() {
         warning_sound: tierValues.warning,
         info_sound: tierValues.info,
       })
+      setSavedSound({ soundEnabled, tierValues: { ...tierValues } })
       setActionLoadingDialog({ open: false, title: "", description: "" })
       setActionSuccessDialog({ open: true, title: "Settings Saved", description: "Your alert sound settings have been saved successfully." })
     } catch (err: any) {
@@ -497,8 +526,8 @@ export default function Page() {
 
                 <Button
                   onClick={() => setSaveSoundConfirmOpen(true)}
-                  disabled={savingSoundConfig}
-                  className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer"
+                  disabled={savingSoundConfig || soundUnchanged}
+                  className="rounded-lg bg-[#1565BC] hover:bg-[#0d4f96] text-white px-4 h-9 text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingSoundConfig ? "Saving..." : "Save Settings"}
                 </Button>
@@ -601,8 +630,8 @@ export default function Page() {
                   </span>
                   <Button
                     onClick={() => setSaveBackupConfirmOpen(true)}
-                    disabled={savingConfig}
-                    className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-4 h-8 text-xs cursor-pointer"
+                    disabled={savingConfig || backupUnchanged}
+                    className="rounded-lg border border-[#C6C6C8] bg-transparent hover:bg-[#edebeb] text-[#122A48] px-4 h-8 text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {savingConfig ? "Saving..." : "Save Settings"}
                   </Button>

@@ -422,6 +422,7 @@ export default function NodeAssignment() {
         allHotspotMarkers={allHotspotMarkers}
         loadingBarangays={loading}
         onCancel={() => setCancelDialog({ open: true })}
+        onNoChanges={() => setAssignFormDialog({ open: false, node: null })}
         onConfirm={handleDialogConfirm}
       />
 

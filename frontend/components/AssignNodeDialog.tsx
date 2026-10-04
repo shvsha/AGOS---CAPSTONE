@@ -56,6 +56,7 @@ type Props = {
   loadingBarangays?: boolean
   onCancel: () => void
   onConfirm: (payload: AssignNodeDialogPayload) => void
+  onNoChanges?: () => void
 }
 
 export function AssignNodeDialog({
@@ -66,6 +67,7 @@ export function AssignNodeDialog({
   loadingBarangays = false,
   onCancel,
   onConfirm,
+  onNoChanges,
 }: Props) {
   const isEdit = !!node
 
@@ -89,6 +91,17 @@ export function AssignNodeDialog({
   const installedAtRef = useRef<HTMLDivElement>(null)
 
   const selectedHotspot = hotspots.find(h => String(h.hotspot_id) === hotspot)
+
+  const isUnchanged = 
+    isEdit &&
+    !!hotspot &&
+    hotspot === originalHotspot &&
+    installedAt === originalInstalledAt
+
+  const handleCancelClick = () => {
+    if (isUnchanged && onNoChanges) onNoChanges()
+    else onCancel()
+  }
 
   const formHotspotMarkers = barangay
     ? allHotspotMarkers.filter(m => String(m.barangay_id) === barangay)
@@ -196,6 +209,11 @@ export function AssignNodeDialog({
       return
     }
 
+    if (isUnchanged && onNoChanges) {
+      onNoChanges()
+      return
+    }
+
     onConfirm({
       selectedNodeId: isEdit ? null : selectedNode,
       barangay,
@@ -220,7 +238,7 @@ export function AssignNodeDialog({
                 </p>
               </div>
             </div>
-            <button type="button" onClick={onCancel} className="cursor-pointer flex-shrink-0">
+            <button type="button" onClick={() => handleCancelClick()} className="cursor-pointer flex-shrink-0">
               <X size={18} />
             </button>
           </div>
@@ -437,7 +455,7 @@ export function AssignNodeDialog({
           <div className="flex gap-3 justify-end p-4 -mt-5">
             <Button
               type="button"
-              onClick={onCancel}
+              onClick={() => handleCancelClick()}
               className="cursor-pointer hover:bg-[#e3ecf0] bg-[#FAFCFD] border border-[#C6C6C8] text-xs md:text-sm rounded-lg px-5 py-4 text-[#727272]"
             >
               Cancel

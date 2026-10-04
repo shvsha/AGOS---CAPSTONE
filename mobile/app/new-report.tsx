@@ -451,6 +451,8 @@ export default function NewReportScreen() {
 
   const clogEventId = params.clog_event_id ? Number(params.clog_event_id) : null;
 
+  const [signatoryStatus, setSignatoryStatus] = useState<{ complete: boolean; missing: string[] } | null>(null);
+
   const [form, setForm] = useState<ReportFormState>(INITIAL_STATE);
   const [reportId, setReportId] = useState<number | null>(
     params.report_id ? Number(params.report_id) : null
@@ -537,6 +539,13 @@ export default function NewReportScreen() {
       })
       .finally(() => setIsLoadingReport(false));
   }, [params.report_id]);
+
+  useEffect(() => {
+  api
+    .get("/api/canal-reports/signatory-status/")
+    .then(setSignatoryStatus)
+    .catch(() => setSignatoryStatus(null)); // if it fails, don't block; the backend still enforces
+}, []);
 
   const update = <K extends keyof ReportFormState>(key: K, value: ReportFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -731,6 +740,16 @@ export default function NewReportScreen() {
     setIsDraftSavedVisible(false);
     router.replace("/(tabs)/reports" as any);
   };
+
+  const signatoriesIncomplete = signatoryStatus !== null && !signatoryStatus.complete;
+
+  if (signatoriesIncomplete) {
+    Alert.alert(
+      "Signatories incomplete",
+      `Your barangay is missing: ${signatoryStatus!.missing.join(", ")}. Ask your administrator to assign them before submitting.`
+    );
+    return;
+  }
 
   const handleOpenSubmitModal = () => {
     if (hasUploadingPhotos) {
@@ -1016,10 +1035,25 @@ export default function NewReportScreen() {
             onPreview={(i) => setPreview({ field: "evidencePhotos", index: i })}
           />
 
+          {signatoriesIncomplete && (
+            <View className="mt-3 flex-row gap-2 rounded-[10px] border border-[#fde68a] bg-[#fffbeb] p-3">
+              <MaterialCommunityIcons name="alert-outline" size={18} color="#b45309" />
+              <View className="flex-1">
+                <Text className="text-[13px] font-semibold text-[#92400e]">
+                  Can't submit yet
+                </Text>
+                <Text className="mt-0.5 text-[12px] text-[#92400e]">
+                  Your barangay is missing signatories: {signatoryStatus!.missing.join(", ")}.
+                  You can still save this as a draft. Ask your administrator to assign them.
+                </Text>
+              </View>
+            </View>
+          )}
+
           <View className="mt-3 flex-row gap-2.5">
             <TouchableOpacity
               onPress={handleSaveDraft}
-              disabled={isSavingDraft || isSubmitting}
+              disabled={isSavingDraft || isSubmitting || signatoriesIncomplete}
               className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] py-3 ${
                 isSavingDraft ? "opacity-60" : "opacity-100"
               }`}

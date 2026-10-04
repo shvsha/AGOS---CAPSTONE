@@ -140,6 +140,13 @@ export default function SignatoryManagement() {
 
   const handleFormSave = () => {
     if (!formName.trim() || !editDialog.position) return
+
+    // editing an existing signatory without changing the name: nothing to save
+    if (editDialog.currentName && formName.trim() === editDialog.currentName.trim()) {
+      setEditDialog({ open: false, position: null, currentName: '' })
+      return
+    }
+
     setEditDialog({ open: false, position: null, currentName: '' })
     setSaveConfirmDialog({ open: true, position: editDialog.position, name: formName.trim() })
   }
