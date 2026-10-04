@@ -20,6 +20,7 @@ import type {
 import { SubmitReportModal } from "@/components/reports/SubmitReportModal";
 import { IncompleteReportModal } from "@/components/reports/IncompleteReportModal";
 import { PhotoPreviewModal } from "@/components/reports/PhotoPreviewModal";
+import { IncompleteSignatoriesModal } from "@/components/reports/IncompleteSignatoriesModal";
 
 
 interface PhotoAsset {
@@ -451,7 +452,7 @@ export default function NewReportScreen() {
 
   const clogEventId = params.clog_event_id ? Number(params.clog_event_id) : null;
 
-  const [signatoryStatus, setSignatoryStatus] = useState<{ complete: boolean; missing: string[] } | null>(null);
+  const [isCheckingSignatories, setIsCheckingSignatories] = useState(false);
 
   const [form, setForm] = useState<ReportFormState>(INITIAL_STATE);
   const [reportId, setReportId] = useState<number | null>(
@@ -468,6 +469,8 @@ export default function NewReportScreen() {
   const [isDraftSavedVisible, setIsDraftSavedVisible] = useState(false);
 
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [missingSignatories, setMissingSignatories] = useState<string[]>([]);
+  const [isSignatoriesVisible, setIsSignatoriesVisible] = useState(false);
   const [isIncompleteVisible, setIsIncompleteVisible] = useState(false);
 
   const [preview, setPreview] = useState<{ field: PhotoField; index: number } | null>(null);
@@ -539,13 +542,6 @@ export default function NewReportScreen() {
       })
       .finally(() => setIsLoadingReport(false));
   }, [params.report_id]);
-
-  useEffect(() => {
-  api
-    .get("/api/canal-reports/signatory-status/")
-    .then(setSignatoryStatus)
-    .catch(() => setSignatoryStatus(null)); // if it fails, don't block; the backend still enforces
-}, []);
 
   const update = <K extends keyof ReportFormState>(key: K, value: ReportFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -741,17 +737,7 @@ export default function NewReportScreen() {
     router.replace("/(tabs)/reports" as any);
   };
 
-  const signatoriesIncomplete = signatoryStatus !== null && !signatoryStatus.complete;
-
-  if (signatoriesIncomplete) {
-    Alert.alert(
-      "Signatories incomplete",
-      `Your barangay is missing: ${signatoryStatus!.missing.join(", ")}. Ask your administrator to assign them before submitting.`
-    );
-    return;
-  }
-
-  const handleOpenSubmitModal = () => {
+  const handleOpenSubmitModal = async () => {
     if (hasUploadingPhotos) {
       Alert.alert("Please wait", "Photos are still uploading.");
       return;
@@ -769,8 +755,22 @@ export default function NewReportScreen() {
       return;
     }
 
-    setIsSubmitModalVisible(true);
-  };
+    setIsCheckingSignatories(true);
+      try {
+      const status = await api.get("/api/canal-reports/signatory-status/");
+        if (!status.complete) {
+          setMissingSignatories(status.missing);
+          setIsSignatoriesVisible(true);
+          return;
+        }
+      } catch {
+        // couldn't check (e.g. network blip): let the server decide on submit
+      } finally {
+        setIsCheckingSignatories(false);
+      }
+
+      setIsSubmitModalVisible(true);
+    };
 
   const handleConfirmSubmit = async () => {
     setIsSubmitting(true);
@@ -1035,25 +1035,10 @@ export default function NewReportScreen() {
             onPreview={(i) => setPreview({ field: "evidencePhotos", index: i })}
           />
 
-          {signatoriesIncomplete && (
-            <View className="mt-3 flex-row gap-2 rounded-[10px] border border-[#fde68a] bg-[#fffbeb] p-3">
-              <MaterialCommunityIcons name="alert-outline" size={18} color="#b45309" />
-              <View className="flex-1">
-                <Text className="text-[13px] font-semibold text-[#92400e]">
-                  Can't submit yet
-                </Text>
-                <Text className="mt-0.5 text-[12px] text-[#92400e]">
-                  Your barangay is missing signatories: {signatoryStatus!.missing.join(", ")}.
-                  You can still save this as a draft. Ask your administrator to assign them.
-                </Text>
-              </View>
-            </View>
-          )}
-
           <View className="mt-3 flex-row gap-2.5">
             <TouchableOpacity
               onPress={handleSaveDraft}
-              disabled={isSavingDraft || isSubmitting || signatoriesIncomplete}
+              disabled={isSavingDraft || isSubmitting || isCheckingSignatories}
               className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] py-3 ${
                 isSavingDraft ? "opacity-60" : "opacity-100"
               }`}
@@ -1070,9 +1055,9 @@ export default function NewReportScreen() {
 
             <TouchableOpacity
               onPress={handleOpenSubmitModal}
-              disabled={isSavingDraft || isSubmitting}
+              disabled={isSavingDraft || isSubmitting || isCheckingSignatories}
               className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3 ${
-                isSubmitting ? "opacity-60" : "opacity-100"
+                isSubmitting || isCheckingSignatories ? "opacity-60" : "opacity-100"
               }`}
             >
               <MaterialCommunityIcons name="send-outline" size={18} color="white" />
@@ -1125,6 +1110,12 @@ export default function NewReportScreen() {
         photos={preview ? form[preview.field].map((p) => ({ uri: p.uri })) : []}
         initialIndex={preview?.index ?? 0}
         onClose={() => setPreview(null)}
+      />
+
+      <IncompleteSignatoriesModal
+        visible={isSignatoriesVisible}
+        missingPositions={missingSignatories}
+        onClose={() => setIsSignatoriesVisible(false)}
       />
 
       <DraftSavedModal visible={isDraftSavedVisible} onClose={handleDraftSavedClose} />
