@@ -1,25 +1,96 @@
+from datetime import datetime
 import cv2
 import numpy as np
+
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import SensorReading
 from .serializers import SensorReadingSerializer
-from apps.sensor_nodes.models import SensorNode
-from apps.users.permissions import IsAdminOrMENRO, IsIoTDevice, IoTDeviceAuthentication
+from apps.sensor_nodes.models import SensorNode, NodeAssignmentHistory
+from apps.users.permissions import IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from apps.users.authentication import CookieJWTAuthentication
+from rest_framework.pagination import PageNumberPagination
+
+
+class ReadingsPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class SensorReadingListView(generics.ListCreateAPIView):
-    queryset = SensorReading.objects.all().order_by('-timestamp')
     serializer_class = SensorReadingSerializer
+    pagination_class = ReadingsPagination
     authentication_classes = [IoTDeviceAuthentication, CookieJWTAuthentication]
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAdminOrMENRO()]
+            return [IsAdminOrMENROOrBarangay()]
         return [IsIoTDevice()]
+
+    @staticmethod
+    def _scope_to_barangay(qs, barangay):
+        if barangay is None:
+            return qs.none()
+
+        covering = NodeAssignmentHistory.objects.filter(
+            node=OuterRef('node'),
+            started_at__lte=OuterRef('timestamp'),
+        ).filter(Q(ended_at__isnull=True) | Q(ended_at__gt=OuterRef('timestamp')))
+
+        # Same pick as hotspot_at(): when several rows cover the timestamp
+        # (overlapping assignments), the newest start wins.
+        return qs.annotate(
+            owner_barangay=Subquery(covering.order_by('-started_at').values('barangay_id')[:1]),
+            has_history=Exists(covering),
+        ).filter(
+            Q(owner_barangay=barangay.pk) | Q(has_history=False, node__barangay=barangay)
+        )
+
+    def get_queryset(self):
+        qs = SensorReading.objects.select_related('node').order_by('-timestamp')
+        user = self.request.user
+
+        if getattr(user, 'user_role', None) == 'Barangay':
+            qs = self._scope_to_barangay(qs, user.barangay)
+
+        # month filter is opt-in, so existing web calls with no params behave as before
+        month = self.request.query_params.get('month')
+        if month and month != 'All':
+            try:
+                target = datetime.strptime(month, '%Y-%m')
+                qs = qs.filter(timestamp__year=target.year, timestamp__month=target.month)
+            except ValueError:
+                pass
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        base = self.get_queryset()
+        qs = base
+
+        severity = request.query_params.get('severity')
+        if severity and severity != 'All':
+            qs = qs.filter(reading_status=severity)
+
+        page = self.paginate_queryset(qs)
+        if page is None:
+            return Response(self.get_serializer(qs, many=True).data)
+
+        response = self.get_paginated_response(self.get_serializer(page, many=True).data)
+
+        # Card totals for the whole month (ignoring the severity tab), only computed
+        # when a month is requested so unfiltered web calls aren't slowed down.
+        if request.query_params.get('month'):
+            response.data['summary'] = base.aggregate(
+                total=Count('pk'),
+                normal=Count('pk', filter=Q(reading_status='Normal')),
+                warning=Count('pk', filter=Q(reading_status='Warning')),
+                critical=Count('pk', filter=Q(reading_status='Critical')),
+            )
+        return response
 
     def perform_create(self, serializer):
         if isinstance(self.request.auth, SensorNode):
