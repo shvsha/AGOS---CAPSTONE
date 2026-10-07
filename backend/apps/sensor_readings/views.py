@@ -13,6 +13,7 @@ from apps.sensor_nodes.models import SensorNode, NodeAssignmentHistory
 from apps.users.permissions import IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsIoTDevice, IoTDeviceAuthentication
 from apps.users.authentication import CookieJWTAuthentication
 from rest_framework.pagination import PageNumberPagination
+from .services import overall_status_q
 
 
 class ReadingsPagination(PageNumberPagination):
@@ -73,7 +74,7 @@ class SensorReadingListView(generics.ListCreateAPIView):
 
         severity = request.query_params.get('severity')
         if severity and severity != 'All':
-            qs = qs.filter(reading_status=severity)
+            qs = qs.filter(overall_status_q(severity))
 
         page = self.paginate_queryset(qs)
         if page is None:
@@ -86,9 +87,9 @@ class SensorReadingListView(generics.ListCreateAPIView):
         if request.query_params.get('month'):
             response.data['summary'] = base.aggregate(
                 total=Count('pk'),
-                normal=Count('pk', filter=Q(reading_status='Normal')),
-                warning=Count('pk', filter=Q(reading_status='Warning')),
-                critical=Count('pk', filter=Q(reading_status='Critical')),
+                normal=Count('pk', filter=overall_status_q('Normal')),
+                warning=Count('pk', filter=overall_status_q('Warning')),
+                critical=Count('pk', filter=overall_status_q('Critical')),
             )
         return response
 
@@ -109,7 +110,7 @@ class SensorReadingByNodeView(generics.ListAPIView):
 
         status_param = self.request.query_params.get('status')
         if status_param:
-            qs = qs.filter(reading_status=status_param)
+            qs = qs.filter(overall_status_q(status_param))
 
         return qs
 
@@ -141,9 +142,6 @@ WEIGHT_TREND    = 0.40
 MAX_FLOW_RATE   = 0.002
 MAX_TREND_RISE  = 5.0
 FRAME_COUNT     = 5
-
-# clog_pct threshold to trigger waste classification
-CLASSIFY_THRESHOLD = 30.0
 
 
 # Optical flow
@@ -386,13 +384,12 @@ class SensorReadingWithFlowView(APIView):
         from apps.sensor_readings.services import evaluate_clog
         evaluate_clog(reading)
 
-        if clog_pct is not None and clog_pct >= CLASSIFY_THRESHOLD:
-            self._handle_clog_classification(
-                node=node,
-                reading=reading,
-                frame_bytes=frames_bytes[0],
-                clog_pct=clog_pct,
-            )
+        self._handle_clog_classification(
+            node=node,
+            reading=reading,
+            frame_bytes=frames_bytes[0],
+            clog_pct=clog_pct,
+        )
 
         return Response(
             SensorReadingSerializer(reading).data,

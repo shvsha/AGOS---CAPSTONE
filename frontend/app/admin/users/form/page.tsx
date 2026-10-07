@@ -704,7 +704,7 @@ function FormInner() {
               </div>
 
               {/* position/designation */}
-              {role !== 'MENRO' && role !== 'Admin' && (
+              {role !== 'MENRO_Staff' && role !== 'MENRO' && role !== 'Admin' &&  (
                 <div className="mt-3">
                   <div ref={positionRef}>
                     <Field className="flex gap-1.5 flex-col w-100">

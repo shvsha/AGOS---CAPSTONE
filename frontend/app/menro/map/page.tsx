@@ -289,7 +289,7 @@ export default function Map() {
     onMessage: (reading) => {
       nodesCache.setData(prev => prev.map(node =>
         node.node_id === reading.node_details.node_id
-          ? { ...node, water_level: reading.water_level, water_flow_rate: reading.water_flow_rate, clog_pct: reading.clog_pct, condition: reading.reading_status }
+          ? { ...node, water_level: reading.water_level, water_flow_rate: reading.water_flow_rate, clog_pct: reading.clog_pct, condition: reading.overall_status ?? reading.reading_status, is_online: true }
           : node
       ))
     },

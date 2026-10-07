@@ -22,6 +22,8 @@ export interface SensorNodeApi {
   condition: "Normal" | "Warning" | "Critical" | null;
   health_status: string | null;
   last_reading_at: string | null;
+  is_online: boolean;
+  is_force_sleeping: boolean;
 }
 
 export interface ClogEventApi {

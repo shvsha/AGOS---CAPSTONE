@@ -10,6 +10,38 @@ from django.utils import timezone
 HEALTH_REPORT_INTERVAL_MINUTES = 10
 OFFLINE_THRESHOLD_MINUTES = 25
 CODE_PATTERN = re.compile(r'^[A-Za-z0-9\-]+$')
+ONLINE_MARGIN_SECONDS = 120
+
+
+def get_online_window_seconds(node, recent_readings):
+    """
+    How long after its last reading a node still counts as online.
+    = 2 x (current rainfall-tier interval, or the node's last observed
+    gap between readings if that was longer) + a small margin.
+    """
+    from django.db.models import Max
+    from apps.rainfall.models import AlertThreshold
+    from apps.rainfall.services import get_effective_condition
+
+    barangay = node.barangay
+    condition = get_effective_condition(barangay) if barangay else 'Unknown'
+
+    tier_interval = (
+        AlertThreshold.objects.filter(condition=condition)
+        .values_list('reading_interval_seconds', flat=True)
+        .first()
+    ) or 300
+    longest = (
+        AlertThreshold.objects.aggregate(m=Max('reading_interval_seconds'))['m']
+        or tier_interval
+    )
+
+    interval = tier_interval
+    if len(recent_readings) >= 2:
+        gap = (recent_readings[0].timestamp - recent_readings[1].timestamp).total_seconds()
+        interval = max(interval, min(gap, longest))
+
+    return 2 * interval + ONLINE_MARGIN_SECONDS
 
 
 def get_node_identity(node):
@@ -89,6 +121,8 @@ class SensorNodeSerializer(serializers.ModelSerializer):
     water_flow_rate = serializers.SerializerMethodField()
     clog_pct = serializers.SerializerMethodField()
     condition = serializers.SerializerMethodField()
+    water_status = serializers.SerializerMethodField()
+    clog_status = serializers.SerializerMethodField()
     health_status = serializers.SerializerMethodField()
     is_online = serializers.SerializerMethodField()
     last_seen = serializers.SerializerMethodField()
@@ -107,6 +141,7 @@ class SensorNodeSerializer(serializers.ModelSerializer):
             'availability_status', 'status', 'forced_sleep_until', 'is_force_sleeping',
             'installed_at',
             'water_level', 'water_flow_rate', 'clog_pct', 'condition',
+            'water_status', 'clog_status',
             'health_status', 'is_online', 'last_seen', 'firmware_version',
             'last_reading_at', 'device_model',
         ]
@@ -197,28 +232,37 @@ class SensorNodeSerializer(serializers.ModelSerializer):
         r = self._latest(obj)
         return r.clog_pct if r else None
 
-    def get_condition(self, obj):
-        # condition is shown next to clog_pct in the UI, so derive it from
-        # clog_pct (same cutoffs as the Clog Level Legend) rather than
-        # reading_status, which reflects water level and can disagree.
+    def get_water_status(self, obj):
         r = self._latest(obj)
-        if not r or r.clog_pct is None:
+        return r.reading_status if r else None
+
+    def get_clog_status(self, obj):
+        from apps.sensor_readings.services import get_clog_status
+        r = self._latest(obj)
+        return get_clog_status(r.clog_pct) if r else None
+
+    def get_condition(self, obj):
+        # Overall status = worst of water-level status and clog status
+        # (clog cutoffs 30/60/80, same as the clog alerts). If clog % isn't
+        # in yet, this falls back to the water-level status.
+        from apps.sensor_readings.services import get_clog_status, get_overall_status
+        r = self._latest(obj)
+        if not r:
             return None
-        if r.clog_pct >= 67:
-            return 'Critical'
-        if r.clog_pct >= 34:
-            return 'Warning'
-        return 'Normal'
+        return get_overall_status(r.reading_status, get_clog_status(r.clog_pct))
     
     def get_health_status(self, obj):
         h = self._latest_health(obj)
         return h.status if h else None
 
     def get_is_online(self, obj):
-        latest = self._latest_health(obj)
-        if not latest:
+        recent = list(
+            SensorReading.objects.filter(node=obj).order_by('-timestamp')[:2]
+        )
+        if not recent:
             return False
-        return (timezone.now() - latest.checked_at) <= timedelta(minutes=OFFLINE_THRESHOLD_MINUTES)
+        window = get_online_window_seconds(obj, recent)
+        return (timezone.now() - recent[0].timestamp).total_seconds() <= window
 
     def get_is_force_sleeping(self, obj):
         return bool(obj.forced_sleep_until and obj.forced_sleep_until > timezone.now())

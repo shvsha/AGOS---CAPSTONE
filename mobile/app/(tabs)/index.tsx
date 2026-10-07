@@ -98,7 +98,7 @@ export default function TabOneScreen() {
         id: n.node_id,
         latitude: n.hotspot_details!.latitude,
         longitude: n.hotspot_details!.longitude,
-        status: (n.condition ?? 'Normal') as CanalStatus,
+        status: ((n.is_online && !n.is_force_sleeping) ? (n.condition ?? 'Normal') : 'Sleep') as CanalStatus,
         label: `${n.node_name} – ${n.barangay_details?.barangay_name ?? ''}`,
       })),
     [mappableNodes]

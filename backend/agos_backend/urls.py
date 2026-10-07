@@ -40,7 +40,6 @@ urlpatterns = [
     path('api/', include('apps.reports.urls')),
     path('api/', include('apps.audit_logs.urls')),
     path('api/', include('apps.training_captures.urls')),
-    path('api/', include('apps.training_captures.urls')),
     path('api/', include('apps.system_backup.urls')),
     path('api/', include('apps.alert_sounds.urls')),
     path('api/', include('apps.rainfall.urls')),

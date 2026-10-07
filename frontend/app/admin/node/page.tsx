@@ -52,6 +52,8 @@ type SensorReading = {
   reading_id: number
   timestamp: string
   reading_status: string
+  clog_status: string | null
+  overall_status: string | null
   water_level: number | null
   water_flow_rate: number | null
   clog_pct: number | null
@@ -63,6 +65,11 @@ type SensorReading = {
     }
   }
 }
+
+const statusBadgeClass = (s?: string | null) =>
+  s === 'Critical' ? 'bg-[#FFE5E5] text-[#D81010]' :
+  s === 'Warning'  ? 'bg-[#F4E4A7] text-[#E4B600]' :
+  'bg-[#B2FBC173] text-[#2C7B3C]'
 
 
 export default function NodeManagement() {
@@ -544,7 +551,7 @@ export default function NodeManagement() {
         if (readingsStatusFilter !== 'All Status') params.set('status', readingsStatusFilter)
         if (readingsHotspotFilter !== 'All Hotspots') params.set('hotspot', readingsHotspotFilter)
         const all = await fetchAllPages(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-readings/node/${readingsDialog.node.node_id}/?${params.toString()}`)
-        setHistoryPrintColumns(["Timestamp", "Hotspot Name", "Water Level", "Flow Rate", "Clog %", "Status"])
+        setHistoryPrintColumns(["Timestamp", "Hotspot Name", "Water Level", "Flow Rate", "Clog %", "Water Status", "Clog Status", "Status"])
         setHistoryPrintRows(all.map(r => [
           new Date(r.timestamp).toLocaleString('en-PH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }),
           r.node_details.hotspot_details?.name ?? '—',
@@ -552,6 +559,8 @@ export default function NodeManagement() {
           r.water_flow_rate != null ? `${Number(r.water_flow_rate).toFixed(5)} m/s` : '—',
           r.clog_pct != null ? `${r.clog_pct} %` : '—',
           r.reading_status,
+          r.clog_status ?? '—',
+          r.overall_status ?? r.reading_status,
         ]))
         setHistoryPrintTitle(`${readingsDialog.node.node_name} — Readings History`)
       } else if (historyTab === 'health') {
@@ -951,7 +960,7 @@ export default function NodeManagement() {
 
       {/* Readings History Dialog */}
       <Dialog open={readingsDialog.open}>
-        <DialogContent className="[&>button]:hidden p-0 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-[800px] max-h-[80vh] flex flex-col">
+        <DialogContent className="[&>button]:hidden p-0 text-[#122A48] rounded-lg border border-[#C6C6C8] min-w-80 md:min-w-[min(1100px,95vw)] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <div className="flex justify-between items-center p-2 md:p-3 border-b border-[#C6C6C8] -mb-3">
             <div className="flex flex-col">
@@ -1029,25 +1038,27 @@ export default function NodeManagement() {
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">WATER LEVEL</TableHead>
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">FLOW RATE</TableHead>
                   <TableHead className="font-semibold text-center text-xs text-[#727272]">CLOG %</TableHead>
-                  <TableHead className="font-semibold text-center text-xs text-[#727272]">STATUS</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">WATER STATUS</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">CLOG STATUS</TableHead>
+                  <TableHead className="font-semibold text-center text-xs text-[#727272]">OVERALL STATUS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {readingsError ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10">
+                    <TableCell colSpan={8} className="text-center py-10">
                       <p className="text-[#D81010] font-semibold text-sm">Failed to load readings.</p>
                     </TableCell>
                   </TableRow>
                 ) : readingsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10">
+                    <TableCell colSpan={8} className="text-center py-10">
                       <p className="text-[#727272] text-sm">Loading readings...</p>
                     </TableCell>
                   </TableRow>
                 ) : nodeReadings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10">
+                    <TableCell colSpan={8} className="text-center py-10">
                       <p className="text-[#727272] text-sm">No readings recorded for this node yet.</p>
                     </TableCell>
                   </TableRow>
@@ -1062,12 +1073,20 @@ export default function NodeManagement() {
                       <TableCell className="text-center h-11">{r.water_flow_rate != null ? `${Number(r.water_flow_rate).toFixed(5)} m/s` : '—'}</TableCell>
                       <TableCell className="text-center h-11">{r.clog_pct != null ? `${r.clog_pct} %` : '—'}</TableCell>
                       <TableCell className="text-center h-11">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                          r.reading_status === 'Critical' ? 'bg-[#FFE5E5] text-[#D81010]' :
-                          r.reading_status === 'Warning'  ? 'bg-[#F4E4A7] text-[#E4B600]' :
-                          'bg-[#B2FBC173] text-[#2C7B3C]'
-                        }`}>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(r.reading_status)}`}>
                           {r.reading_status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center h-11">
+                        {r.clog_status ? (
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(r.clog_status)}`}>
+                            {r.clog_status}
+                          </span>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell className="text-center h-11">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(r.overall_status ?? r.reading_status)}`}>
+                          {r.overall_status ?? r.reading_status}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -1307,16 +1326,6 @@ export default function NodeManagement() {
         }
         cancelLabel="Keep Editing"
         confirmLabel={isEdit ? 'Confirm Changes' : 'Add Node'}
-      />
-
-      {/* Loading dialog */}
-      <DialogModal
-        open={loadingDialog.open}
-        color={DIALOG_COLOR.lightblue}
-        icon={SpinnerIcon}
-        iconColor={DIALOG_COLOR.blue}
-        title={isEdit ? "Saving Changes" : "Adding Node"}
-        description={<> Processing details. Please wait. </>}
       />
 
       {/* Regenerate key confirm dialog */}

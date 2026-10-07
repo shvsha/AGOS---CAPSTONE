@@ -53,6 +53,7 @@ type SensorReadings = {
   water_flow_rate: number | null
   clog_pct: number | null
   reading_status: string
+  overall_status: string | null
   timestamp: string
   node_details: {
     node_id: number
@@ -62,6 +63,7 @@ type SensorReadings = {
 
 type WasteClassification = {
   classification_id: number
+  dominant_waste_type: string
   node_details: {
     node_id: number
     node_name: string
@@ -116,10 +118,10 @@ const getClogSeverity = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "Unknown", barColor: "bg-[#9CA3AF]", textClass: "text-[#727272] font-semibold" }
   }
-  if (clogPct >= 67) {
+  if (clogPct >= 80) {
     return { label: "Critical", barColor: "bg-[#D81010]", textClass: "text-[#D81010] font-semibold" }
   }
-  if (clogPct >= 34) {
+  if (clogPct >= 30) {
     return { label: "Warning", barColor: "bg-[#FF9705]", textClass: "text-[#FF9705] font-semibold" }
   }
   return { label: "Normal", barColor: "bg-[#1565BC]", textClass: "text-[#1565BC] font-semibold" }
@@ -129,10 +131,10 @@ const getClogRankLevel = (clogPct: number | null) => {
   if (clogPct === null) {
     return { label: "UNKNOWN", color: "bg-[#9CA3AF]", action: "AWAITING CANAL DATA" }
   }
-  if (clogPct >= 67) {
+  if (clogPct >= 80) {
     return { label: "CRITICAL", color: "bg-[#E85656]", action: "IMMEDIATE ACTION" }
   }
-  if (clogPct >= 34) {
+  if (clogPct >= 30) {
     return { label: "MEDIUM", color: "bg-[#FFCC00]", action: "WITHIN 24 HOURS" }
   }
   return { label: "LOW", color: "bg-[#2C7B3C]", action: "MONITOR CLOSELY" }
@@ -227,6 +229,19 @@ export default function Resources() {
     return acc
   }, {} as Record<number, WasteClassification>)
 
+  const openEventByNode = allClogs.reduce((acc, c) => {
+    if ((c.status === 'Detected' || c.status === 'Responded') && c.node_details) {
+      const id = c.node_details.node_id
+      if (!acc[id] || new Date(c.detected_at) < new Date(acc[id].detected_at)) acc[id] = c
+    }
+    return acc
+  }, {} as Record<number, Clogs>)
+
+  const getHoursOpen = (nodeId: number) => {
+    const e = openEventByNode[nodeId]
+    return e ? Math.max(0, Math.round((Date.now() - new Date(e.detected_at).getTime()) / 3600000)) : null
+  }
+
   const rankedNodes = [...nodesWithHotspot].sort((a, b) => {
     const clogA = getLatestClogPct(a.node_id).clogPct ?? -1
     const clogB = getLatestClogPct(b.node_id).clogPct ?? -1
@@ -236,6 +251,8 @@ export default function Resources() {
   const priorityQueue = rankedNodes.map((node, index) => {
     const pct = getLatestClogPct(node.node_id).clogPct
     const rankInfo = getClogRankLevel(pct)
+    const waste = latestWasteByNode[node.node_id]
+    const openEvent = openEventByNode[node.node_id]
 
     return {
       rank: index + 1,
@@ -244,6 +261,11 @@ export default function Resources() {
       pct,
       label: rankInfo.label,
       action: rankInfo.action,
+      wasteType: waste && waste.dominant_waste_type !== 'None' ? waste.dominant_waste_type : '—',
+      kg: waste ? waste.estimated_volume : null,
+      hoursOpen: openEvent
+        ? Math.max(0, Math.round((Date.now() - new Date(openEvent.detected_at).getTime()) / 3600000))
+        : null,
     }
   })
 
@@ -252,7 +274,7 @@ export default function Resources() {
 
   const criticalAreas = nodesWithHotspot.filter(node => {
     const latest = latestReadingMap[node.node_id]
-    return latest?.reading_status === 'Critical'
+    return (latest?.overall_status ?? latest?.reading_status) === 'Critical'
   }).length
 
   const totalWaste = Object.values(latestWasteByNode).reduce(
@@ -287,7 +309,11 @@ export default function Resources() {
   useWebSocket({
     path: "/ws/sensor-readings/",
     onMessage: (reading) => {
-      readingsCache.setData(prev => [reading, ...prev])
+      readingsCache.setData(prev =>
+        prev.some(r => r.reading_id === reading.reading_id)
+          ? prev.map(r => r.reading_id === reading.reading_id ? reading : r)
+          : [reading, ...prev]
+      )
     },
   })
 
@@ -349,7 +375,7 @@ export default function Resources() {
         {/* waste hotspot, trash accumulated, priority */}
           <div className="flex gap-2 text-[#122A48] mt-2 h-70">
           {/* waste hotspot */}
-            <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-[2] min-w-[320px]">
+          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1 min-w-[320px]">
             <div className="w-full">
               <p className="font-bold p-2 text-sm">WASTE HOTSPOT STATUS</p>
             </div>
@@ -357,7 +383,7 @@ export default function Resources() {
               <Table>
                 <TableHeader className="bg-[#F5F6F9]">
                   <TableRow>
-                    <TableHead className="text-[#727272] text-left text-xs">NODE ID</TableHead>
+                    <TableHead className="text-[#727272] text-left text-xs">NODE</TableHead>
                     <TableHead className="text-[#727272] text-left text-xs">NAME</TableHead>
                     <TableHead className="text-[#727272] text-left text-xs">LOCATION</TableHead>
                     <TableHead className="text-[#727272] text-left text-xs">STATUS</TableHead>
@@ -423,120 +449,15 @@ export default function Resources() {
 
           </div>
 
-          {/* trash accumulated */}
-          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex-1 min-w-[240px] flex flex-col">
-            <div className="w-full">
-              <p className="font-bold text-sm p-2">TRASH ACCUMULATION SEVERITY RANKING</p>
-            </div>
 
-            <div className="flex-1 flex flex-col overflow-y-auto min-h-0">
-              <Table>
-                <TableHeader className="bg-[#F5F6F9]">
-                  <TableRow>
-                    <TableHead className="text-[#727272] text-left text-xs">RANK</TableHead>
-<TableHead className="text-[#727272] text-left text-xs whitespace-normal max-w-[90px]">HOTSPOT</TableHead>
-<TableHead className="text-[#727272] text-left text-xs whitespace-normal max-w-[80px]">CLOG<br/>SEVERITY</TableHead>
-                  </TableRow>
-                </TableHeader>
-
-                <TableBody>
-                  {rankedNodes.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={3}
-                        className="text-center text-sm text-[#727272] py-20"
-                      >
-                        No assigned sensor nodes available.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    rankedNodes.map((node, index) => {
-                      const clogPct = getLatestClogPct(node.node_id).clogPct
-                      const rankInfo = getClogRankLevel(clogPct)
-
-                      return (
-                        <TableRow
-                          key={node.node_id}
-                          className="border-b-0"
-                        >
-                          {/* Rank */}
-                          <TableCell className="text-left text-xs">
-                            {index + 1}
-                          </TableCell>
-
-                          {/* Hotspot */}
-                          <TableCell className="text-left text-xs whitespace-normal max-w-[90px]">
-                            {node.hotspot_details?.name ?? "—"}
-                          </TableCell>
-
-                          {/* Severity Index */}
-                          <TableCell className="flex justify-left">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-3 rounded-full border border-[#64748B] overflow-hidden bg-[#E5E7EB]">
-                                <div
-                                  className={`${rankInfo.color} h-full rounded-full`}
-                                  style={{
-                                    width: `${clogPct ?? 0}%`
-                                  }}
-                                />
-                              </div>
-
-                              <span className="text-xs min-w-[40px]">
-                                {clogPct === null ? "—" : `${Math.round(clogPct)}%`}
-                              </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  )}
-                </TableBody>
-              </Table>
-              <div className="border-t px-4 py-2 mt-auto">
-                <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#122A48]">
-                  <div className="flex flex-col items-center">
-                    <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#E85656]" />
-                      <span>67% - 100%</span>
-                    </div>
-                    <div>
-                      <p>Critical</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#FFCC00]" />
-                      <span>34% - 66%</span>
-                    </div>
-                    <div>
-                      <p>Medium</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="flex gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#2C7B3C]" />
-                      <span>0% - 33%</span>
-                    </div>
-                    <div>
-                      <p>Low</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
 
           {/* priority */}
-          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1 min-w-[220px]">
+          <div className="rounded-lg border border-[#C6C6C8] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] bg-[#FAFCFD] flex flex-col flex-1 min-w-[300px]">
   
             <div className="p-2 border-b">
               <p className="font-bold text-sm">PRIORITY DEPLOYMENT QUEUE</p>
               <p className="text-xs text-[#727272]">
-                Based on trash accumulation severity.
+                Based on clog severity.
               </p>
             </div>
 
@@ -560,7 +481,13 @@ export default function Resources() {
                         {item.barangay}
                       </p>
                       <p className="text-[11px]">
-                        Severity: {item.pct === null ? "—" : `${item.pct}%`}
+                        Clog: {item.pct === null ? "—" : `${Math.round(item.pct)}%`}
+                      </p>
+                      <p className="text-[11px] text-[#727272]">
+                        {item.wasteType} · {item.kg === null ? "— kg" : `${item.kg.toFixed(1)} kg (est.)`}
+                      </p>
+                      <p className="text-[11px] text-[#727272]">
+                        {item.hoursOpen === null ? "No open clog" : `Open for ${item.hoursOpen} h`}
                       </p>
                     </div>
                   </div>
@@ -600,6 +527,40 @@ export default function Resources() {
               ))}
             </div>
 
+                          <div className="border-t px-4 py-2 mt-auto">
+                <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#122A48]">
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#E85656]" />
+                      <span>80% - 100%</span>
+                    </div>
+                    <div>
+                      <p>Critical</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#FFCC00]" />
+                      <span>30% - 79%</span>
+                    </div>
+                    <div>
+                      <p>Medium</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#2C7B3C]" />
+                      <span>0% - 29%</span>
+                    </div>
+                    <div>
+                      <p>Low</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
           </div>
         </div>
 
@@ -613,8 +574,10 @@ export default function Resources() {
               <TableRow>
                   <TableHead className="text-left text-xs text-[#727272]">NODE</TableHead>
                   <TableHead className="text-left text-xs text-[#727272]">LOCATION</TableHead>
-                  <TableHead className="text-left text-xs text-[#727272]">CLOG SEVERITY INDEX</TableHead>
-                  <TableHead className="text-left text-xs text-[#727272]">TRASH VOLUME (kg)</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]" title="Based on water flow rate (60%) and rising water level (40%)">CLOG SEVERITY INDEX</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">DOMINANT WASTE TYPE</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">ESTIMATED WASTE (kg)</TableHead>
+                  <TableHead className="text-left text-xs text-[#727272]">OPEN FOR</TableHead>
                   <TableHead className="text-left text-xs text-[#727272]">STATUS</TableHead>
                   <TableHead className="text-left text-xs text-[#727272]">LAST UPDATED</TableHead>
               </TableRow>
@@ -624,7 +587,7 @@ export default function Resources() {
               {rankedNodes.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={8}
                     className="text-center text-sm text-[#727272] py-20"
                   >
                     No waste hotspots data available.
@@ -635,6 +598,7 @@ export default function Resources() {
                   const { clogPct, latestReading } = getLatestClogPct(node.node_id)
                   const clogSeverity = getClogSeverity(clogPct)
                   const latestWaste = latestWasteByNode[node.node_id]
+                  const hoursOpen = getHoursOpen(node.node_id)
 
                   return (
                     <TableRow
@@ -671,7 +635,15 @@ export default function Resources() {
                       </TableCell>
 
                       <TableCell className="text-left text-xs">
-                        {latestWaste ? `${latestWaste.estimated_volume.toFixed(2)} kg` : "—"}
+                        {latestWaste && latestWaste.dominant_waste_type !== 'None' ? latestWaste.dominant_waste_type : "—"}
+                      </TableCell>
+
+                      <TableCell className="text-left text-xs">
+                        {latestWaste ? `${latestWaste.estimated_volume.toFixed(2)} kg (est.)` : "—"}
+                      </TableCell>
+
+                      <TableCell className="text-left text-xs">
+                        {hoursOpen === null ? "No open clog" : `${hoursOpen} h`}
                       </TableCell>
 
                       {/* Status — derived from the same clog_pct as the Severity Index above,

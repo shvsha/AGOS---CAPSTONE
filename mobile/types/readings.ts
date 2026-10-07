@@ -12,6 +12,8 @@ export interface SensorReading {
   water_flow_rate: number | null
   water_flow: 'Normal' | 'Slow' | 'Stagnant'
   reading_status: ReadingStatus
+  clog_status: ReadingStatus | null
+  overall_status: ReadingStatus | null
   clog_pct: number | null
   timestamp: string
 }

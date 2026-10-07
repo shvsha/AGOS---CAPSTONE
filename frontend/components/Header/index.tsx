@@ -1,20 +1,21 @@
 "use client"
 
 // icons
-import { Menu } from 'lucide-react' 
+import { Menu } from 'lucide-react'
 import NotificationsDropdown from '@/components/Header/NotificationsDropdown'
 
 import Link from 'next/link'
 
 // react
 import { usePathname } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 
 
 // lib
 import { fetchWithAuth, getUserRole } from '@/lib/auth'
 import { useDrawer } from '@/lib/drawer-context' 
 import { resolveSoundUrl} from '@/lib/soundUtils'
+import { useWebSocket } from '@/lib/hooks/useWebSocket'
 
 
 const SEVERITY_MAP: Record<string, "critical" | "warning" | "info"> = {
@@ -28,6 +29,10 @@ const SEVERITY_MAP: Record<string, "critical" | "warning" | "info"> = {
   Sensor_Failure: "info",
   Report_Submitted: "info",
 }
+
+const SEVERITY_RANK: Record<string, number> = { critical: 3, warning: 2, info: 1 }
+
+type AlertLite = { alert_id: number; alert_type: string }
 
 
 // map pathnames to page titles
@@ -82,9 +87,10 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0)
   const { setDrawerOpen } = useDrawer()
 
-  const lastSeenAlertId = useRef<number | null>(null)
+  const seenAlertIds = useRef<Set<number>>(new Set())
+  const pendingAlerts = useRef<AlertLite[]>([])
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const soundConfigRef = useRef<AlertSoundConfig | null>(null)
-
 
   useEffect(() => {
     const role = getUserRole()
@@ -108,23 +114,26 @@ export default function Header() {
     return () => clearInterval(interval)
   }, [])
 
-  // Load sound settings once on mount
-  useEffect(() => {
-    async function loadSoundConfig() {
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alert-sounds/config/`)
-        if (res.ok) soundConfigRef.current = await res.json()
-      } catch {}
-    }
-
-    loadSoundConfig()
+  // Sound settings: load on mount and again whenever the page changes
+  // (so changes saved in Settings apply when you come back)
+  const loadSoundConfig = useCallback(async () => {
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alert-sounds/config/`)
+      if (res.ok) {
+        const cfg = await res.json()
+        soundConfigRef.current = cfg
+      }
+    } catch {}
   }, [])
 
-  function playAlertSound(alertType: string) {
+  useEffect(() => {
+    loadSoundConfig()
+  }, [pathname, loadSoundConfig])
+
+  function playSeverity(severity: "critical" | "warning" | "info") {
     const config = soundConfigRef.current
     if (!config || !config.sound_enabled) return
 
-    const severity = SEVERITY_MAP[alertType] ?? "info"
     const soundValue =
       severity === "critical" ? config.critical_sound :
       severity === "warning" ? config.warning_sound :
@@ -132,36 +141,77 @@ export default function Header() {
 
     const audio = new Audio(resolveSoundUrl(soundValue))
     audio.play().catch(() => {
-      // Browsers block autoplay until the user has interacted with the page at least once — expected, not an error
+      // browsers block sound until the user has clicked on the page once; nothing to do
     })
   }
 
-  // Poll for the newest alert, detect genuinely new ones, play a sound once per new alert
+  // Play ONE sound for a batch of new alerts: the most severe one.
+  async function notifyNewAlerts(alerts: AlertLite[]) {
+    const fresh = alerts.filter(a => !seenAlertIds.current.has(a.alert_id))
+    if (fresh.length === 0) return
+    fresh.forEach(a => seenAlertIds.current.add(a.alert_id))
+
+    if (!soundConfigRef.current) await loadSoundConfig()
+
+    const top = fresh
+      .map(a => SEVERITY_MAP[a.alert_type] ?? "info")
+      .sort((a, b) => SEVERITY_RANK[b] - SEVERITY_RANK[a])[0]
+    playSeverity(top)
+  }
+
+  // Alerts that arrive within a moment of each other are grouped into one sound.
+  function queueAlert(alert: AlertLite) {
+    pendingAlerts.current.push(alert)
+    if (flushTimer.current) return
+    flushTimer.current = setTimeout(() => {
+      const batch = pendingAlerts.current
+      pendingAlerts.current = []
+      flushTimer.current = null
+      notifyNewAlerts(batch)
+    }, 400)
+  }
+
+  // Live: every new alert is pushed over the websocket as soon as it's created.
+  useWebSocket({
+    path: "/ws/alerts/",
+    onMessage: (alert) => {
+      if (alert?.alert_id == null) return
+      queueAlert({ alert_id: alert.alert_id, alert_type: alert.alert_type })
+    },
+  })
+
+  // Safety net: remember what already exists on first load (no sound for it),
+  // then catch anything the socket missed, every 30 s and when the tab is shown again.
   useEffect(() => {
-    async function checkNewAlert() {
+    let first = true
+
+    async function sync() {
       try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/?page_size=1`)
+        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/alerts/?page_size=20`)
         if (!res.ok) return
         const data = await res.json()
-        const latest = data.results?.[0]
-        if (!latest) return
+        const list = (data.results ?? data) as AlertLite[]
 
-        if (lastSeenAlertId.current === null) {
-          // First load: just remember it, don't play a sound for something that already existed
-          lastSeenAlertId.current = latest.alert_id
+        if (first) {
+          list.forEach(a => seenAlertIds.current.add(a.alert_id))
+          first = false
           return
         }
-
-        if (latest.alert_id > lastSeenAlertId.current) {
-          lastSeenAlertId.current = latest.alert_id
-          playAlertSound(latest.alert_type)
-        }
+        notifyNewAlerts(list)
       } catch {}
     }
 
-    checkNewAlert()
-    const interval = setInterval(checkNewAlert, 60000)
-    return () => clearInterval(interval)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync()
+    }
+
+    sync()
+    const interval = setInterval(sync, 30000)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   const title = pageTitles[pathname] ?? "AGOS"
@@ -183,7 +233,6 @@ export default function Header() {
         <h1 className='text-base font-bold text-white'>{title}</h1>
       </div>
 
-      {/* notification bell */}
       <NotificationsDropdown
         alertHref={alertHref}
         unreadCount={unreadCount}

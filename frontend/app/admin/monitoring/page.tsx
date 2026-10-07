@@ -74,8 +74,8 @@ const openInGoogleMaps = (latitude: number, longitude: number) => {
 };
 
 const getClogPctColor = (value: number) => {
-  if (value < 34) return 'text-[#2C7B3C]' 
-  if (value < 67) return 'text-[#E4B600]'
+  if (value < 30) return 'text-[#2C7B3C]'
+  if (value < 80) return 'text-[#E4B600]'
   return 'text-[#D81010]'
 }
 
@@ -230,7 +230,7 @@ export default function Monitoring() {
     onMessage: (reading) => {
       nodes.setData(prev => prev.map(node =>
         node.node_id === reading.node_details.node_id
-          ? { ...node, water_level: reading.water_level, water_flow_rate: reading.water_flow_rate, clog_pct: reading.clog_pct, condition: reading.reading_status }
+          ? { ...node, water_level: reading.water_level, water_flow_rate: reading.water_flow_rate, clog_pct: reading.clog_pct, condition: reading.overall_status ?? reading.reading_status, is_online: true }
           : node
       ))
     },
@@ -487,9 +487,9 @@ export default function Monitoring() {
               </div>
               <div className='flex flex-col'>
                 {[
-                  { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', percent: "67-100%", label: "Critical" },
-                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '34-66%',  label: "Warning" },
-                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-33%', label: "Normal" },
+                  { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', percent: "80-100%", label: "Critical" },
+                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '30-79%',  label: "Warning" },
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-29%', label: "Normal" },
                 ].map(status => (
                   <div key={status.label} className="flex justify-between items-center py-3 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">

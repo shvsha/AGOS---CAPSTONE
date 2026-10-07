@@ -85,22 +85,40 @@ def open_assignment(node, hotspot, started_at=None, user=None):
     )
 
 
+def _boundary_start(node, requested=None):
+    """
+    Earliest moment a new assignment row may start without rewriting history.
+    Moving a node can't pull readings that already happened at the old hotspot
+    over to the new one, whatever install date was entered.
+    """
+    now = timezone.now()
+    requested = requested or now
+
+    if get_open_assignment(node):
+        floor = now
+    else:
+        last = (
+            NodeAssignmentHistory.objects
+            .filter(node=node, ended_at__isnull=False)
+            .order_by('-ended_at')
+            .first()
+        )
+        floor = last.ended_at if last else None
+
+    return max(requested, floor) if floor else requested
+
+
 @transaction.atomic
 def assign_node(node, hotspot, installed_at=None, user=None):
-    """
-    Attaches `hotspot` to `node`: closes any open row as Reassigned,
-    opens a new one, and syncs the node's own fields. Used by the
-    assign/move paths and by mark-available.
-    """
-    started_at = _to_datetime(installed_at) or timezone.now()
+    requested = _to_datetime(installed_at) or timezone.now()
+    started_at = _boundary_start(node, requested)   # must run BEFORE closing the open row
 
-    # End the old row exactly where the new one begins so they never overlap.
     close_open_assignment(node, reason='Reassigned', user=user, when=started_at)
 
     node.hotspot = hotspot
     node.barangay = hotspot.barangay
     node.availability_status = 'Occupied'
-    node.installed_at = started_at
+    node.installed_at = requested          # the install date as entered
     node.save(update_fields=[
         'hotspot', 'barangay', 'availability_status', 'installed_at'
     ])
@@ -140,12 +158,17 @@ def sync_assignment_change(node, previous_hotspot_id, user=None, installed_at=No
         if installed_at:
             row = get_open_assignment(node)
             if row:
-                row.started_at = installed_at
+                previous = NodeAssignmentHistory.objects.filter(
+                    node=node, started_at__lt=row.started_at
+                ).exclude(pk=row.pk).order_by('-started_at').first()
+                floor = previous.ended_at if previous and previous.ended_at else None
+                row.started_at = max(installed_at, floor) if floor else installed_at
                 row.save(update_fields=['started_at'])
                 _align_previous_row(row)
         return
 
-    started_at = installed_at or node.installed_at or timezone.now()
+    requested = installed_at or node.installed_at or timezone.now()
+    started_at = _boundary_start(node, requested)
 
     if now_id is None:
         close_open_assignment(node, reason='Unassigned', user=user)

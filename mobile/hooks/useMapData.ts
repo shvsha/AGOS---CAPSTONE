@@ -47,22 +47,32 @@ export function useMapData() {
     fetchAll();
     }, [fetchAll]);
 
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const nodeData = await api.get("/api/sensor-nodes/");
+        if (nodeData) setNodes(nodeData);
+      } catch {}
+    }, 30000);
+    return () => clearInterval(id);
+  }, []);
+
     useLiveSocket<{
     node_details: { node_id: number };
     water_level: number | null;
     water_flow_rate: number | null;
     clog_pct: number | null;
     timestamp: string;
+    reading_status: string;
+    overall_status: string | null;
   }>(
     'ws/sensor-readings/',
     (incoming) => {
       const nodeId = incoming.node_details?.node_id;
       if (nodeId == null) return;
 
-      const condition =
-        incoming.clog_pct == null ? null :
-        incoming.clog_pct >= 67 ? 'Critical' :
-        incoming.clog_pct >= 34 ? 'Warning' : 'Normal';
+      const condition = (incoming.overall_status ?? incoming.reading_status ?? null) as
+        "Normal" | "Warning" | "Critical" | null;
 
       setNodes((prev) =>
         prev.map((n) =>
@@ -74,6 +84,7 @@ export function useMapData() {
                 clog_pct: incoming.clog_pct,
                 condition,
                 last_reading_at: incoming.timestamp,
+                is_online: true,
               }
             : n
         )

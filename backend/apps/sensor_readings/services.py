@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db.models import Q
 
 from .models import SensorReading
 from apps.clog_events.models import ClogEvent
@@ -46,6 +47,54 @@ def get_clog_severity(clog_pct):
     if clog_pct >= CLOG_PCT_THRESHOLDS['Low']:
         return 'Low'
     return None
+
+
+STATUS_RANK = {'Normal': 0, 'Warning': 1, 'Critical': 2}
+RANK_TO_STATUS = {v: k for k, v in STATUS_RANK.items()}
+
+
+def get_clog_status(clog_pct):
+    """
+    Clog % -> Normal / Warning / Critical, using the SAME cutoffs as the
+    clog alerts (30 / 60 / 80). Low and Moderate both map to Warning.
+    Returns None when there is no clog % yet.
+    """
+    severity = get_clog_severity(clog_pct)
+    if clog_pct is None:
+        return None
+    if severity == 'High':
+        return "Critical"
+    if severity in ('Low', 'Medium'):
+        return 'Warning'
+    return 'Normal'
+
+
+def get_overall_status(water_status, clog_status):
+    """
+    Worst of the water-level status and the clog status.
+    If one is missing (e.g. clog % not computed yet), use the other.
+    """
+    ranks = [STATUS_RANK[s] for s in (water_status, clog_status) if s in STATUS_RANK]
+    if not ranks:
+        return None
+    return RANK_TO_STATUS[max(ranks)]
+
+
+def overall_status_q(status):
+    """
+    Q filter matching readings whose OVERALL status (worst of water-level
+    status and clog status) equals `status`. Mirrors get_overall_status().
+    """
+    critical = Q(reading_status='Critical') | Q(clog_pct__gte=CLOG_PCT_THRESHOLDS['High'])
+    warning = Q(reading_status='Warning') | Q(clog_pct__gte=CLOG_PCT_THRESHOLDS['Low'])
+
+    if status == 'Critical':
+        return critical
+    if status == 'Warning':
+        return warning & ~critical
+    if status == 'Normal':
+        return ~critical & ~warning
+    return Q()
 
 
 def evaluate_clog(reading):

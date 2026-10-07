@@ -25,18 +25,6 @@ def get_clear_streak_count(barangay):
     except AlertThreshold.DoesNotExist:
         return 5  # safe fallback
 
-CLOG_PCT_THRESHOLDS = {
-    'High':   80,
-    'Medium': 60,
-    'Low':    30,
-}
-
-CLOG_SEVERITY_RANK = {
-    'Low': 1,
-    'Medium': 2,
-    'High': 3,
-}
-
 WATER_LEVEL_SEVERITY_RANK = {
     'Normal':   0,
     'Warning':  1,
@@ -44,20 +32,6 @@ WATER_LEVEL_SEVERITY_RANK = {
 }
 
 WATER_LEVEL_COOLDOWN = timedelta(hours=1)
-CLOG_ALERT_COOLDOWN = timedelta(hours=1)
-
-
-def get_clog_severity(clog_pct):
-    if clog_pct is None:
-        return None
-    if clog_pct >= CLOG_PCT_THRESHOLDS['High']:
-        return 'High'
-    if clog_pct >= CLOG_PCT_THRESHOLDS['Medium']:
-        return 'Medium'
-    if clog_pct >= CLOG_PCT_THRESHOLDS['Low']:
-        return 'Low'
-    return None
-
 
 WATER_LEVEL_RISING_SAMPLE_SIZE = 5
 
@@ -131,8 +105,11 @@ def handle_abnormal_reading(sender, instance, created, **kwargs):
 
 
 @receiver(post_save, sender=SensorReading)
-def broadcast_new_reading(sender, instance, created, **kwargs):
-    if not created:
+def broadcast_new_reading(sender, instance, created, update_fields=None, **kwargs):
+    # Broadcast on creation, and again when the clog % is filled in later
+    # (the camera result arrives after the MQTT row is created).
+    clog_just_saved = bool(update_fields) and 'clog_pct' in update_fields
+    if not created and not clog_just_saved:
         return
 
     channel_layer = get_channel_layer()

@@ -26,6 +26,7 @@ import { api } from "@/lib/api"
 import { DIALOG_COLOR } from "@/lib/constant"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
+import { usePolling } from "@/components/hooks/usePolling";
 
 // auth
 import { fetchWithAuth } from "@/lib/auth";
@@ -60,6 +61,7 @@ type SensorNode = {
   status: string
   health_status: string | null
   is_online: boolean
+  last_reading_at: string | null
   device_model?: string
   hotspot_details: { hotspot_id: number; name: string; latitude: number; longitude: number } | null
   barangay_details: { barangay_id: number; barangay_name: string } | null
@@ -252,6 +254,8 @@ export default function Health() {
   useEffect(() => {
     fetchNodes()
   }, [])
+
+  usePolling(async () => { await fetchNodes() }, 30000)
 
   const fetchHealthLogs = async () => {
     try {
@@ -567,14 +571,18 @@ export default function Health() {
                       Inactive:    { bg: '#E5E5E6',   text: '#727272', dot: 'bg-[#727272]' },
                       Maintenance: { bg: '#EE9E4342', text: '#D27000', dot: 'bg-[#D27000]' },
                     }
-                    const s = statusStyle[selectedNode.node_details.status] ?? statusStyle.Inactive
+                    const liveNode = allNodes.find(n => n.node_id === selectedNode.node_details.node_id)
+                    const label =
+                      (liveNode?.status ?? selectedNode.node_details.status) === 'Maintenance' ? 'Maintenance' :
+                      liveNode?.is_online ? 'Active' : 'Inactive'
+                    const s = statusStyle[label]
                     return (
                       <div
                         className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs"
                         style={{ backgroundColor: s.bg, color: s.text }}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                        <p className="font-medium">{selectedNode.node_details.status}</p>
+                        <p className="font-medium">{label}</p>
                       </div>
                     )
                   })()}
@@ -661,9 +669,12 @@ export default function Health() {
                         <p className="text-[10px]">{selectedNode.firmware_version ?? '—'}</p>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <p>Uptime</p>
+                        <p>Online</p>
                         <p className="text-[#727272] text-[10px]">
-                          {selectedNode.checked_at ? getRelativeTime(selectedNode.checked_at) : '—'}
+                          {(() => {
+                            const t = allNodes.find(n => n.node_id === selectedNodeId)?.last_reading_at
+                            return t ? getRelativeTime(t) : '—'
+                          })()}
                         </p>
                       </div>
                     </div>

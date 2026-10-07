@@ -32,6 +32,7 @@ export function useReadings() {
   const monthRef = useRef<string>(currentMonthValue())
   const hasLoadedOnce = useRef(false)
   const requestId = useRef(0) // drops responses from superseded requests
+  const seenIdsRef = useRef<Set<number>>(new Set())
 
   const fetchReadings = useCallback(async (tab: SeverityTab, pageNum: number, isRefresh = false) => {
     const myRequest = ++requestId.current
@@ -87,13 +88,21 @@ export function useReadings() {
         if (barangayId == null || barangayId !== user.barangay_id) return
       }
 
-      const key = incoming.reading_status.toLowerCase() as 'normal' | 'warning' | 'critical'
-      setSummary((prev) => ({ ...prev, total: prev.total + 1, [key]: prev[key] + 1 }))
+      const status = (incoming.overall_status ?? incoming.reading_status) as ReadingStatus
+      const key = status.toLowerCase() as 'normal' | 'warning' | 'critical'
 
-      const matchesTab = tabRef.current === 'All' || tabRef.current === incoming.reading_status
+      // The same reading can arrive twice (once when created, once when the
+      // clog % is filled in). Only count it the first time.
+      const isFirstTime = !seenIdsRef.current.has(incoming.reading_id)
+      seenIdsRef.current.add(incoming.reading_id)
+      if (isFirstTime) {
+        setSummary((prev) => ({ ...prev, total: prev.total + 1, [key]: prev[key] + 1 }))
+      }
+
+      const matchesTab = tabRef.current === 'All' || tabRef.current === status
       if (!matchesTab) return
 
-      setMatchCount((c) => c + 1)
+      if (isFirstTime) setMatchCount((c) => c + 1)
       if (pageRef.current === 1) {
         setReadings((prev) =>
           [incoming, ...prev.filter((r) => r.reading_id !== incoming.reading_id)].slice(0, READINGS_PAGE_SIZE)

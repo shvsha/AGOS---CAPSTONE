@@ -141,7 +141,7 @@ export default function ReadingsScreen() {
           </Text>
         ) : (
           readings.map((item) => {
-            const statusStyle = STATUS_STYLE[item.reading_status] ?? STATUS_STYLE.Normal
+            const statusStyle = STATUS_STYLE[item.overall_status ?? item.reading_status] ?? STATUS_STYLE.Normal
             const hotspotName = item.node_details?.hotspot_details?.name ?? '—'
             const nodeName = item.node_details?.node_name ?? '—'
             const barangayName = item.node_details?.barangay_details?.barangay_name
@@ -165,7 +165,7 @@ export default function ReadingsScreen() {
                   </View>
                   <View className="px-2.5 py-1 rounded-2xl" style={{ backgroundColor: statusStyle.bg }}>
                     <Text className="text-[10px] font-extrabold" style={{ color: statusStyle.text }}>
-                      {item.reading_status}
+                      {item.overall_status ?? item.reading_status}
                     </Text>
                   </View>
                 </View>
@@ -206,6 +206,11 @@ export default function ReadingsScreen() {
                       style={{ width: `${Math.min(clog ?? 0, 100)}%`, backgroundColor: clogInfo.color }}
                     />
                   </View>
+                </View>
+
+                <View className="flex-row gap-2 mt-2.5">
+                  <Text className="text-[10px] text-[#64748B]">Water Level: <Text className="font-bold">{item.reading_status}</Text></Text>
+                  <Text className="text-[10px] text-[#64748B]">Clog: <Text className="font-bold">{item.clog_status ?? '--'}</Text></Text>
                 </View>
               </View>
             )
