@@ -12,7 +12,7 @@ import { useState } from "react"
 
 const ALERT_TYPES = [
   "All", "Water Level Rising", "Low Clog", "Moderate Clog",
-  "Critical Clog", "Node Offline", "Low Battery", "Weak Signal", "Sensor Failure",
+  "Critical Clog", "Node Offline", "Low Battery", "Weak Signal", "Sensor Failure", "Report Submitted"
 ]
 
 export function AlertsSkeleton() {

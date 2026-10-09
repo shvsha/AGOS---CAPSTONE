@@ -2,7 +2,12 @@ from datetime import timedelta
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
-from .models import SystemHealthLog
+import logging
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+from .models import SystemHealthLog, NodeAssignmentHistory
 from apps.alerts.models import Alert
 
 # Single-cell Li-ion discharge curve used app-wide (matches frontend getBatteryPct):
@@ -12,6 +17,7 @@ BATTERY_FULL_V = 4.2
 LOW_BATTERY_PCT_THRESHOLD = 25  # = 3.3V on the 3.0–4.2V scale, matches firmware's Warning line exactly
 
 HEALTH_ALERT_COOLDOWN = timedelta(hours=1)
+logger = logging.getLogger(__name__)
 
 
 def get_battery_pct(voltage):
@@ -46,3 +52,31 @@ def create_health_alert(sender, instance, created, **kwargs):
 
     if instance.status == 'Critical':
         _fire_if_not_on_cooldown(instance.node, instance, 'Node_Offline')
+
+
+def _broadcast(group, message):
+    # a websocket/Redis hiccup must never break health ingestion
+    try:
+        async_to_sync(get_channel_layer().group_send)(group, message)
+    except Exception:
+        logger.exception("WebSocket broadcast to %s failed", group)
+
+
+@receiver(post_save, sender=SystemHealthLog)
+def broadcast_health_log(sender, instance, created, **kwargs):
+    if not created:
+        return
+    from .serializers import SystemHealthLogSerializer
+    _broadcast("node_health", {
+        "type": "health_message",
+        "health": SystemHealthLogSerializer(instance).data,
+    })
+
+
+@receiver(post_save, sender=NodeAssignmentHistory)
+def broadcast_assignment_history(sender, instance, created, **kwargs):
+    from .serializers import NodeAssignmentHistorySerializer
+    _broadcast("node_assignments", {
+        "type": "assignment_message",
+        "assignment": NodeAssignmentHistorySerializer(instance).data,
+    })

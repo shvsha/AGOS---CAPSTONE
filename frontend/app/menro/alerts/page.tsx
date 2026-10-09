@@ -50,6 +50,7 @@ const ALERT_TYPES = [
   { value: "Low_Clog_Alert", label: "Low Clog Alert" },
   { value: "Moderate_Clog_Alert", label: "Moderate Clog Alert" },
   { value: "Critical_Clog", label: "Critical Clog" },
+  { value: "Report_Submitted", label: "Report Submitted"},
 ]
 
 
@@ -149,9 +150,12 @@ export default function Alerts() {
     } catch {}
   }
 
+  const MENRO_ALLOWED = new Set(menroTypes)
+
   useWebSocket({
     path: "/ws/alerts/",
     onMessage: (newAlert) => {
+      if (!MENRO_ALLOWED.has(newAlert.alert_type)) return
       activeAlerts.setData(prev => [newAlert, ...prev])
     },
   })

@@ -49,8 +49,10 @@ export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOp
       onMessageRef.current(data)
     }
 
-    ws.onclose = () => {
-      wsRef.current = null
+  ws.onclose = () => {
+    const intentional = wsRef.current !== ws
+    if (wsRef.current === ws) wsRef.current = null
+    if (intentional) return
       if (enabled) {
         reconnectTimeoutRef.current = setTimeout(connect, reconnectDelayRef.current)
         reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, MAX_RECONNECT_DELAY_MS)
@@ -66,7 +68,9 @@ export function useWebSocket({ path, onMessage, enabled = true }: UseWebSocketOp
     connect()
     return () => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-      wsRef.current?.close()
+      const ws = wsRef.current
+      wsRef.current = null
+      ws?.close()
     }
   }, [connect])
 }

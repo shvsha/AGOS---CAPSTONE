@@ -4,7 +4,7 @@
 import { BatteryMedium, Signal, ScanSearch, Radar, FileSearch, Battery, FileDown, Wrench, CheckCircle2, X, Moon } from "lucide-react";
 
 // react
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // components
 import AgosMapWrapper from "@/components/Map/AgosMapWrapper";
@@ -242,6 +242,9 @@ export default function Health() {
     ? allNodes.find(n => n.node_id === selectedNode.node_details.node_id) ?? null
     : null  
 
+  const SELECTED_NODE_KEY = 'agos:health:selectedNodeId'
+  const restoredSelectionRef = useRef(false)
+
   const fetchNodes = async () => {
     try {
       const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/`)
@@ -307,6 +310,8 @@ export default function Health() {
 
   // handlers
   const handleSelectNode = async (nodeId: number) => {
+    restoredSelectionRef.current = true
+    try { sessionStorage.setItem(SELECTED_NODE_KEY, String(nodeId)) } catch {}
     setSelectedNodeId(nodeId)
     setSelectedNode(null)
     try {
@@ -319,6 +324,22 @@ export default function Health() {
       setSelectedNode(null)
     }
   }
+
+  useEffect(() => {
+    if (restoredSelectionRef.current || allNodes.length === 0) return
+    restoredSelectionRef.current = true
+    let storedId: number | null = null
+    try {
+      const raw = sessionStorage.getItem(SELECTED_NODE_KEY)
+      storedId = raw ? Number(raw) : null
+    } catch {}
+    if (storedId == null || Number.isNaN(storedId)) return
+    if (allNodes.some(n => n.node_id === storedId)) {
+      handleSelectNode(storedId)
+    } else {
+      try { sessionStorage.removeItem(SELECTED_NODE_KEY) } catch {}
+    }
+  }, [allNodes])
 
   const handleMarkMaintenance = async () => {
     if (!selectedNode) return

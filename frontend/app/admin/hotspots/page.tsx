@@ -33,6 +33,8 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
 import { sameText, sameNum } from "@/lib/formDiff"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { historyCache } from "@/lib/historyCache"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -213,6 +215,10 @@ export default function HotspotManagement() {
   const [hotspotHistoryHasNext, setHotspotHistoryHasNext] = useState(false)
   const [hotspotHistoryHasPrev, setHotspotHistoryHasPrev] = useState(false)
 
+  const [hotspotHistoryTick, setHotspotHistoryTick] = useState(0)
+  const hotspotHistoryReqRef = useRef(0)
+  const hotspotHistoryRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // history state
   const [historyExporting, setHistoryExporting] = useState(false)
   const [historyPrintRows, setHistoryPrintRows] = useState<(string | number)[][]>([])
@@ -364,26 +370,62 @@ export default function HotspotManagement() {
       return
     }
 
+    const hotspotId = hotspotHistoryDialog.hotspot.hotspot_id
+    const cacheKey = `hotspot:${hotspotId}:assignments:${hotspotHistoryPage}`
+    const cached = historyCache.get(cacheKey)
+    if (cached) {
+      setHotspotHistoryRows(cached.rows)
+      setHotspotHistoryHasNext(cached.hasNext)
+      setHotspotHistoryHasPrev(cached.hasPrev)
+      setHotspotHistoryError(false)
+      setHotspotHistoryLoading(false)
+    }
+    const reqId = ++hotspotHistoryReqRef.current
+
     const fetchHistory = async () => {
-      setHotspotHistoryLoading(true)
+      if (!cached) setHotspotHistoryLoading(true)
       setHotspotHistoryError(false)
       try {
         const res = await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/${hotspotHistoryDialog.hotspot!.hotspot_id}/assignment-history/?page=${hotspotHistoryPage}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/hotspots/${hotspotId}/assignment-history/?page=${hotspotHistoryPage}`
         )
         if (!res.ok) throw new Error()
         const data = await res.json()
-        setHotspotHistoryRows(data.results ?? data)
-        setHotspotHistoryHasNext(!!data.next)
-        setHotspotHistoryHasPrev(!!data.previous)
+        const entry = { rows: data.results ?? data, hasNext: !!data.next, hasPrev: !!data.previous }
+        historyCache.set(cacheKey, entry)
+        if (reqId !== hotspotHistoryReqRef.current) return
+        setHotspotHistoryRows(entry.rows)
+        setHotspotHistoryHasNext(entry.hasNext)
+        setHotspotHistoryHasPrev(entry.hasPrev)
       } catch {
-        setHotspotHistoryError(true)
+        if (reqId === hotspotHistoryReqRef.current && !cached) setHotspotHistoryError(true)
       } finally {
-        setHotspotHistoryLoading(false)
+        if (reqId === hotspotHistoryReqRef.current) setHotspotHistoryLoading(false)
       }
     }
     fetchHistory()
-  }, [hotspotHistoryDialog.open, hotspotHistoryDialog.hotspot, hotspotHistoryPage])
+    }, [hotspotHistoryDialog.open, hotspotHistoryDialog.hotspot, hotspotHistoryPage, hotspotHistoryTick])
+
+    const openHotspotIdRef = useRef<number | null>(null)
+    openHotspotIdRef.current = hotspotHistoryDialog.open ? hotspotHistoryDialog.hotspot?.hotspot_id ?? null : null
+
+    useEffect(() => () => {
+      if (hotspotHistoryRefreshTimerRef.current) clearTimeout(hotspotHistoryRefreshTimerRef.current)
+    }, [])
+
+    useWebSocket({
+      path: "/ws/node-assignments/",
+      enabled: hotspotHistoryDialog.open,
+      onMessage: (row) => {
+        const id = row?.hotspot
+        if (id == null || id !== openHotspotIdRef.current) return
+        historyCache.invalidate(`hotspot:${id}:assignments:`)
+        if (hotspotHistoryRefreshTimerRef.current) clearTimeout(hotspotHistoryRefreshTimerRef.current)
+        hotspotHistoryRefreshTimerRef.current = setTimeout(() => {
+          if (openHotspotIdRef.current === id) setHotspotHistoryTick(t => t + 1)
+        }, 400)
+      },
+    })
   
   useEffect(() => {
     function handleClickOutside() {

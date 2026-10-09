@@ -35,6 +35,8 @@ import { fetchWithAuth } from "@/lib/auth"
 import { api } from "@/lib/api"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
+import { useWebSocket } from "@/lib/hooks/useWebSocket"
+import { historyCache } from "@/lib/historyCache"
 
 type SensorNode = {
   node_id: number
@@ -140,6 +142,14 @@ export default function NodeManagement() {
   const [hotspotHistoryHasPrev, setHotspotHistoryHasPrev] = useState(false)
   const hotspotHistoryFetchKeyRef = useRef('')
 
+  const [readingsTick, setReadingsTick] = useState(0)
+  const [healthTick, setHealthTick] = useState(0)
+  const [hotspotTick, setHotspotTick] = useState(0)
+  const [readingsHotspotOptionsTick, setReadingsHotspotOptionsTick] = useState(0)
+  const readingsReqRef = useRef(0)
+  const healthReqRef = useRef(0)
+  const hotspotReqRef = useRef(0)
+
   const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
   const [actionResult, setActionResult] = useState<{ name: string; action: string } | null>(null)
@@ -228,12 +238,24 @@ export default function NodeManagement() {
   useEffect(() => {
     if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'health') return
 
-    const key = `${readingsDialog.node.node_id}|${healthStatusFilter}|${healthFrom}|${healthTo}|${healthPage}`
+    const nodeId = readingsDialog.node.node_id
+    const key = `${nodeId}|${healthStatusFilter}|${healthFrom}|${healthTo}|${healthPage}|${healthTick}`
     if (healthFetchKeyRef.current === key) return
     healthFetchKeyRef.current = key
 
+    const cacheKey = `node:${nodeId}:health:${healthStatusFilter}|${healthFrom}|${healthTo}|${healthPage}`
+    const cached = historyCache.get(cacheKey)
+    if (cached) {
+      setHealthLogs(cached.rows)
+      setHealthHasNext(cached.hasNext)
+      setHealthHasPrev(cached.hasPrev)
+      setHealthError(false)
+      setHealthLoading(false)
+    }
+    const reqId = ++healthReqRef.current
+
     const fetchHealth = async () => {
-      setHealthLoading(true)
+      if (!cached) setHealthLoading(true)
       setHealthError(false)
       try {
         const params = new URLSearchParams({ page: String(healthPage) })
@@ -242,21 +264,24 @@ export default function NodeManagement() {
         if (healthTo) params.set('to', healthTo)
 
         const res = await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/system-health/node/${readingsDialog.node!.node_id}/?${params.toString()}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/system-health/node/${nodeId}/?${params.toString()}`
         )
         if (!res.ok) throw new Error()
         const data = await res.json()
-        setHealthLogs(data.results ?? data)
-        setHealthHasNext(!!data.next)
-        setHealthHasPrev(!!data.previous)
+        const entry = { rows: data.results ?? data, hasNext: !!data.next, hasPrev: !!data.previous }
+        historyCache.set(cacheKey, entry)
+        if (reqId !== healthReqRef.current) return
+        setHealthLogs(entry.rows)
+        setHealthHasNext(entry.hasNext)
+        setHealthHasPrev(entry.hasPrev)
       } catch {
-        setHealthError(true)
+        if (reqId === healthReqRef.current && !cached) setHealthError(true)
       } finally {
-        setHealthLoading(false)
+        if (reqId === healthReqRef.current) setHealthLoading(false)
       }
     }
     fetchHealth()
-  }, [readingsDialog.open, readingsDialog.node, historyTab, healthStatusFilter, healthFrom, healthTo, healthPage])
+  }, [readingsDialog.open, readingsDialog.node, historyTab, healthStatusFilter, healthFrom, healthTo, healthPage, healthTick])
 
   useEffect(() => { setHealthPage(1) }, [healthStatusFilter, healthFrom, healthTo])
   useEffect(() => { setReadingsPage(1) }, [readingsStatusFilter, readingsHotspotFilter])
@@ -280,12 +305,24 @@ export default function NodeManagement() {
   useEffect(() => {
     if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'readings') return
 
-    const key = `${readingsDialog.node.node_id}|${readingsStatusFilter}|${readingsHotspotFilter}|${readingsPage}`
+    const nodeId = readingsDialog.node.node_id
+    const key = `${nodeId}|${readingsStatusFilter}|${readingsHotspotFilter}|${readingsPage}|${readingsTick}`
     if (readingsFetchKeyRef.current === key) return
     readingsFetchKeyRef.current = key
 
+    const cacheKey = `node:${nodeId}:readings:${readingsStatusFilter}|${readingsHotspotFilter}|${readingsPage}`
+    const cached = historyCache.get(cacheKey)
+    if (cached) {
+      setNodeReadings(cached.rows)
+      setReadingsHasNext(cached.hasNext)
+      setReadingsHasPrev(cached.hasPrev)
+      setReadingsError(false)
+      setReadingsLoading(false)
+    }
+    const reqId = ++readingsReqRef.current
+
     const fetchReadings = async () => {
-      setReadingsLoading(true)
+      if (!cached) setReadingsLoading(true)
       setReadingsError(false)
       try {
         const params = new URLSearchParams({ page: String(readingsPage) })
@@ -297,48 +334,116 @@ export default function NodeManagement() {
         )
         if (!res.ok) throw new Error()
         const data = await res.json()
-        setNodeReadings(data.results ?? data)
-        setReadingsHasNext(!!data.next)
-        setReadingsHasPrev(!!data.previous)
+        const entry = { rows: data.results ?? data, hasNext: !!data.next, hasPrev: !!data.previous }
+        historyCache.set(cacheKey, entry)
+        if (reqId !== readingsReqRef.current) return
+        setNodeReadings(entry.rows)
+        setReadingsHasNext(entry.hasNext)
+        setReadingsHasPrev(entry.hasPrev)
       } catch {
-        setReadingsError(true)
+        if (reqId === readingsReqRef.current && !cached) setReadingsError(true)
       } finally {
-        setReadingsLoading(false)
+        if (reqId === readingsReqRef.current) setReadingsLoading(false)
       }
     }
     fetchReadings()
-  }, [readingsDialog.open, readingsDialog.node, historyTab, readingsStatusFilter, readingsHotspotFilter, readingsPage])
+  }, [readingsDialog.open, readingsDialog.node, historyTab, readingsStatusFilter, readingsHotspotFilter, readingsPage, readingsTick])
 
   useEffect(() => {
     if (!readingsDialog.open || !readingsDialog.node || historyTab !== 'hotspot') return
 
-    const key = `${readingsDialog.node.node_id}|${hotspotReasonFilter}|${hotspotHistoryPage}`
+    const nodeId = readingsDialog.node.node_id
+    const key = `${nodeId}|${hotspotReasonFilter}|${hotspotHistoryPage}|${hotspotTick}`
     if (hotspotHistoryFetchKeyRef.current === key) return
     hotspotHistoryFetchKeyRef.current = key
 
+    const cacheKey = `node:${nodeId}:hotspot:${hotspotReasonFilter}|${hotspotHistoryPage}`
+    const cached = historyCache.get(cacheKey)
+    if (cached) {
+      setHotspotHistory(cached.rows)
+      setHotspotHistoryHasNext(cached.hasNext)
+      setHotspotHistoryHasPrev(cached.hasPrev)
+      setHotspotHistoryError(false)
+      setHotspotHistoryLoading(false)
+    }
+    const reqId = ++hotspotReqRef.current
+
     const fetchHotspotHistory = async () => {
-      setHotspotHistoryLoading(true)
+      if (!cached) setHotspotHistoryLoading(true)
       setHotspotHistoryError(false)
       try {
         const params = new URLSearchParams({ page: String(hotspotHistoryPage) })
         if (hotspotReasonFilter !== 'All') params.set('reason', hotspotReasonFilter)
 
         const res = await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/${readingsDialog.node!.node_id}/assignment-history/?${params.toString()}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/${nodeId}/assignment-history/?${params.toString()}`
         )
         if (!res.ok) throw new Error()
         const data = await res.json()
-        setHotspotHistory(data.results ?? data)
-        setHotspotHistoryHasNext(!!data.next)
-        setHotspotHistoryHasPrev(!!data.previous)
+        const entry = { rows: data.results ?? data, hasNext: !!data.next, hasPrev: !!data.previous }
+        historyCache.set(cacheKey, entry)
+        if (reqId !== hotspotReqRef.current) return
+        setHotspotHistory(entry.rows)
+        setHotspotHistoryHasNext(entry.hasNext)
+        setHotspotHistoryHasPrev(entry.hasPrev)
       } catch {
-        setHotspotHistoryError(true)
+        if (reqId === hotspotReqRef.current && !cached) setHotspotHistoryError(true)
       } finally {
-        setHotspotHistoryLoading(false)
+        if (reqId === hotspotReqRef.current) setHotspotHistoryLoading(false)
       }
     }
     fetchHotspotHistory()
-  }, [readingsDialog.open, readingsDialog.node, historyTab, hotspotReasonFilter, hotspotHistoryPage])
+  }, [readingsDialog.open, readingsDialog.node, historyTab, hotspotReasonFilter, hotspotHistoryPage, hotspotTick])
+
+  const openNodeIdRef = useRef<number | null>(null)
+  openNodeIdRef.current = readingsDialog.open ? readingsDialog.node?.node_id ?? null : null
+  const wsTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  const scheduleHistoryRefresh = useCallback((tab: 'readings' | 'health' | 'hotspot', nodeId: number) => {
+    historyCache.invalidate(`node:${nodeId}:${tab}:`)
+    clearTimeout(wsTimersRef.current[tab])
+    wsTimersRef.current[tab] = setTimeout(() => {
+      if (openNodeIdRef.current !== nodeId) return
+      if (tab === 'readings') setReadingsTick(t => t + 1)
+      else if (tab === 'health') setHealthTick(t => t + 1)
+      else setHotspotTick(t => t + 1)
+    }, 400)
+  }, [])
+
+  useEffect(() => {
+    const timers = wsTimersRef.current
+    return () => { Object.values(timers).forEach(clearTimeout) }
+  }, [])
+
+  useWebSocket({
+    path: "/ws/sensor-readings/",
+    enabled: readingsDialog.open,
+    onMessage: (reading) => {
+      const id = reading?.node_details?.node_id
+      if (id != null && id === openNodeIdRef.current) scheduleHistoryRefresh('readings', id)
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/node-health/",
+    enabled: readingsDialog.open,
+    onMessage: (log) => {
+      const id = log?.node_details?.node_id
+      if (id != null && id === openNodeIdRef.current) scheduleHistoryRefresh('health', id)
+    },
+  })
+
+  useWebSocket({
+    path: "/ws/node-assignments/",
+    enabled: readingsDialog.open,
+    onMessage: (row) => {
+      const id = row?.node
+      if (id != null && id === openNodeIdRef.current) {
+        scheduleHistoryRefresh('hotspot', id)
+        setReadingsHotspotOptionsTick(t => t + 1)
+      }
+    },
+  })
   
   useEffect(() => {
     function handleClickOutside() {
@@ -365,7 +470,7 @@ export default function NodeManagement() {
       } catch { setReadingsHotspotOptions([]) }
     }
     fetchOptions()
-  }, [readingsDialog.open, readingsDialog.node])
+  }, [readingsDialog.open, readingsDialog.node, readingsHotspotOptionsTick])
 
   useEffect(() => {
     if (!readingsDialog.open || !readingsDialog.node) {

@@ -56,6 +56,7 @@ const ALERT_TYPES = [
   { value: "Low_Battery", label: "Low Battery" },
   { value: "Weak_Signal", label: "Weak Signal" },
   { value: "Sensor_Failure", label: "Sensor Failure" },
+  { value: "Report_Submitted", label: "Report Submitted" },
 ]
 
 // raw fetchers

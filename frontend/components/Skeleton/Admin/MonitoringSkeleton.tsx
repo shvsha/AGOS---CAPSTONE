@@ -82,7 +82,7 @@ export function MonitoringSkeleton() {
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">WATER LEVEL</TableHead>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">FLOW RATE</TableHead>
                   <TableHead className="font-semibold text-left text-xs text-[#727272]">CLOG</TableHead>
-                  <TableHead className="font-semibold text-left text-xs text-[#727272]">CONDITION</TableHead>
+                  <TableHead className="font-semibold text-left text-xs text-[#727272]">OVERALL STATUS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,11 +129,12 @@ export function MonitoringSkeleton() {
           </div>
         </div>
 
-        {/* clog level legend */}
+        {/* legends */}
         <div className="flex flex-col gap-3">
+          {/* device status — 3 rows + total */}
           <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col">
             <div className="p-3 flex flex-col gap-2">
-              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-3.5 w-24" />
               <hr />
             </div>
             <div className="flex flex-col">
@@ -143,9 +144,57 @@ export function MonitoringSkeleton() {
                     <Skeleton className="h-2 w-2 rounded-full" />
                     <Skeleton className="h-3 w-14" />
                   </div>
+                  <Skeleton className="h-3 w-6" />
+                </div>
+              ))}
+              <div className="p-3 -mt-2">
+                <hr />
+                <div className="flex justify-between mt-2">
+                  <Skeleton className="h-3.5 w-10" />
+                  <Skeleton className="h-3.5 w-6" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* clog level legend — 4 rows */}
+          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 rounded-lg flex flex-col">
+            <div className="p-3 flex flex-col gap-2">
+              <Skeleton className="h-3.5 w-28" />
+              <hr />
+            </div>
+            <div className="flex flex-col pb-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center py-3 px-3 -mt-2">
+                  <div className="flex gap-3 items-center">
+                    <Skeleton className="h-2 w-2 rounded-full" />
+                    <Skeleton className="h-3 w-14" />
+                  </div>
                   <Skeleton className="h-3 w-12" />
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* overall status legend — 3 rows + footnote */}
+          <div className="bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 rounded-lg flex flex-col">
+            <div className="p-3 flex flex-col gap-2">
+              <Skeleton className="h-3.5 w-32" />
+              <hr />
+            </div>
+            <div className="flex flex-col">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center py-3 px-3 -mt-2">
+                  <div className="flex gap-3 items-center">
+                    <Skeleton className="h-2 w-2 rounded-full" />
+                    <Skeleton className="h-3 w-14" />
+                  </div>
+                  <Skeleton className="h-3 w-6" />
+                </div>
+              ))}
+              <div className="px-3 pb-3 -mt-1">
+                <Skeleton className="h-2.5 w-36" />
+              </div>
             </div>
           </div>
         </div>

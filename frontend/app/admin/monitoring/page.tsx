@@ -75,7 +75,8 @@ const openInGoogleMaps = (latitude: number, longitude: number) => {
 
 const getClogPctColor = (value: number) => {
   if (value < 30) return 'text-[#2C7B3C]'
-  if (value < 80) return 'text-[#E4B600]'
+  if (value < 60) return 'text-[#E4B600]'
+  if (value < 80) return 'text-[#E65100]'
   return 'text-[#D81010]'
 }
 
@@ -312,7 +313,7 @@ export default function Monitoring() {
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>WATER LEVEL</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>FLOW RATE</TableHead>
                     <TableHead className='font-semibold text-left text-xs text-[#727272]'>CLOG</TableHead>
-                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>CONDITION</TableHead>
+                    <TableHead className='font-semibold text-left text-xs text-[#727272]'>OVERALL STATUS</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -445,7 +446,7 @@ export default function Monitoring() {
           </div>
 
           {/* device and clog level legend */}
-          <div className='flex flex-col gap-3'>
+          <div className='flex flex-col gap-1.5'>
             {/* device status */}
             <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
@@ -480,16 +481,17 @@ export default function Monitoring() {
            
 
             {/* clog level legend */}
-            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 h-40 rounded-lg flex flex-col'>
+            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 rounded-lg flex flex-col'>
               <div className='p-3 flex flex-col gap-2 '>
                 <p className='font-semibold text-[#122A48] text-sm'>Clog Level Legend</p>
                 <hr />
               </div>
-              <div className='flex flex-col'>
+              <div className='flex flex-col pb-2'>
                 {[
                   { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', percent: "80-100%", label: "Critical" },
-                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '30-79%',  label: "Warning" },
-                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-29%', label: "Normal" },
+                  { color: 'text-[#E65100]', dotColor: 'bg-[#E65100]', percent: '60-79%',  label: "Moderate" },
+                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', percent: '30-59%',  label: "Low" },
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', percent: '0-29%',   label: "Normal" },
                 ].map(status => (
                   <div key={status.label} className="flex justify-between items-center py-3 px-3 bg-[#FAFCFD] -mt-2">
                     <div className="flex gap-3 items-center">
@@ -503,6 +505,31 @@ export default function Monitoring() {
               </div>
             </div>
 
+            {/* overall status legend */}
+            <div className='bg-[#FAFCFD] border border-[#00000040] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] w-47 rounded-lg flex flex-col'>
+              <div className='p-3 flex flex-col gap-2 '>
+                <p className='font-semibold text-[#122A48] text-sm'>Overall Status Legend</p>
+                <hr />
+              </div>
+              <div className='flex flex-col'>
+                {[
+                  { color: 'text-[#D81010]', dotColor: 'bg-[#D81010]', count: critical, label: "Critical" },
+                  { color: 'text-[#E4B600]', dotColor: 'bg-[#E4B600]', count: warning,  label: "Warning" },
+                  { color: 'text-[#2C7B3C]', dotColor: 'bg-[#2C7B3C]', count: normal,   label: "Normal" },
+                ].map(status => (
+                  <div key={status.label} className="flex justify-between items-center py-3 px-3 bg-[#FAFCFD] -mt-2">
+                    <div className="flex gap-3 items-center">
+                      <span className={`w-2 h-2 rounded-full ${status.dotColor} `}/>
+                      <p className={`text-xs font-semibold ${status.color}`}>{status.label}</p>
+                    </div>
+                    <span className={`text-xs font-bold leading-tight ${status.color}`}>{status.count}</span>
+                  </div>
+                ))}
+                <p className='px-3 pb-3 -mt-1 text-[10px] leading-snug text-[#727272]'>
+                  Worst of water level and clog %.
+                </p>
+              </div>
+            </div>
 
           </div>
 

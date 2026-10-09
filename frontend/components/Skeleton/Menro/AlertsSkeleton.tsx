@@ -11,7 +11,7 @@ import { useState } from "react"
 
 import { useFillRows } from "@/components/hooks/useFillRows"
 
-const ALERT_TYPE_LABELS = ["All", "Water Level Rising", "Low Clog Alert", "Moderate Clog Alert", "Critical Clog"]
+const ALERT_TYPE_LABELS = ["All", "Water Level Rising", "Low Clog Alert", "Moderate Clog Alert", "Critical Clog", "Report Submitted"]
 
 export function AlertsSkeleton() {
   const [barangay, setBarangay] = useState<string>("All Barangay")
