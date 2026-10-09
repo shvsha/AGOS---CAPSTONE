@@ -10,6 +10,7 @@ import io
 import logging
 import threading
 _tf_lock = threading.Lock()
+_infer_lock = threading.Lock()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ TF_MODEL_PATH = os.path.join(os.path.dirname(__file__), "saved_model", "waste_cl
 
 YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "weights", "waste_yolo.onnx")
 YOLO_INPUT_SIZE = 640
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.25
 YOLO_CLASS_NAMES = ["plastic_bottle", "dry_leaves", "paper", "paper_carton", "rigid_plastic", "sachet_wrapper", "can", "glass", "styrofoam", "fallen_fruit", "other"]
 AVG_WEIGHT_KG = {
     "plastic_bottle": 0.025,
@@ -56,7 +57,7 @@ def _get_tf_model():
     try:
         from ai_edge_litert.interpreter import Interpreter
         logger.info("Loading AGOS waste classification model...")
-        interpreter = Interpreter(model_path=TF_MODEL_PATH)
+        interpreter = Interpreter(model_path=TF_MODEL_PATH, num_threads=1)
         interpreter.allocate_tensors()
         _tf_model = interpreter
         logger.info("TFLite model loaded successfully!")
@@ -135,7 +136,12 @@ def _get_yolo_model():
         return None
     try:
         import onnxruntime as ort
-        _yolo_model = ort.InferenceSession(YOLO_MODEL_PATH, providers=["CPUExecutionProvider"])
+        so = ort.SessionOptions()
+        so.enable_cpu_mem_arena = False
+        so.enable_mem_pattern = False
+        so.intra_op_num_threads = 1
+        so.inter_op_num_threads = 1
+        _yolo_model = ort.InferenceSession(YOLO_MODEL_PATH, so, providers=["CPUExecutionProvider"])
         logger.info("YOLO ONNX model loaded successfully!")
         return _yolo_model
     except Exception:
@@ -222,12 +228,9 @@ def _run_yolo_detection(image_bytes: bytes):
 
 
 def run_ai_classification(image_bytes: bytes) -> dict:
-    """
-    The single entry point Django views should call — runs both models
-    and returns the same combined shape the old HTTP microservice returned.
-    """
-    classification_result = _run_tf_classification(image_bytes)
-    detected_kg, detected_counts = _run_yolo_detection(image_bytes)
+    with _infer_lock:
+        classification_result = _run_tf_classification(image_bytes)
+        detected_kg, detected_counts = _run_yolo_detection(image_bytes)
     return {
         "classification": classification_result,
         "detection": {

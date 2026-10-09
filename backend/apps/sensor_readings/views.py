@@ -391,6 +391,9 @@ class SensorReadingWithFlowView(APIView):
             clog_pct=clog_pct,
         )
 
+        import resource
+        print(f"[MEM] peak RSS after upload: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024:.0f} MB")
+
         return Response(
             SensorReadingSerializer(reading).data,
             status=status.HTTP_200_OK
@@ -402,6 +405,11 @@ class SensorReadingWithFlowView(APIView):
         from apps.alerts.models import Alert
         from django.utils import timezone
         from datetime import timedelta
+
+        from apps.sensor_readings.services import CLOG_PCT_THRESHOLDS
+
+        if clog_pct is None or clog_pct < CLOG_PCT_THRESHOLDS['Low']:
+            return
 
         ai_result = call_ai_service(frame_bytes)
         classification_result = ai_result.get("classification") if ai_result else None
