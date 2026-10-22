@@ -93,7 +93,7 @@ export default function Login() {
       if (parsed.user_role === "Admin") router.replace("/admin/dashboard")
       else if (parsed.user_role === "MENRO") router.replace("/menro/map")
       else if (parsed.user_role === "MENRO_Staff") router.replace("/menro/map")
-      else if (parsed.user_role === "Barangay") clearAuth()
+      else if (parsed.user_role === "Barangay") router.replace("/barangay/map")
     }
   }, [])
 
@@ -129,10 +129,7 @@ export default function Login() {
       if (userRole === "Admin") window.location.href = "/admin/dashboard"
       else if (userRole === "MENRO") window.location.href = "/menro/map"
       else if (userRole === "MENRO_Staff") window.location.href = "/menro/map"
-      else if (userRole === "Barangay") {
-        clearAuth()
-        setLoginError("Barangay accounts are only available on the AGOS mobile app.")
-      }
+      else if (userRole === "Barangay") window.location.href = "/barangay/map"
       else setLoginError("Unknown user role.")
     } catch (err) {
       setLoginError(getErrorMessage(err))

@@ -113,6 +113,7 @@ const ROLE_ROUTES: Record<string, string> = {
   Admin: '/admin/dashboard',
   MENRO: '/menro/map',
   MENRO_Staff: '/menro/map',
+  Barangay: '/barangay/map',
 }
 
 export const nextStepFor = (user: any): string | null => {

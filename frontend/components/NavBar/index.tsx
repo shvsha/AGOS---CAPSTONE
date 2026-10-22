@@ -35,6 +35,7 @@ import RosLogo from '../../public/ROS-logo.jpg'
 const getAvatarColor = (role: string) => {
   if (role === "MENRO") return "#2C7B3C"
   if (role === "MENRO_Staff") return "#37b851"
+  if (role === "Barangay") return "#1565BC"
   return "#122A48"
 }
 
@@ -42,6 +43,7 @@ const getRoleLabel = (role: string) => {
   if (role === "MENRO") return "MENRO Officer"
   if (role === "MENRO_Staff") return "MENRO Staff"
   if (role === "Admin") return "Administrator"
+  if (role === "Barangay") return "Barangay Personnel"
   return role
 }
 
@@ -112,6 +114,15 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Canal Hotspots",    href: "/menro/hotspots",   icon: <Target size={18} /> },
     { label: "Barangay Reports", href: "/menro/barangay-reports", icon: <FileBarChart size={18} /> },
     { label: "User Manual",    href: "/menro/manual",  icon: <Book size={14} /> },
+  ],
+  Barangay: [
+    { label: "Map",         href: "/barangay/map",              icon: <Map size={18} /> },
+    { label: "Alerts",      href: "/barangay/alerts",           icon: <Siren size={18} /> },
+    { label: "Analytics",   href: "/barangay/analytics",        icon: <ChartNoAxesCombined size={18} /> },
+    { label: "Readings",    href: "/barangay/readings",         icon: <Activity size={18} /> },
+    { label: "Clog Events", href: "/barangay/clog-events",      icon: <TriangleAlert size={18} /> },
+    { label: "Barangay Reports",     href: "/barangay/barangay-reports", icon: <FileBarChart size={18} /> },
+    { label: "Help", href: "/barangay/user-manual",      icon: <Book size={18} /> },
   ],
 }
 

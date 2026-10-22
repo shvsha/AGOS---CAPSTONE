@@ -5,9 +5,10 @@ const ROLE_ROUTES: Record<string, string> = {
   Admin:    '/admin/dashboard',
   MENRO:    '/menro/map',
   MENRO_Staff: '/menro/map',
+  Barangay: '/barangay/map',
 }
 
-const PROTECTED_PREFIXES = ['/admin', '/menro']
+const PROTECTED_PREFIXES = ['/admin', '/menro', '/barangay']
 const PRIVACY_CONSENT_PATH = '/privacy-consent'
 const CHANGE_PASSWORD_PATH = '/change-password'
 
