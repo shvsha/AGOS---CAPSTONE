@@ -39,6 +39,7 @@ import {
 } from "@/lib/reportOptions"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
+import { barangayLabel } from "@/lib/barangayFilters"
 
 // types
 import type { CanalMonitoringReport, ReportBarangay } from "@/types/report"
@@ -92,8 +93,9 @@ export default function BarangayReports() {
     setSelectedWeek('All')
   }
 
+  const activeBarangays = allBarangays.filter(b => b.is_active !== false)
   const barangaysInScope = filterBarangay === "All"
-    ? allBarangays
+    ? activeBarangays
     : allBarangays.filter(b => String(b.barangay_id) === filterBarangay)
 
   // reports in scope of the barangay + month + week filters (search doesn't affect the cards or the bar)
@@ -226,7 +228,7 @@ export default function BarangayReports() {
                   .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                   .map(b => (
                     <SelectItem key={b.barangay_id} value={String(b.barangay_id)} className="text-xs cursor-pointer p-2 text-[#122A48]">
-                      {b.barangay_name}
+                      {barangayLabel(b)}
                     </SelectItem>
                   ))}
               </SelectContent>

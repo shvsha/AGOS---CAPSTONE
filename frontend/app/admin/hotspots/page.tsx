@@ -24,6 +24,7 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { HotspotsSkeleton } from "@/components/Skeleton/Admin/HotspotsSkeleton"
 import { PrintReport } from "@/components/PrintReport/PrintReport"
+import { AddHotspotsDialog } from "@/components/AddHotspotsDialog"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -35,6 +36,8 @@ import { getUser } from "@/lib/auth"
 import { sameText, sameNum } from "@/lib/formDiff"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { historyCache } from "@/lib/historyCache"
+import { remarksText } from "@/lib/historyRemarks"
+import { fetchBarangayBoundaryById } from "@/lib/barangayBoundary"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -190,17 +193,27 @@ export default function HotspotManagement() {
 
   // dialogs
   const [formDialog, setFormDialog] = useState<DialogState>({ open: false, hotspot: null })
+  const [viewBoundary, setViewBoundary] = useState<any>(null)
   const [viewMapDialog, setViewMapDialog] = useState<DialogState>({ open: false, hotspot: null })
+
+  useEffect(() => {
+    const b = viewMapDialog.hotspot?.barangay_details
+    if (!viewMapDialog.open || !b) { setViewBoundary(null); return }
+    let cancelled = false
+    fetchBarangayBoundaryById(b.barangay_id, b.barangay_name).then(g => { if (!cancelled) setViewBoundary(g) })
+    return () => { cancelled = true }
+  }, [viewMapDialog.open, viewMapDialog.hotspot?.barangay_details?.barangay_id])
+
   const [confirmDialog, setConfirmDialog] = useState<DialogState>({ open: false })
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean }>({ open: false })
   const [loadingDialog, setLoadingDialog] = useState<{ open: boolean }>({ open: false })
   const [deleteDialog, setDeleteDialog] = useState<DialogState>({ open: false, hotspot: null })
   const [blockedDialog, setBlockedDialog] = useState<{ open: boolean }>({ open: false })
-  const [dialogBarangay, setDialogBarangay] = useState<Barangay | null>(null)
+  const [bulkBarangay, setBulkBarangay] = useState<Barangay | null>(null)
 
   const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
-  const [actionResult, setActionResult] = useState<{ name: string; action: 'Updated' | 'Added' | 'Removed' } | null>(null)
+  const [actionResult, setActionResult] = useState<{ name: string; action: 'Updated' | 'Added' | 'Removed'; plural?: boolean } | null>(null)
   const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
     title: "Saving Changes",
     description: "Processing hotspot details. Please wait.",
@@ -335,21 +348,8 @@ export default function HotspotManagement() {
         setSensorHeight(String(formDialog.hotspot.sensor_height ?? ""))
         setCanalDepth(String(formDialog.hotspot.canal_depth ?? ""))
         if (formDialog.hotspot.barangay_details?.barangay_name) {
-          loadBoundary(formDialog.hotspot.barangay_details.barangay_name)
+          loadBoundary(formDialog.hotspot.barangay_details.barangay_id, formDialog.hotspot.barangay_details.barangay_name)
         }
-      } else if (dialogBarangay) {
-        // add — prefilled from the barangay row that triggered this
-        setBarangay(String(dialogBarangay.barangay_id))
-        setDescription("")
-        setLatitude("")
-        setLongitude("")
-        setCanalWidth("")
-        setCanalShape("rectangular")
-        setSensorHeight("")
-        setCanalDepth("")
-        setFieldErrors({})
-        loadBoundary(dialogBarangay.barangay_name)
-        fetchNextHotspotCode(dialogBarangay.barangay_id)
       }
     } else {
       setBarangay("")
@@ -364,7 +364,6 @@ export default function HotspotManagement() {
       setFieldErrors({})
       setBoundaryGeoJson(null)
       setBoundaryFallback(false)
-      setDialogBarangay(null)
     }
   }, [formDialog.open])
 
@@ -449,11 +448,11 @@ export default function HotspotManagement() {
 
 
   // Boundary fetch on barangay select
-  const loadBoundary = useCallback(async (barangayName: string) => {
+  const loadBoundary = useCallback(async (barangayId: number, barangayName: string) => {
     setBoundaryLoading(true)
     setBoundaryGeoJson(null)
     setBoundaryFallback(false)
-    const geoJson = await fetchBarangayBoundary(barangayName)
+    const geoJson = await fetchBarangayBoundaryById(barangayId, barangayName)
     if (geoJson) {
       setBoundaryGeoJson(geoJson)
       setBoundaryFallback(false)
@@ -581,15 +580,9 @@ export default function HotspotManagement() {
     }
 
     try {
-      if (isEdit) {
-        const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
-        hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
-        setActionResult({ name: updated.name, action: 'Updated' })
-      } else {
-        const created = await api.post("/api/hotspots/", payload)
-        hotspotsCache.setData(prev => [created, ...prev])
-        setActionResult({ name: created.name, action: 'Added' })
-      }
+      const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
+      hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
+      setActionResult({ name: updated.name, action: 'Updated' })
       setFormDialog({ open: false, hotspot: null })
       setLoadingDialog({ open: false })
       setSuccessDialog({ open: true })
@@ -666,6 +659,7 @@ export default function HotspotManagement() {
         new Date(h.started_at).toLocaleDateString(),
         h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Current',
         h.end_reason || '—',
+        remarksText(h),
       ]))
       setTriggerPrint(true)
     } catch {
@@ -765,7 +759,7 @@ export default function HotspotManagement() {
                                 View ({barangayHotspots.length})
                               </Button>
                               <Button
-                                onClick={() => { setDialogBarangay(barangay); setFormDialog({ open: true, hotspot: null }) }}
+                                onClick={() => setBulkBarangay(barangay)}
                                 className="p-3 py-3 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white text-xs"
                               >
                                 <FaPlus color="white" size={12} /> Add Hotspot
@@ -1248,7 +1242,8 @@ export default function HotspotManagement() {
               latitude={viewMapDialog.hotspot?.latitude}
               longitude={viewMapDialog.hotspot?.longitude}
               label={viewMapDialog.hotspot?.name}
-              zoom={16}
+              zoom={viewBoundary ? 15 : 16}
+              boundaryGeoJson={viewBoundary}
               showLegend={true}
               colorMode="availability"
               markers={allHotspotMarkers}
@@ -1301,14 +1296,15 @@ export default function HotspotManagement() {
                 <TableHead className="font-semibold text-center text-xs text-[#727272]">FROM</TableHead>
                 <TableHead className="font-semibold text-center text-xs text-[#727272]">TO</TableHead>
                 <TableHead className="font-semibold text-center text-xs text-[#727272]">REASON</TableHead>
+                <TableHead className="font-semibold text-center text-xs text-[#727272]">REMARKS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {hotspotHistoryError ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-10"><p className="text-[#D81010] font-semibold text-sm">Failed to load assignment history.</p></TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#D81010] font-semibold text-sm">Failed to load assignment history.</p></TableCell></TableRow>
               ) : hotspotHistoryBusy ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-10">
+                  <TableCell colSpan={5} className="text-center py-10">
                     <div className="flex flex-col items-center gap-2">
                       <SpinnerIcon size={24} />
                       <p className="text-[#727272] text-sm">Loading assignment history...</p>
@@ -1316,7 +1312,7 @@ export default function HotspotManagement() {
                   </TableCell>
                 </TableRow>
               ) : hotspotHistoryRows.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-10"><p className="text-[#727272] text-sm">No nodes have been assigned to this hotspot yet.</p></TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#727272] text-sm">No nodes have been assigned to this hotspot yet.</p></TableCell></TableRow>
               ) : (
                 hotspotHistoryRows.map(h => (
                   <TableRow key={h.history_id} className="border-b border-[#C6C6C8] text-xs">
@@ -1328,6 +1324,7 @@ export default function HotspotManagement() {
                       )}
                     </TableCell>
                     <TableCell className="text-center h-11">{h.end_reason || '—'}</TableCell>
+                    <TableCell className="text-left h-11 max-w-[220px] whitespace-normal break-words">{remarksText(h)}</TableCell>
                   </TableRow>
                 ))
               )}
@@ -1429,10 +1426,28 @@ export default function HotspotManagement() {
         title="Success!"
         description={
           <>
-            <strong>{actionResult?.name}</strong> has been {actionResult?.action.toLowerCase()} successfully.
+            <strong>{actionResult?.name}</strong> {actionResult?.plural ? 'have' : 'has'} been {actionResult?.action.toLowerCase()} successfully.
           </>
         }
         confirmLabel="Done"
+      />
+
+      {/* Add one or several hotspots (all or nothing) */}
+      <AddHotspotsDialog
+        open={!!bulkBarangay}
+        barangay={bulkBarangay}
+        existingMarkers={allHotspotMarkers}
+        onClose={() => setBulkBarangay(null)}
+        onCreated={(created) => {
+          hotspotsCache.setData(prev => [...created, ...prev])
+          setActionResult({
+            name: created.length === 1 ? created[0].name : `${created.length} hotspots`,
+            action: 'Added',
+            plural: created.length > 1,
+          })
+          setBulkBarangay(null)
+          setSuccessDialog({ open: true })
+        }}
       />
 
       {/* Error dialog */}
@@ -1451,7 +1466,7 @@ export default function HotspotManagement() {
 
       <PrintReport
         reportTitle={`${hotspotHistoryDialog.hotspot?.name ?? 'Hotspot'} — Assignment History`}
-        columns={["Node", "From", "To", "Reason"]}
+        columns={["Node", "From", "To", "Reason", "Remarks"]}
         rows={historyPrintRows}
         generatedBy={generatedBy}
       />

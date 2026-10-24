@@ -8,6 +8,12 @@ class Barangay(models.Model):
   longitude  = models.FloatField()
   is_registered = models.BooleanField(default=False)
 
+  is_active = models.BooleanField(default=True)
+  deactivated_at = models.DateTimeField(null=True, blank=True)
+  deactivation_reason = models.TextField(blank=True, default='')
+
+  boundary = models.JSONField(null=True, blank=True)
+
   class Meta:
     db_table = 'tbl_barangay'
 

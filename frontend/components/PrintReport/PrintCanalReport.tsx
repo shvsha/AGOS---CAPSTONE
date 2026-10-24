@@ -15,7 +15,7 @@ const WATER_LEVEL_OPTIONS: [string, string][] = [['Low', 'Low'], ['Moderate', 'M
 const COVERAGE_OPTIONS: [string, string][] = [['Under_25', '<25%'], ['25_50', '25–50%'], ['50_75', '50–75%'], ['Over_75', '>75%']]
 const FLOW_OPTIONS: [string, string][] = [['Normal', 'Normal'], ['Reduced', 'Reduced'], ['Blocked', 'Blocked']]
 const PHOTO_LABELS: [string, string][] = [['Before_Clearing', 'Before Cleanup'], ['After_Clearing', 'After Cleanup'], ['Additional_Evidence', 'Additional Evidence']]
-const SIGNATORY_POSITIONS = ['Barangay Secretary', 'Chairman Environment', 'Brgy. Sanitary Inspector', 'Punong Barangay']
+export const SIGNATORY_POSITIONS = ['Barangay Secretary', 'Chairman Environment', 'Brgy. Sanitary Inspector', 'Punong Barangay']
 
 function ChoiceRow({ options, selected }: { options: [string, string][]; selected: string | null }) {
   return (

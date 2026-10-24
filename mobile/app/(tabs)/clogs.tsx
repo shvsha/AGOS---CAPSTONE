@@ -8,6 +8,7 @@ import Pagination from '../../components/alerts/Pagination'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AlertBellButton from '@/components/alerts/AlertBellButton'
 import MonthFilter from '../../components/common/MonthFilter'
+import { clogSeverityLabel } from '../../constants/clogSeverity'
 import { currentMonthValue, monthLabel, monthOfIso } from '../../lib/months'
 
 import { useAuth } from '../../lib/AuthContext'
@@ -155,7 +156,7 @@ export default function ClogEventsScreen() {
                 }`}
               >
                 <Text className={`text-[13px] font-semibold ${isActive ? 'text-white' : 'text-[#64748B]'}`}>
-                  {tab} ({count})
+                  {tab === 'All' ? 'All' : clogSeverityLabel(tab)} ({count})
                 </Text>
               </Pressable>
             )
@@ -236,7 +237,7 @@ export default function ClogEventsScreen() {
         {/* list */}
         {filteredEvents.length === 0 ? (
           <Text className="text-[#94A3B8] text-sm text-center mt-8">
-            No events found for {selectedTab} severity in {monthLabel(month)}.
+            No events found for {selectedTab === 'All' ? 'any' : clogSeverityLabel(selectedTab)} severity in {monthLabel(month)}.
           </Text>
         ) : (
           paginatedEvents.map(item => {
@@ -273,7 +274,7 @@ export default function ClogEventsScreen() {
                     )}
                     <View className="px-2.5 py-1 rounded-2xl" style={{ backgroundColor: sevStyle.bg }}>
                       <Text className="text-[10px] font-extrabold" style={{ color: sevStyle.text }}>
-                        {item.severity}
+                        {clogSeverityLabel(item.severity)}
                       </Text>
                     </View>
                   </View>

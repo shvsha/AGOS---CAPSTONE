@@ -95,7 +95,7 @@ export function ResourcesSkeleton() {
             <div className="flex flex-wrap justify-center gap-3 text-[10px] text-[#122A48]">
               {[
                 { color: "bg-[#E85656]", range: "80% - 100%", label: "Critical" },
-                { color: "bg-[#FFCC00]", range: "30% - 79%", label: "Medium" },
+                { color: "bg-[#FFCC00]", range: "30% - 79%", label: "Moderate" },
                 { color: "bg-[#2C7B3C]", range: "0% - 29%", label: "Low" },
               ].map(l => (
                 <div key={l.label} className="flex flex-col items-center">

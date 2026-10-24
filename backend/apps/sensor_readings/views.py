@@ -58,6 +58,10 @@ class SensorReadingListView(generics.ListCreateAPIView):
         if getattr(user, 'user_role', None) == 'Barangay':
             qs = self._scope_to_barangay(qs, user.barangay)
 
+        node_id = self.request.query_params.get('node')
+        if node_id:
+            qs = qs.filter(node_id=node_id)
+
         # month filter is opt-in, so existing web calls with no params behave as before
         month = self.request.query_params.get('month')
         if month and month != 'All':

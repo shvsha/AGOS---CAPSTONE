@@ -110,6 +110,12 @@ def _missing_signatory_positions(barangay):
     )
     return [p for p in DEFAULT_SIGNATORY_POSITIONS if p not in active]
 
+def _require_active_barangay(barangay):
+    if barangay is None or not barangay.is_active:
+        raise ValidationError({
+            'detail': 'Your barangay is no longer active, so reports can no longer be submitted. '
+                      'Please contact your administrator.'
+        })
 
 def _require_complete_signatories(barangay):
     missing = _missing_signatory_positions(barangay)
@@ -144,6 +150,7 @@ class CanalMonitoringReportListView(generics.ListCreateAPIView):
         return base.filter(is_submitted=True).order_by('-date_observed')
 
     def perform_create(self, serializer):
+        _require_active_barangay(self.request.user.barangay)
         if serializer.validated_data.get('is_submitted'):
             _require_complete_signatories(self.request.user.barangay)
         report = serializer.save(
@@ -167,6 +174,7 @@ class CanalMonitoringReportDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         was_submitted = serializer.instance.is_submitted
         if serializer.validated_data.get('is_submitted') and not was_submitted:
+            _require_active_barangay(serializer.instance.barangay)
             _require_complete_signatories(serializer.instance.barangay)
         report = serializer.save()
         if report.is_submitted and not was_submitted:

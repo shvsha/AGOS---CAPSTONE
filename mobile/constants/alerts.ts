@@ -33,6 +33,10 @@ export const ALERT_META: Record<AlertType, { label: string; icon: keyof typeof I
     icon: "checkmark-circle-outline",
     tier: null,
   },
+  Node_Offline:   { label: "Node Offline",   icon: "cloud-offline-outline",    tier: null },
+  Low_Battery:    { label: "Low Battery",    icon: "battery-dead-outline",     tier: null },
+  Weak_Signal:    { label: "Weak Signal",    icon: "cellular-outline",         tier: null },
+  Sensor_Failure: { label: "Sensor Failure", icon: "alert-circle-outline",     tier: null },
 };
 
 export const ALERT_STYLE: Record<AlertType, { indicator: string; badgeBg: string; badgeText: string}> ={
@@ -66,6 +70,10 @@ export const ALERT_STYLE: Record<AlertType, { indicator: string; badgeBg: string
     badgeBg: "bg-[#DCFCE7]",
     badgeText: "text-[#16A34A]",
   },
+  Node_Offline:   { indicator: "#582579", badgeBg: "bg-[#F0E6F7]", badgeText: "text-[#582579]" },
+  Low_Battery:    { indicator: "#582579", badgeBg: "bg-[#F0E6F7]", badgeText: "text-[#582579]" },
+  Weak_Signal:    { indicator: "#582579", badgeBg: "bg-[#F0E6F7]", badgeText: "text-[#582579]" },
+  Sensor_Failure: { indicator: "#582579", badgeBg: "bg-[#F0E6F7]", badgeText: "text-[#582579]" },
 };
 
 export const WATER_SEVERITY_STYLE: Record<WaterSeverity, { badgeBg: string; badgeText: string; color: string }> = {
@@ -80,4 +88,36 @@ export function getWaterSeverity(ctx: WaterLevelAlertContext): WaterSeverity {
     return "Critical";
   }
   return "Warning";
+}
+
+// the types the Alerts screen requests and the bell counts (keep in one place)
+export const APP_ALERT_TYPES: AlertType[] = [
+  "Water_Level_Rising",
+  "Low_Clog_Alert",
+  "Moderate_Clog_Alert",
+  "Critical_Clog",
+  "Waste_Type_Rejected",
+  "Waste_Type_Approved",
+  "Node_Offline",
+  "Low_Battery",
+  "Weak_Signal",
+  "Sensor_Failure",
+];
+
+export const HEALTH_ALERT_TYPES: AlertType[] = ["Node_Offline", "Low_Battery", "Weak_Signal", "Sensor_Failure"];
+
+export function batteryLevel(v: number) {
+  if (v >= 4.1) return `Full (${v}V)`;
+  if (v >= 3.9) return `Good (${v}V)`;
+  if (v >= 3.7) return `Medium (${v}V)`;
+  if (v >= 3.5) return `Low (${v}V)`;
+  return `Critical (${v}V)`;
+}
+
+export function signalLevel(dbm: number) {
+  if (dbm >= -65) return `Excellent (${dbm} dBm)`;
+  if (dbm >= -75) return `Good (${dbm} dBm)`;
+  if (dbm >= -85) return `Fair (${dbm} dBm)`;
+  if (dbm >= -95) return `Weak (${dbm} dBm)`;
+  return "No Signal";
 }

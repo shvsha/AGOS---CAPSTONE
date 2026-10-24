@@ -33,6 +33,7 @@ import { usePageCache } from "@/components/hooks/usePageCache"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
+import { forHistory, barangayLabel, type BarangayLike } from "@/lib/barangayFilters"
 
 
 type Clogs = {
@@ -105,11 +106,11 @@ const fetchClogsRaw = async (month: string): Promise<Clogs[]> => {
   return data.results ?? data
 }
 
-const fetchBarangaysRaw = async () => {
-  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/?is_registered=true`)
+const fetchBarangaysRaw = async (): Promise<BarangayLike[]> => {
+  const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/barangays/all/`)
   if (!res.ok) throw new Error()
   const data = await res.json()
-  return data.results ?? data
+  return forHistory(data.results ?? data)
 }
 
 
@@ -136,7 +137,7 @@ export default function ClogEvents() {
 
   // table state
   const clogsCache = usePageCache('clogs:events', () => fetchClogsRaw(selectedMonth), [] as Clogs[], { autoFetch: false })
-  const barangaysCache = usePageCache('clogEvents:barangays', fetchBarangaysRaw, [] as { barangay_id: number; barangay_name: string }[], { autoFetch: false })
+  const barangaysCache = usePageCache('clogEvents:barangays', fetchBarangaysRaw, [] as BarangayLike[], { autoFetch: false })
 
   const clogs = clogsCache.data
   const allBarangays = barangaysCache.data
@@ -282,7 +283,7 @@ export default function ClogEvents() {
                   .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                   .map(b => (
                     <SelectItem key={b.barangay_id} value={b.barangay_name} className="text-xs cursor-pointer p-2 text-[#122A48]">
-                      {b.barangay_name}
+                      {barangayLabel(b)}
                     </SelectItem>
                   ))}
               </SelectContent>

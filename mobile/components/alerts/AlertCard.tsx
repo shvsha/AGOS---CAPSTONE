@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Alert, ClogAlertContext, WaterLevelAlertContext, WasteTypeRejectedContext, WasteTypeApprovedContext } from "../../types/alert";
-import { ALERT_META, ALERT_STYLE, WATER_SEVERITY_STYLE, getWaterSeverity } from "../../constants/alerts";
+import { ALERT_META, ALERT_STYLE, WATER_SEVERITY_STYLE, getWaterSeverity, HEALTH_ALERT_TYPES, batteryLevel, signalLevel } from "../../constants/alerts";
+import { HealthAlertContext } from "../../types/alert";
 
 interface Props {
   alert: Alert;
@@ -31,11 +32,28 @@ export default function AlertCard({ alert, onPress }: Props) {
     ? getWaterSeverity(alert.alert_context as WaterLevelAlertContext)
     : null;
 
+  const isHealth = HEALTH_ALERT_TYPES.includes(alert.alert_type);
+  const healthCtx = alert.alert_context as HealthAlertContext;
+  const healthDetail = (() => {
+    switch (alert.alert_type) {
+      case "Low_Battery":
+        return healthCtx.battery_voltage != null ? batteryLevel(healthCtx.battery_voltage) : "—";
+      case "Weak_Signal":
+        return healthCtx.signal_strength != null ? signalLevel(healthCtx.signal_strength) : "—";
+      case "Sensor_Failure":
+        return healthCtx.sensor_continuity === false ? "Disconnected" : "—";
+      default:
+        return "No recent readings";
+    }
+  })();
+  const healthLabel = { Low_Battery: "BATTERY", Weak_Signal: "SIGNAL", Sensor_Failure: "SENSOR", Node_Offline: "STATUS" }[alert.alert_type as string];
+
   return (
     <Pressable
       onPress={onPress}
       className="bg-white rounded-2xl p-4 mb-4 border border-slate-100"
       style={{
+        opacity: alert.is_read ? 0.7 : 1,
         elevation: 2,
         shadowColor: '#000',
         shadowOpacity: 0.06,
@@ -78,7 +96,13 @@ export default function AlertCard({ alert, onPress }: Props) {
           <View className="border-b border-slate-200 my-3" />
 
           {/* Details */}
-          {isWasteType ? (
+          {isHealth ? (
+            <View>
+              <Text className="text-[9px] text-slate-400 uppercase">{alert.node_name ?? "NODE"} · {healthLabel}</Text>
+              <Text className="text-[12px] font-semibold mt-1">{healthDetail}</Text>
+              <Text className="text-[10px] text-slate-400 mt-1">{formatRelativeTime(alert.timestamp)}</Text>
+            </View>
+          ) : isWasteType ? (
             <View>
               <Text className="text-[9px] text-slate-400 uppercase">WASTE TYPE</Text>
               <Text className="text-[12px] font-semibold mt-1">{wasteCtx.waste_type ?? "—"}</Text>

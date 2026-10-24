@@ -99,6 +99,7 @@ type Barangay = {
   latitude: number
   longitude: number
   is_registered: boolean
+  is_active?: boolean
 }
 
 type Alert = {
@@ -317,6 +318,7 @@ export default function Dashboard() {
   const criticalClogs = clogEvents.data.filter(b => b.severity === 'High')
   const criticalAlerts = criticalClogs.length
   const registeredBarangays = barangays.data.filter(b => b.is_registered)
+  const activeBarangays = barangays.data.filter(b => b.is_active !== false)
   const registeredBarangay = registeredBarangays.length
   const resolvedClogsThisMonth = clogEvents.data.filter(c => {
     if (c.status !== 'Cleared' || !c.resolved_at) return false
@@ -494,7 +496,7 @@ export default function Dashboard() {
 
             {/* barangays reported this month */}
             <div onClick={() => setReportProgressDialog(true)} className="cursor-pointer hover:opacity-80">
-              <ReportProgressBar reports={reportsThisMonth} barangays={barangays.data} periodLabel={currentMonthLabel} />
+              <ReportProgressBar reports={reportsThisMonth} barangays={activeBarangays} periodLabel={currentMonthLabel} />
             </div>
           </div>
           
@@ -1073,7 +1075,7 @@ export default function Dashboard() {
         open={reportProgressDialog}
         onOpenChange={setReportProgressDialog}
         reports={reportsThisMonth}
-        barangays={barangays.data}
+        barangays={activeBarangays}
         periodLabel={currentMonthLabel}
       />
 

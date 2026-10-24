@@ -121,6 +121,7 @@ const navItems: Record<string, NavItem[]> = {
     { label: "Analytics",   href: "/barangay/analytics",        icon: <ChartNoAxesCombined size={18} /> },
     { label: "Readings",    href: "/barangay/readings",         icon: <Activity size={18} /> },
     { label: "Clog Events", href: "/barangay/clog-events",      icon: <TriangleAlert size={18} /> },
+    { label: "Node Health", href: "/barangay/health", icon: <Activity size={18} /> },
     { label: "Barangay Reports",     href: "/barangay/barangay-reports", icon: <FileBarChart size={18} /> },
     { label: "Help", href: "/barangay/user-manual",      icon: <Book size={18} /> },
   ],

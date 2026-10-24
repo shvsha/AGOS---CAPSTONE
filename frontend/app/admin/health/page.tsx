@@ -14,6 +14,7 @@ import { Toast } from "@/components/Toast";
 import { SpinnerIcon } from "@/components/SpinnerIcon";
 import { AssignNodeDialog, AssignNodeDialogPayload } from "@/components/AssignNodeDialog"
 import { PrintReport } from "@/components/PrintReport/PrintReport"
+import { HealthHistoryTable } from "@/components/HealthHistory";
 
 // shadcn
 import { Button } from "@/components/ui/button"
@@ -543,7 +544,7 @@ export default function Health() {
         </div>
 
         {/* map and preview node */}
-        <div className="flex gap-3 mt-2 flex-1 min-h-0">
+        <div className="flex gap-3 mt-2 flex-1 min-h-[500px]">
           {/* map */}
           <div className="rounded-lg bg-[#FAFCFD] shadow-[0_5px_4px_-4px_rgba(0,0,0,0.2)] p-3 border border-[#C9C9C9] flex-[3] min-w-0 h-full flex flex-col">
               <p className="text-[#122A48] font-bold mb-1">Canal Network Map - Rosario, La Union</p>
@@ -901,6 +902,10 @@ export default function Health() {
           </div>
 
         </div>      
+        <HealthHistoryTable
+          barangays={allBarangays}
+          nodes={allNodes}
+        />
       </div>
 
       {/* Mark Under Maintenance Dialog */}

@@ -23,6 +23,7 @@ import AgosMapWrapper from "@/components/Map/AgosMapWrapper"
 import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { HotspotsSkeleton } from "@/components/Skeleton/Menro/HotspotsSkeleton"
+import { AddHotspotsDialog } from "@/components/AddHotspotsDialog"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -30,6 +31,7 @@ import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { sameText, sameNum } from "@/lib/formDiff"
+import { fetchBarangayBoundaryById } from "@/lib/barangayBoundary"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -186,17 +188,27 @@ export default function HotspotManagement() {
 
   // dialogs
   const [formDialog, setFormDialog] = useState<DialogState>({ open: false, hotspot: null })
+  const [viewBoundary, setViewBoundary] = useState<any>(null)
   const [viewMapDialog, setViewMapDialog] = useState<DialogState>({ open: false, hotspot: null })
+
+  useEffect(() => {
+    const b = viewMapDialog.hotspot?.barangay_details
+    if (!viewMapDialog.open || !b) { setViewBoundary(null); return }
+    let cancelled = false
+    fetchBarangayBoundaryById(b.barangay_id, b.barangay_name).then(g => { if (!cancelled) setViewBoundary(g) })
+    return () => { cancelled = true }
+  }, [viewMapDialog.open, viewMapDialog.hotspot?.barangay_details?.barangay_id])
+
   const [confirmDialog, setConfirmDialog] = useState<DialogState>({ open: false })
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean }>({ open: false })
   const [loadingDialog, setLoadingDialog] = useState<{ open: boolean }>({ open: false })
   const [deleteDialog, setDeleteDialog] = useState<DialogState>({ open: false, hotspot: null })
   const [blockedDialog, setBlockedDialog] = useState<{ open: boolean }>({ open: false })
-  const [dialogBarangay, setDialogBarangay] = useState<Barangay | null>(null)
+  const [bulkBarangay, setBulkBarangay] = useState<Barangay | null>(null)
 
   const [successDialog, setSuccessDialog] = useState<{ open: boolean }>({ open: false })
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
-  const [actionResult, setActionResult] = useState<{ name: string; action: 'Updated' | 'Added' | 'Removed' } | null>(null)
+  const [actionResult, setActionResult] = useState<{ name: string; action: 'Updated' | 'Added' | 'Removed'; plural?: boolean } | null>(null)
   const [loadingMessage, setLoadingMessage] = useState<{ title: string; description: string }>({
     title: "Saving Changes",
     description: "Processing hotspot details. Please wait.",
@@ -298,22 +310,9 @@ export default function HotspotManagement() {
         setSensorHeight(String(formDialog.hotspot.sensor_height ?? ""))
         setCanalDepth(String(formDialog.hotspot.canal_depth ?? ""))
         if (formDialog.hotspot.barangay_details?.barangay_name) {
-          loadBoundary(formDialog.hotspot.barangay_details.barangay_name)
+          loadBoundary(formDialog.hotspot.barangay_details.barangay_id, formDialog.hotspot.barangay_details.barangay_name)
         }
-      } else if (dialogBarangay) {
-        // add — prefilled from the barangay row that triggered this
-        setBarangay(String(dialogBarangay.barangay_id))
-        setDescription("")
-        setLatitude("")
-        setLongitude("")
-        setCanalWidth("")
-        setCanalShape("rectangular")
-        setSensorHeight("")
-        setCanalDepth("")
-        setFieldErrors({})
-        loadBoundary(dialogBarangay.barangay_name)
-        fetchNextHotspotCode(dialogBarangay.barangay_id)
-      }
+      } 
     } else {
       setBarangay("")
       setHotspotCode("")
@@ -327,7 +326,6 @@ export default function HotspotManagement() {
       setFieldErrors({})
       setBoundaryGeoJson(null)
       setBoundaryFallback(false)
-      setDialogBarangay(null)
     }
   }, [formDialog.open])
   
@@ -343,11 +341,11 @@ export default function HotspotManagement() {
 
 
   // Boundary fetch on barangay select
-  const loadBoundary = useCallback(async (barangayName: string) => {
+  const loadBoundary = useCallback(async (barangayId: number, barangayName: string) => {
     setBoundaryLoading(true)
     setBoundaryGeoJson(null)
     setBoundaryFallback(false)
-    const geoJson = await fetchBarangayBoundary(barangayName)
+    const geoJson = await fetchBarangayBoundaryById(barangayId, barangayName)
     if (geoJson) {
       setBoundaryGeoJson(geoJson)
       setBoundaryFallback(false)
@@ -475,15 +473,9 @@ export default function HotspotManagement() {
     }
 
     try {
-      if (isEdit) {
-        const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
-        hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
-        setActionResult({ name: updated.name, action: 'Updated' })
-      } else {
-        const created = await api.post("/api/hotspots/", payload)
-        hotspotsCache.setData(prev => [created, ...prev])
-        setActionResult({ name: created.name, action: 'Added' })
-      }
+      const updated = await api.patch(`/api/hotspots/${formDialog.hotspot!.hotspot_id}/`, payload)
+      hotspotsCache.setData(prev => prev.map(h => h.hotspot_id === formDialog.hotspot!.hotspot_id ? { ...h, ...updated } : h))
+      setActionResult({ name: updated.name, action: 'Updated' })
       setFormDialog({ open: false, hotspot: null })
       setLoadingDialog({ open: false })
       setSuccessDialog({ open: true })
@@ -625,7 +617,7 @@ export default function HotspotManagement() {
                                 View ({barangayHotspots.length})
                               </Button>
                               <Button
-                                onClick={() => { setDialogBarangay(barangay); setFormDialog({ open: true, hotspot: null }) }}
+                                onClick={() => setBulkBarangay(barangay)}
                                 className="p-3 py-3 rounded-lg cursor-pointer bg-[#1565BC] hover:bg-[#135499] text-white text-xs"
                               >
                                 <FaPlus color="white" size={12} /> Add Hotspot
@@ -1102,7 +1094,8 @@ export default function HotspotManagement() {
               latitude={viewMapDialog.hotspot?.latitude}
               longitude={viewMapDialog.hotspot?.longitude}
               label={viewMapDialog.hotspot?.name}
-              zoom={16}
+              zoom={viewBoundary ? 15 : 16}
+              boundaryGeoJson={viewBoundary}
               showLegend={true}
               colorMode="availability"
               markers={allHotspotMarkers}
@@ -1206,10 +1199,28 @@ export default function HotspotManagement() {
         title="Success!"
         description={
           <>
-            <strong>{actionResult?.name}</strong> has been {actionResult?.action.toLowerCase()} successfully.
+            <strong>{actionResult?.name}</strong> {actionResult?.plural ? 'have' : 'has'} been {actionResult?.action.toLowerCase()} successfully.
           </>
         }
         confirmLabel="Done"
+      />
+
+      {/* Add one or several hotspots (all or nothing) */}
+      <AddHotspotsDialog
+        open={!!bulkBarangay}
+        barangay={bulkBarangay}
+        existingMarkers={allHotspotMarkers}
+        onClose={() => setBulkBarangay(null)}
+        onCreated={(created) => {
+          hotspotsCache.setData(prev => [...created, ...prev])
+          setActionResult({
+            name: created.length === 1 ? created[0].name : `${created.length} hotspots`,
+            action: 'Added',
+            plural: created.length > 1,
+          })
+          setBulkBarangay(null)
+          setSuccessDialog({ open: true })
+        }}
       />
 
       {/* Error dialog */}

@@ -19,8 +19,11 @@ const ALERT_TYPE_OPTIONS: { value: AlertTypeFilter; label: string }[] = [
   { value: "Water_Level_Rising", label: "Water Level Rising" },
   { value: "Waste_Type_Rejected", label: "Waste Type Rejected" },
   { value: "Waste_Type_Approved", label: "Waste Type Approved" },
+  { value: "Node_Offline", label: "Node Offline" },
+  { value: "Low_Battery", label: "Low Battery" },
+  { value: "Weak_Signal", label: "Weak Signal" },
+  { value: "Sensor_Failure", label: "Sensor Failure" },
 ];
-
 const DATE_OPTIONS: { value: DateFilter; label: string }[] = [
   { value: "Today", label: "Today" },
   { value: "7Days", label: "Last 7 days" },

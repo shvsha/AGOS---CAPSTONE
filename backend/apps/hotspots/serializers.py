@@ -8,7 +8,7 @@ CODE_PATTERN = re.compile(r'^[A-Za-z0-9\-]+$')
 
 class HotspotSerializer(serializers.ModelSerializer):
     barangay = serializers.PrimaryKeyRelatedField(
-        queryset=Barangay.objects.all(),
+    queryset=Barangay.objects.filter(is_active=True),
         write_only=True
     )
     barangay_details = serializers.SerializerMethodField()
@@ -50,7 +50,7 @@ class HotspotSerializer(serializers.ModelSerializer):
         return value
 
     def _build_name(self, barangay, code):
-        return f"CN-{barangay.barangay_name}-{code}"
+        return f"CH-{barangay.barangay_name}-{code}"
 
     def validate(self, attrs):
         barangay = attrs.get('barangay', getattr(self.instance, 'barangay', None))

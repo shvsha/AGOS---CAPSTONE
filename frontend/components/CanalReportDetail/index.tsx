@@ -17,7 +17,7 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { Toast } from "@/components/Toast"
 import { useToast } from "@/components/hooks/useToast"
 import StyledBadge from "../StyledBadge"
-import { PrintCanalReport } from "@/components/PrintReport/PrintCanalReport"
+import { PrintCanalReport, SIGNATORY_POSITIONS } from "@/components/PrintReport/PrintCanalReport"
 
 // lib
 import { fetchWithAuth } from "@/lib/auth"
@@ -85,7 +85,7 @@ function TextBox({ label, text }: { label: string; text: string | null }) {
   )
 }
 
-function ReportDocument({ report }: { report: CanalMonitoringReport }) {
+function ReportDocument({ report, signatoryNames }: { report: CanalMonitoringReport; signatoryNames: Record<string, string> }) {
   const barangayName = report.barangay_details?.barangay_name ?? "—"
 
   const hasOldOther = Number(report.waste_other_kg ?? 0) > 0 || !!report.waste_other_label
@@ -187,6 +187,22 @@ function ReportDocument({ report }: { report: CanalMonitoringReport }) {
       </div>
       <TextBox label="Action Taken" text={report.action_taken} />
       <TextBox label="Remarks" text={report.remarks} />
+
+      {/* Signatories */}
+      <div className="grid grid-cols-2 gap-x-10 gap-y-10 mt-10">
+        {SIGNATORY_POSITIONS.map(pos => {
+          const name = signatoryNames[pos]
+          return (
+            <div key={pos} className="text-center">
+              <div className="h-10" />
+              <div className={`border-t border-[#122A48] pt-1 text-sm ${name ? "font-semibold text-[#122A48]" : "italic text-[#727272]"}`}>
+                {name || "Name of Signatory"}
+              </div>
+              <div className="text-xs text-[#727272]">{pos}</div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -271,26 +287,30 @@ export default function CanalReportDetail({ id, backHref }: Props) {
 
   useEffect(() => { fetchReport() }, [id])
 
+  const resolveSignatories = async (r: CanalMonitoringReport): Promise<Record<string, string>> => {
+    if (r.signatory_snapshot) return r.signatory_snapshot
+    const barangayId = r.barangay_details?.barangay_id
+    if (!barangayId) return {}
+    try {
+      const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/signatories/?barangay=${barangayId}`)
+      if (!res.ok) return {}
+      const slots = await res.json()
+      const names: Record<string, string> = {}
+      slots.forEach((s: any) => { if (s.active) names[s.position] = s.active.name })
+      return names
+    } catch {
+      return {}
+    }
+  }
+
+  // load names as soon as the report opens (also used by print)
+  useEffect(() => {
+    if (!report) return
+    resolveSignatories(report).then(setSignatoryNames)
+  }, [report])
+
   useEffect(() => {
     if (!printRequested || !report) return
-
-    const resolveSignatories = async (): Promise<Record<string, string>> => {
-      if (report.signatory_snapshot) {
-        return report.signatory_snapshot
-      }
-      const barangayId = report.barangay_details?.barangay_id
-      if (!barangayId) return {}
-      try {
-        const res = await fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/signatories/?barangay=${barangayId}`)
-        if (!res.ok) return {}
-        const slots = await res.json()
-        const names: Record<string, string> = {}
-        slots.forEach((s: any) => { if (s.active) names[s.position] = s.active.name })
-        return names
-      } catch {
-        return {}
-      }
-    }
 
     const urls = [
       '/ROS-logo.jpg',
@@ -306,7 +326,7 @@ export default function CanalReportDetail({ id, backHref }: Props) {
       setPrintRequested(false)
     }
 
-    resolveSignatories().then(names => {
+    resolveSignatories(report).then(names => {
       setSignatoryNames(names)
       if (remaining === 0) { finish(); return }
       urls.forEach(url => {
@@ -402,7 +422,7 @@ const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_
         </div>
 
         {activeTab === "details" ? (
-          <ReportDocument report={report} />
+          <ReportDocument report={report} signatoryNames={signatoryNames} />
         ) : (
           <PhotosPanel media={report.media} onOpen={setPreviewUrl} />
         )}

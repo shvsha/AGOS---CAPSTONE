@@ -29,6 +29,7 @@ import { PrintReport } from "@/components/PrintReport/PrintReport"
 import { useToast } from "@/components/hooks/useToast"
 import { Toast } from "@/components/Toast"
 import { AssignNodeDialog, AssignNodeDialogPayload } from "@/components/AssignNodeDialog"
+import { RemarksDialog } from "@/components/RemarksDialog"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -38,6 +39,7 @@ import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
 import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { historyCache } from "@/lib/historyCache"
+import { remarksText } from "@/lib/historyRemarks"
 
 type SensorNode = {
   node_id: number
@@ -186,7 +188,10 @@ export default function NodeManagement() {
     hotspotName: string
     isReassign: boolean
     payload: AssignNodeDialogPayload | null // null = re-assign to previous hotspot
-  }>({ open: false, node: null, hotspotName: '', isReassign: false, payload: null })
+    needsRemarks: boolean
+  }>({ open: false, node: null, hotspotName: '', isReassign: false, payload: null, needsRemarks: false })
+  const [assigning, setAssigning] = useState(false)
+  const [unassigning, setUnassigning] = useState(false)
 
   // history print/export states
   const [historyExporting, setHistoryExporting] = useState(false)
@@ -632,24 +637,37 @@ export default function NodeManagement() {
     }
   }
 
-  const handleAssignConfirm = async (payload: AssignNodeDialogPayload) => {
+  const handleAssignConfirm = async (payload: AssignNodeDialogPayload, remarks?: string) => {
     const node = assignDialog.node!
     const hotspotName = assignHotspots.find(h => String(h.hotspot_id) === payload.hotspot)?.name ?? 'the selected hotspot'
-    setAssignDialog({ open: false, node: null })
-    setLoadingMessage({ title: 'Assigning Node', description: `Assigning ${node.node_name}. Please wait.` })
-    setLoadingDialog({ open: true })
+    const inline = !!remarks   // remarks dialog shows its own spinner
+
+    if (inline) {
+      setAssigning(true)
+    } else {
+      setAssignDialog({ open: false, node: null })
+      setLoadingMessage({ title: 'Assigning Node', description: `Assigning ${node.node_name}. Please wait.` })
+      setLoadingDialog({ open: true })
+    }
     try {
       await api.patch(`/api/sensor-nodes/${node.node_id}/`, {
         barangay: parseInt(payload.barangay),
         hotspot: parseInt(payload.hotspot),
         installed_at: payload.installedAt ? new Date(payload.installedAt).toISOString() : undefined,
+        ...(remarks ? { remarks } : {}),
       })
       setLoadingDialog({ open: false })
+      setAssignDialog({ open: false, node: null })
+      setAssignConfirm(prev => ({ ...prev, open: false }))
       setActionResult({ name: node.node_name, action: `assigned to ${hotspotName}`, goToAssign: true })
       setSuccessDialog({ open: true })
     } catch (err: any) {
       setLoadingDialog({ open: false })
+      setAssignDialog({ open: false, node: null })
+      setAssignConfirm(prev => ({ ...prev, open: false }))
       setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? 'Something went wrong. Please try again.' })
+    } finally {
+      setAssigning(false)
     }
   }
 
@@ -657,12 +675,14 @@ export default function NodeManagement() {
   const requestAssignConfirm = (payload: AssignNodeDialogPayload) => {
     const node = assignDialog.node!
     const hotspotName = assignHotspots.find(h => String(h.hotspot_id) === payload.hotspot)?.name ?? 'the selected hotspot'
-    setAssignConfirm({ open: true, node, hotspotName, isReassign: !!node.prev_hotspot, payload })
+    // moving to a hotspot other than the one it was last unassigned from -> remarks required
+    const needsRemarks = !!node.prev_hotspot && String(node.prev_hotspot.hotspot_id) !== payload.hotspot
+    setAssignConfirm({ open: true, node, hotspotName, isReassign: !!node.prev_hotspot, payload, needsRemarks })
   }
 
   const requestReassignPrevConfirm = () => {
     const node = reassignPrompt.node!
-    setAssignConfirm({ open: true, node, hotspotName: node.prev_hotspot!.name, isReassign: true, payload: null })
+    setAssignConfirm({ open: true, node, hotspotName: node.prev_hotspot!.name, isReassign: true, payload: null, needsRemarks: false })
   }
 
   const handleAssignConfirmYes = () => {
@@ -759,12 +779,10 @@ export default function NodeManagement() {
     }
   }
 
-  const handleUnassign = async (node: SensorNode) => {
-    setUnassignDialog({ open: false, node: null })
-    setLoadingMessage({ title: "Unassigning Node", description: `Unassigning ${node.node_name}. Please wait.` })
-    setLoadingDialog({ open: true })
+  const handleUnassign = async (node: SensorNode, remarks: string) => {
+    setUnassigning(true)
     try {
-      await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, {})
+      await api.post(`/api/sensor-nodes/${node.node_id}/unassign/`, { remarks })
       nodesCache.setData(prev => prev.map(n =>
         n.node_id === node.node_id
           ? { ...n, availability_status: 'Available', status: 'Active',
@@ -776,12 +794,14 @@ export default function NodeManagement() {
             } : n.prev_hotspot }
           : n
       ))
+      setUnassignDialog({ open: false, node: null })
       setActionResult({ name: node.node_name, action: 'unassigned and is now available' })
-      setLoadingDialog({ open: false })
       setSuccessDialog({ open: true })
     } catch (err: any) {
-      setLoadingDialog({ open: false })
-      setErrorDialog({ open: true, message: err?.detail ?? `Failed to unassign ${node.node_name}. Please try again.` })
+      setUnassignDialog({ open: false, node: null })
+      setErrorDialog({ open: true, message: err?.detail ?? err?.error ?? `Failed to unassign ${node.node_name}. Please try again.` })
+    } finally {
+      setUnassigning(false)
     }
   }
 
@@ -852,13 +872,14 @@ export default function NodeManagement() {
         const params = new URLSearchParams()
         if (hotspotReasonFilter !== 'All') params.set('reason', hotspotReasonFilter)
         const all = await fetchAllPages(`${process.env.NEXT_PUBLIC_API_URL}/api/sensor-nodes/${readingsDialog.node.node_id}/assignment-history/?${params.toString()}`)
-        setHistoryPrintColumns(["Hotspot", "Barangay", "From", "To", "Reason"])
+        setHistoryPrintColumns(["Hotspot", "Barangay", "From", "To", "Reason", "Remarks"])
         setHistoryPrintRows(all.map(h => [
           h.hotspot_name || '—',
           h.barangay_name || '—',
           new Date(h.started_at).toLocaleDateString(),
           h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Current',
           h.end_reason || '—',
+          remarksText(h),
         ]))
         setHistoryPrintTitle(`${readingsDialog.node.node_name} — Hotspot History`)
       }
@@ -1555,14 +1576,15 @@ export default function NodeManagement() {
                     <TableHead className="font-semibold text-center text-xs text-[#727272]">FROM</TableHead>
                     <TableHead className="font-semibold text-center text-xs text-[#727272]">TO</TableHead>
                     <TableHead className="font-semibold text-center text-xs text-[#727272]">REASON</TableHead>
+                    <TableHead className="font-semibold text-center text-xs text-[#727272]">REMARKS</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {hotspotHistoryError ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#D81010] font-semibold text-sm">Failed to load hotspot history.</p></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-10"><p className="text-[#D81010] font-semibold text-sm">Failed to load hotspot history.</p></TableCell></TableRow>
                   ) : hotspotBusy ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10">
+                      <TableCell colSpan={6} className="text-center py-10">
                         <div className="flex flex-col items-center gap-2">
                           <SpinnerIcon size={24} />
                           <p className="text-[#727272] text-sm">Loading hotspots...</p>
@@ -1570,7 +1592,7 @@ export default function NodeManagement() {
                       </TableCell>
                     </TableRow>
                   ) : hotspotHistory.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-10"><p className="text-[#727272] text-sm">No assignment history yet.</p></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-10"><p className="text-[#727272] text-sm">No assignment history yet.</p></TableCell></TableRow>
                   ) : (
                     hotspotHistory.map(h => (
                       <TableRow key={h.history_id} className="border-b border-[#C6C6C8] text-xs">
@@ -1583,6 +1605,7 @@ export default function NodeManagement() {
                           )}
                         </TableCell>
                         <TableCell className="text-center h-11">{h.end_reason || '—'}</TableCell>
+                        <TableCell className="text-left h-11 max-w-[220px] whitespace-normal break-words">{remarksText(h)}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -1722,6 +1745,7 @@ export default function NodeManagement() {
         open={assignDialog.open}
         node={assignDialog.node as any}
         assign
+        excludeHotspotId={assignDialog.node?.prev_hotspot?.hotspot_id ?? null}
         allBarangays={assignBarangays}
         allHotspotMarkers={assignMarkers}
         loadingBarangays={assignLoadingData}
@@ -1731,7 +1755,7 @@ export default function NodeManagement() {
 
       {/* Assign / re-assign confirmation */}
       <DialogModal
-        open={assignConfirm.open}
+        open={assignConfirm.open && !assignConfirm.needsRemarks}
         onClose={() => setAssignConfirm(prev => ({ ...prev, open: false }))}
         onConfirm={handleAssignConfirmYes}
         color={DIALOG_COLOR.lightblue}
@@ -1743,18 +1767,29 @@ export default function NodeManagement() {
         confirmLabel={assignConfirm.isReassign ? 'Yes, Re-assign' : 'Yes, Assign'}
       />
 
+      {/* Different hotspot than the previous one → remarks required */}
+      <RemarksDialog
+        open={assignConfirm.open && assignConfirm.needsRemarks}
+        title="Confirm Re-assignment"
+        description={<>Assign <strong>{assignConfirm.node?.node_name}</strong> to <strong>{assignConfirm.hotspotName}</strong> instead of its previous hotspot? Please tell us why.</>}
+        placeholder="e.g. Previous hotspot is dry, moved to a flowing canal"
+        confirmLabel="Re-assign"
+        confirmColor={DIALOG_COLOR.blue}
+        loading={assigning}
+        onCancel={() => setAssignConfirm(prev => ({ ...prev, open: false }))}
+        onConfirm={(remarks) => handleAssignConfirm(assignConfirm.payload!, remarks)}
+      />
+
       {/* Unassign dialog */}
-      <DialogModal
+      <RemarksDialog
         open={unassignDialog.open}
-        onClose={() => setUnassignDialog({ open: false, node: null })}
-        onConfirm={() => handleUnassign(unassignDialog.node!)}
-        color={DIALOG_COLOR.lightyellow}
-        icon={Unplug}
-        iconColor={DIALOG_COLOR.yellow}
         title="Unassign Node"
-        description={<> Are you sure you want to unassign <strong>{unassignDialog.node?.node_name}</strong> from its hotspot? It will return to Available. </>}
-        cancelLabel="Cancel"
+        description={<>Unassign <strong>{unassignDialog.node?.node_name}</strong> from its hotspot? It will return to Available. Please tell us why.</>}
+        placeholder="e.g. Hotspot is dry this season"
         confirmLabel="Unassign"
+        loading={unassigning}
+        onCancel={() => setUnassignDialog({ open: false, node: null })}
+        onConfirm={(remarks) => handleUnassign(unassignDialog.node!, remarks)}
       />
 
       {/* Cancel assignment dialog */}

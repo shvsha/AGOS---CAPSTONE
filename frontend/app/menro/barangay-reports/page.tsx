@@ -12,6 +12,7 @@ import {
 } from "@/lib/reportOptions"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
+import { barangayLabel } from "@/lib/barangayFilters"
 
 // shadcn
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table"
@@ -219,7 +220,7 @@ export default function BarangayReports() {
                   .sort((a, b) => a.barangay_name.localeCompare(b.barangay_name))
                   .map((barangay) => (
                     <SelectItem className="cursor-pointer" key={barangay.barangay_id} value={String(barangay.barangay_id)}>
-                      {barangay.barangay_name}
+                      {barangayLabel(barangay)}
                     </SelectItem>
                   ))}
               </SelectContent>

@@ -558,7 +558,7 @@ export default function Resources() {
                       <span>30% - 79%</span>
                     </div>
                     <div>
-                      <p>Medium</p>
+                      <p>Moderate</p>
                     </div>
                   </div>
 

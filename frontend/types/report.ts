@@ -10,6 +10,7 @@ export type ReportBarangay = {
   latitude: number
   longitude: number
   is_registered: boolean
+  is_active?: boolean
 }
 
 export type ReportUser = {

@@ -12,7 +12,7 @@ export const READINGS_PAGE_SIZE = 10
 
 const EMPTY_SUMMARY: ReadingsSummary = { total: 0, normal: 0, warning: 0, critical: 0 }
 
-export function useReadings() {
+export function useReadings(nodeId?: number) {
   const { user } = useAuth()
 
   const [readings, setReadings] = useState<SensorReading[]>([])
@@ -48,6 +48,7 @@ export function useReadings() {
         page_size: String(READINGS_PAGE_SIZE),
       })
       if (tab !== 'All') params.set('severity', tab)
+      if (nodeId != null) params.set('node', String(nodeId))
 
       const data: ReadingsPage = await api.get(`/api/sensor-readings/?${params.toString()}`)
       if (myRequest !== requestId.current) return
@@ -65,7 +66,7 @@ export function useReadings() {
         setFetching(false)
       }
     }
-  }, [])
+  }, [nodeId])
 
   useFocusEffect(
     useCallback(() => {
@@ -82,6 +83,8 @@ export function useReadings() {
 
       // a brand-new reading only belongs to the current month (or All Time)
       if (monthRef.current !== 'All' && monthRef.current !== currentMonthValue()) return
+
+      if (nodeId != null && incoming.node_details?.node_id !== nodeId) return
 
       if (user?.user_role === 'Barangay') {
         const barangayId = incoming.node_details?.barangay_details?.barangay_id

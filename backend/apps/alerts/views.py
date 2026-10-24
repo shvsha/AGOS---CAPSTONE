@@ -69,6 +69,10 @@ class AlertMarkReadView(APIView):
         elif alert.alert_type in BARANGAY_ONLY_ALERT_TYPES:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # unique_together (alert, user) makes this safe to call repeatedly
+        AlertRead.objects.get_or_create(alert=alert, user=user)
+        return Response({'status': 'read'})
+
 
 class AlertUnreadCountView(APIView):
     permission_classes = [IsAdminOrMENROOrBarangay]
@@ -79,6 +83,12 @@ class AlertUnreadCountView(APIView):
             queryset = Alert.objects.filter(Q(node__barangay=user.barangay) | Q(barangay=user.barangay))
         else:
             queryset = Alert.objects.exclude(alert_type__in=BARANGAY_ONLY_ALERT_TYPES)
+
+        alert_type = request.query_params.get('alert_type')
+        if alert_type:
+            queryset = queryset.filter(
+                alert_type__in=[t.strip() for t in alert_type.split(',')]
+            )
 
         unread = queryset.exclude(reads__user=user).count()
         return Response({'unread_count': unread})
@@ -93,6 +103,12 @@ class AlertMarkAllReadView(APIView):
             queryset = Alert.objects.filter(Q(node__barangay=user.barangay) | Q(barangay=user.barangay))
         else:
             queryset = Alert.objects.exclude(alert_type__in=BARANGAY_ONLY_ALERT_TYPES)
+
+        alert_type = request.query_params.get('alert_type')
+        if alert_type:
+            queryset = queryset.filter(
+                alert_type__in=[t.strip() for t in alert_type.split(',')]
+            )
 
         unread_ids = queryset.exclude(reads__user=user).values_list('alert_id', flat=True)
 

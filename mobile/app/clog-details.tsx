@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { api } from '../lib/api'
 import { useClogEvent } from '../lib/ClogEventContext'
+import { clogSeverityLabel } from '../constants/clogSeverity'
 
 import { useLiveSocket } from '../lib/useLiveSocket'
 import { ClogEvent } from '../types/clog-events'
@@ -157,7 +158,7 @@ export default function ClogDetails() {
           <View className="flex-row justify-between items-center">
             <View className="px-3 py-1 rounded-2xl" style={{ backgroundColor: sevStyle.bg }}>
               <Text className="text-[11px] font-extrabold tracking-wider" style={{ color: sevStyle.text }}>
-                {selectedEvent.severity.toUpperCase()}
+                {clogSeverityLabel(selectedEvent.severity).toUpperCase()}
               </Text>
             </View>
             <View className="px-2.5 py-1 rounded-2xl flex-row items-center gap-1.5" style={{ backgroundColor: statusStyle.bg }}>

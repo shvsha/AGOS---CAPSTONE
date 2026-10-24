@@ -24,7 +24,7 @@ export default function AlertsScreen() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [page, setPage] = useState(1);
 
-  const { alerts, loading, refreshing, error, refetch, markAsRead } = useAlerts(alertType, dateFilter);
+  const { alerts, loading, refreshing, error, refetch, markAsRead, markAllAsRead } = useAlerts(alertType, dateFilter);
 
   const { alertId } = useLocalSearchParams<{ alertId?: string }>();
   const openedFromPushRef = useRef<string | null>(null);
@@ -79,7 +79,9 @@ export default function AlertsScreen() {
             <>
               {/* Header */}
               <View className="flex-row justify-between items-center mt-3 mb-2">
-                <View style={{ width: 24 }} />
+                <Pressable onPress={markAllAsRead} hitSlop={8}>
+                  <Ionicons name="checkmark-done-outline" size={22} color="#334155" />
+                </Pressable>
                 <Text className="text-[23px] font-bold text-[#122A48]">
                   Alerts
                 </Text>
