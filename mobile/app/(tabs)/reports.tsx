@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { api } from "@/lib/api";
 import { CanalMonitoringReport } from "@/types/reports";
-import { SEVERITY_COLORS } from "@/constants/reports";
+import { SEVERITY_COLORS, severityLabel } from "@/constants/reports";
 import AlertBellButton from "@/components/alerts/AlertBellButton";
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -45,7 +45,7 @@ function SeverityBadge({ severity }: { severity: CanalMonitoringReport["severity
       style={{ backgroundColor: colors.bg }}
     >
       <Text className="text-[11px] font-semibold" style={{ color: colors.text }}>
-        {severity}
+        {severityLabel(severity)}
       </Text>
     </View>
   );

@@ -22,7 +22,7 @@ import { PrintCanalReport, SIGNATORY_POSITIONS } from "@/components/PrintReport/
 // lib
 import { fetchWithAuth } from "@/lib/auth"
 import {
-  SEVERITY_STYLE,
+  SEVERITY_STYLE, SEVERITY_LABEL,
   WATER_LEVEL_LABEL, OBSTRUCTION_LABEL, WATER_FLOW_LABEL,
   WASTE_CATEGORIES, formatDateTime, filedByName, reportDate, weekOf,
 } from "@/lib/reportOptions"
@@ -143,7 +143,7 @@ function ReportDocument({ report, signatoryNames }: { report: CanalMonitoringRep
       <div className="grid grid-cols-2 gap-x-8 gap-y-3">
         <Field label="Date / Time Observed">{formatDateTime(report.date_observed)}</Field>
         <Field label="Severity">
-          {report.severity && <StyledBadge text={report.severity} style={SEVERITY_STYLE[report.severity]} />}
+          {report.severity && <StyledBadge text={SEVERITY_LABEL[report.severity]} style={SEVERITY_STYLE[report.severity]} />}
         </Field>
         <Field label="Date / Time Submitted">
           {formatDateTime(reportDate(report))}
@@ -389,7 +389,7 @@ const generatedBy = currentUser ? `${currentUser.first_name} ${currentUser.last_
               <p className="font-bold text-[#122A48] text-sm">
                 {report.barangay_details?.barangay_name} — {report.purok ? `Purok ${report.purok}` : "Untitled report"}
               </p>
-              {report.severity && <StyledBadge text={report.severity} style={SEVERITY_STYLE[report.severity]} />}
+              {report.severity && <StyledBadge text={SEVERITY_LABEL[report.severity]} style={SEVERITY_STYLE[report.severity]} />}
             </div>
           </div>
           <Button

@@ -34,6 +34,7 @@ import { useWebSocket } from "@/lib/hooks/useWebSocket"
 import { printReport } from "@/lib/printReport"
 import { getUser } from "@/lib/auth"
 import { forHistory, barangayLabel, type BarangayLike } from "@/lib/barangayFilters"
+import { clogSeverityLabel } from '@/lib/clogSeverity'
 
 
 type Clogs = {
@@ -296,8 +297,8 @@ export default function ClogEvents() {
               <SelectContent position="popper" className='min-w-0'>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Severity">All Severity</SelectItem>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Low">Low</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Medium">Medium</SelectItem>
-                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="High">High</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Medium">Moderate</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="High">Critical</SelectItem>
               </SelectContent>
             </Select>
 
@@ -393,7 +394,7 @@ export default function ClogEvents() {
                           clog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#E4B600]' :
                           'bg-[#B2FBC173] text-[#2C7B3C]'
                         }`}>
-                          {clog.severity}
+                          {clogSeverityLabel(clog.severity)}
                         </span>
                       </TableCell>
                       <TableCell className="text-[#122A48] text-left h-13 text-xs">
@@ -489,7 +490,7 @@ export default function ClogEvents() {
               <div className="flex gap-3 px-4 justify-between">
                 <div className="flex flex-col gap-3">
                   <p className="text-[#1565BC] text-sm underline">CLG-2026{selectedClog.event_id}</p>
-                  <p className="text-xs">Clog event - {selectedClog.severity}</p>
+                  <p className="text-xs">Clog event - {clogSeverityLabel(selectedClog.severity)}</p>
                 </div>
                 <div className="flex items-center">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold ${
@@ -497,7 +498,7 @@ export default function ClogEvents() {
                     selectedClog.severity === 'Medium' ? 'bg-[#F4E4A7] text-[#d0a806]' :
                     'bg-[#B2FBC173] text-[#2C7B3C]'
                   }`}>
-                    {selectedClog.severity}
+                    {clogSeverityLabel(selectedClog.severity)}
                   </span>
                 </div>
               </div>
@@ -555,7 +556,7 @@ export default function ClogEvents() {
                 
                 <div className="flex justify-between text-xs">
                   <p>Severity</p>
-                  <p>{selectedClog.severity}</p>
+                  <p>{clogSeverityLabel(selectedClog.severity)}</p>
                 </div>
 
                 <div className="flex justify-between text-xs">

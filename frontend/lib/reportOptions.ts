@@ -11,6 +11,13 @@ export const SEVERITY_STYLE: Record<ReportSeverity, BadgeStyle> = {
   Low:      { badge: "bg-[#DBEAFE] text-[#1565BC]", dot: "bg-[#1565BC]" },
 }
 
+export const SEVERITY_LABEL: Record<ReportSeverity, string> = {
+  Critical: "Critical", Medium: "Moderate", Low: "Low",
+}
+
+export const reportSeverityLabel = (s?: string | null) =>
+  (s && (SEVERITY_LABEL as Record<string, string>)[s]) || s || ""
+
 export const WATER_LEVEL_LABEL: Record<WaterLevel, string> = {
   Low: "Low", Moderate: "Moderate", High: "High",
 }

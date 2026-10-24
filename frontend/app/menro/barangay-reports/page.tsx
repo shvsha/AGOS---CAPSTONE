@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 // lib
 import { fetchWithAuth } from "@/lib/auth"
 import {
-  SEVERITY_STYLE,
+  SEVERITY_STYLE, SEVERITY_LABEL,
   formatDate, filedByName, buildMonthOptions,
   reportDate, monthOf, weekOf, weekMatches, buildWeekOptions,
 } from "@/lib/reportOptions"
@@ -275,7 +275,7 @@ export default function BarangayReports() {
                           {report.purok ? `Purok ${report.purok}` : "—"}
                         </TableCell>
                         <TableCell className="text-[#122A48] text-left h-14">
-                          {report.severity && <StyledBadge text={report.severity} style={SEVERITY_STYLE[report.severity]} size="md" />}
+                          {report.severity && <StyledBadge text={SEVERITY_LABEL[report.severity]} style={SEVERITY_STYLE[report.severity]} size="md" />}
                         </TableCell>
                         <TableCell className="text-[#122A48] text-left h-14">{filedByName(report)}</TableCell>
                         <TableCell className="flex gap-3">

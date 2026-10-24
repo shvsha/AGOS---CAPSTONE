@@ -47,8 +47,8 @@ type Barangay = {
 const ALERT_TYPES = [
   { value: "All Alert", label: "All" },
   { value: "Water_Level_Rising", label: "Water Level Rising" },
-  { value: "Low_Clog_Alert", label: "Low Clog Alert" },
-  { value: "Moderate_Clog_Alert", label: "Moderate Clog Alert" },
+  { value: "Low_Clog_Alert", label: "Low Clog" },
+  { value: "Moderate_Clog_Alert", label: "Moderate Clog" },
   { value: "Critical_Clog", label: "Critical Clog" },
   { value: "Report_Submitted", label: "Report Submitted"},
 ]

@@ -8,7 +8,7 @@ import { exportPdf } from "@/lib/exportPdf";
 import type { CanalMonitoringReport } from "@/types/reports";
 import {
   SEVERITY_COLORS, WATER_LEVEL_OPTIONS, OBSTRUCTION_COVERAGE_OPTIONS,
-  WATER_FLOW_OPTIONS, optionLabel,
+  WATER_FLOW_OPTIONS, optionLabel, severityLabel
 } from "@/constants/reports";
 import { PhotoPreviewModal } from "@/components/reports/PhotoPreviewModal";
 
@@ -194,7 +194,7 @@ export default function ViewReportScreen() {
         <View className="flex-row items-center gap-1.5">
           <MaterialCommunityIcons name="alert-circle-outline" size={18} color={bannerColors.text} />
           <Text className="text-[13px] font-bold" style={{ color: bannerColors.text }}>
-            {report.severity ? `${report.severity} severity` : "Submitted"}
+            {report.severity ? `${severityLabel(report.severity)} severity` : "Submitted"}
           </Text>
         </View>
         <Text className="text-xs font-semibold" style={{ color: bannerColors.text }}>
@@ -229,7 +229,7 @@ export default function ViewReportScreen() {
             <DetailLabelValue label="DATE / TIME OBSERVED" value={formatDateTime(report.date_observed)} flex={2} />
             <DetailLabelValue
               label="SEVERITY"
-              value={report.severity ?? ""}
+              value={severityLabel(report.severity)}
               valueColor={bannerColors.text}
             />
           </View>

@@ -10,7 +10,7 @@ type PrintCanalReportProps = {
   signatoryNames: Record<string, string>
 }
 
-const SEVERITY_OPTIONS: [string, string][] = [['Critical', 'Critical'], ['Medium', 'Medium'], ['Low', 'Low']]
+const SEVERITY_OPTIONS: [string, string][] = [['Critical', 'Critical'], ['Medium', 'Moderate'], ['Low', 'Low']]
 const WATER_LEVEL_OPTIONS: [string, string][] = [['Low', 'Low'], ['Moderate', 'Moderate'], ['High', 'High']]
 const COVERAGE_OPTIONS: [string, string][] = [['Under_25', '<25%'], ['25_50', '25–50%'], ['50_75', '50–75%'], ['Over_75', '>75%']]
 const FLOW_OPTIONS: [string, string][] = [['Normal', 'Normal'], ['Reduced', 'Reduced'], ['Blocked', 'Blocked']]

@@ -109,7 +109,7 @@ export const HEALTH_ALERT_TYPES: AlertType[] = ["Node_Offline", "Low_Battery", "
 export function batteryLevel(v: number) {
   if (v >= 4.1) return `Full (${v}V)`;
   if (v >= 3.9) return `Good (${v}V)`;
-  if (v >= 3.7) return `Medium (${v}V)`;
+  if (v >= 3.7) return `Moderate (${v}V)`;
   if (v >= 3.5) return `Low (${v}V)`;
   return `Critical (${v}V)`;
 }
@@ -119,5 +119,5 @@ export function signalLevel(dbm: number) {
   if (dbm >= -75) return `Good (${dbm} dBm)`;
   if (dbm >= -85) return `Fair (${dbm} dBm)`;
   if (dbm >= -95) return `Weak (${dbm} dBm)`;
-  return "No Signal";
+  return `No Signal (${dbm} dBm)`;
 }

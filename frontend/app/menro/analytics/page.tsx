@@ -168,6 +168,7 @@ export default function Analytics() {
 
   const maxBarangayWaste = Math.max(...wasteByBarangay.map(b => b.total), 0)
   const barUnit = pickWeightUnit([maxBarangayWaste])
+  const barangayPager = usePagination(wasteByBarangay, 5)
 
   // waste composition percentages
   const compositionData = [
@@ -272,16 +273,16 @@ useWebSocket({
         </div>
 
         <div className="flex gap-2 mt-3">
-          {/* collected by barangay */}
-          <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-0">
+          {/* detection by barangay */}
+          <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-0 flex flex-col">
             <div className="w-full p-2">
-              <p className="font-bold text-sm">Collection by Barangay</p>
+              <p className="font-bold text-sm">Detection by Barangay</p>
             </div>
 
             <hr/>
 
-            <div className="flex flex-col gap-3 px-3 py-4">
-              {wasteByBarangay.map(b => {
+            <div className="flex flex-col gap-3 px-3 py-4 flex-1 min-h-[160px]">
+              {barangayPager.paginated.map(b => {
                 const widthPct = maxBarangayWaste > 0 ? (b.total / maxBarangayWaste) * 100 : 0
                 const displayWidthPct = b.total > 0 ? Math.max(widthPct, 4) : 30
                 return (
@@ -302,22 +303,29 @@ useWebSocket({
                 )
               })}
               {wasteByBarangay.length === 0 && (
-                <div className="flex justify-center items-center h-45">
+                <div className="flex flex-1 justify-center items-center">
                   <p className="text-xs text-[#122A48]/60">No data yet.</p>
                 </div>
               )}
             </div>
+
+            <TablePagination
+              totalItems={barangayPager.totalItems}
+              itemsPerPage={barangayPager.itemsPerPage}
+              currentPage={barangayPager.currentPage}
+              onPageChange={barangayPager.setCurrentPage}
+            />
           </div>
 
           {/* waste composition */}
-          <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-[380px]">
+          <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-[380px] flex flex-col">
             <div className="w-full p-2">
               <p className="font-bold text-sm">Waste Composition</p>
             </div>
 
             <hr />
 
-            <div className="flex items-center gap-15 p-4 ml-15">
+            <div className="flex items-center gap-15 p-4 ml-15 flex-1">
               <div className="relative w-40 h-40 shrink-0">
                 <PieChart width={160} height={160}>
                   <Pie

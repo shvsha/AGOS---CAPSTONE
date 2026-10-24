@@ -57,11 +57,11 @@ export function AnalyticsSkeleton() {
         {/* collected by barangay */}
         <div className="bg-[#FAFCFD] rounded-lg border border-[#C6C6C8] flex-1 min-w-0">
           <div className="w-full p-2">
-            <p className="font-bold text-sm">Collection by Barangay</p>
+            <p className="font-bold text-sm">Detection by Barangay</p>
           </div>
           <hr />
-          <div className="flex flex-col gap-4 px-3 py-4">
-            {[...Array(7)].map((_, i) => (
+          <div className="flex flex-col gap-3 min-h-[160px] px-3 py-4">
+            {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-center gap-8">
                 <Skeleton className="h-3 w-24 shrink-0" />
                 <Skeleton className="h-2 flex-1 rounded-full" />
