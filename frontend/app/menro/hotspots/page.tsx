@@ -24,6 +24,7 @@ import { DialogModal } from "@/components/DialogModal"
 import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { HotspotsSkeleton } from "@/components/Skeleton/Menro/HotspotsSkeleton"
 import { AddHotspotsDialog } from "@/components/AddHotspotsDialog"
+import { PurokSelect } from "@/components/PurokSelect"
 
 // lib
 import { DIALOG_COLOR } from "@/lib/constant"
@@ -32,6 +33,7 @@ import { fetchWithAuth } from "@/lib/auth"
 import { usePageCache } from "@/components/hooks/usePageCache"
 import { sameText, sameNum } from "@/lib/formDiff"
 import { fetchBarangayBoundaryById } from "@/lib/barangayBoundary"
+import { purokOptions } from "@/lib/purok"
 
 // turf for point-in-polygon check
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon"
@@ -48,6 +50,7 @@ type Barangay = {
   barangay_name: string
   latitude: number
   longitude: number
+  purok_count?: number
 }
 
 type Hotspot = {
@@ -64,6 +67,7 @@ type Hotspot = {
   canal_depth: number | null
   is_occupied: boolean
   created_at: string
+  purok: number | null
 }
 
 type SensorNode = {
@@ -172,6 +176,7 @@ export default function HotspotManagement() {
 
   // form state
   const [barangay, setBarangay] = useState("")
+  const [purok, setPurok] = useState("")
   const [description, setDescription] = useState("")
   const [latitude, setLatitude] = useState("")
   const [longitude, setLongitude] = useState("")
@@ -221,6 +226,7 @@ export default function HotspotManagement() {
   const h = formDialog.hotspot
   const isUnchanged = isEdit && !!h &&
     sameText(barangay, h.barangay_details?.barangay_id) &&
+    sameText(purok, h.purok ?? "") &&
     sameText(hotspotCode, h.code) &&
     sameText(description, h.description) &&
     sameNum(latitude, h.latitude) &&
@@ -302,6 +308,7 @@ export default function HotspotManagement() {
         // edit
         setBarangay(String(formDialog.hotspot.barangay_details?.barangay_id ?? ""))
         setHotspotCode(formDialog.hotspot.code ?? "")
+        setPurok(String(formDialog.hotspot.purok ?? ""))
         setDescription(formDialog.hotspot.description ?? "")
         setLatitude(String(formDialog.hotspot.latitude))
         setLongitude(String(formDialog.hotspot.longitude))
@@ -316,6 +323,7 @@ export default function HotspotManagement() {
     } else {
       setBarangay("")
       setHotspotCode("")
+      setPurok("")
       setDescription("")
       setLatitude("")
       setLongitude("")
@@ -415,6 +423,7 @@ export default function HotspotManagement() {
   const handleConfirmationDialog = () => {
     const errors: Record<string, string> = {}
     if (!hotspotCode.trim()) errors.hotspotCode = "This field is required."
+    if (!purok) errors.purok = "Please select a purok."
     if (!description.trim()) errors.description = "This field is required."
     if (!latitude) errors.latitude = "Please click on the map to set the location."
     if (!longitude) errors.longitude = "Please click on the map to set the location."
@@ -462,6 +471,7 @@ export default function HotspotManagement() {
 
     const payload = {
       barangay: parseInt(barangay),
+      purok: parseInt(purok),
       code: hotspotCode.trim(),
       description: description.trim(),
       latitude: parseFloat(latitude),
@@ -639,7 +649,13 @@ export default function HotspotManagement() {
                                       >
                                         <div className="min-w-0">
                                           <p className="font-bold text-xs text-[#122A48] truncate">{hotspot.name}</p>
-                                          <p className="text-[#727272] text-xs capitalize truncate">{hotspot.canal_shape}</p>
+                                          <p className="text-[#727272] text-xs truncate">
+                                            <span className="capitalize">{hotspot.canal_shape}</span>
+                                            {" · "}
+                                            {hotspot.purok
+                                              ? `Purok ${hotspot.purok}`
+                                              : <span className="text-[#E65100] font-semibold">Needs purok</span>}
+                                          </p>
                                         </div>
                                         <div className="min-w-0 text-[#727272] text-xs truncate">
                                           {hotspot.description || "—"}
@@ -830,27 +846,47 @@ export default function HotspotManagement() {
                   </div>
                 </div>
 
-                {/* Description */}
+                {/* Purok + Description */}
                 <div className="p-2.5 md:p-4 -mt-3">
-                  <div ref={descriptionRef}>
-                    <Field className="flex gap-1.5 flex-col">
-                      <FieldLabel className="text-[#122A48] text-xs md:text-sm">DESCRIPTION <span className="text-[#FF0000]">*</span></FieldLabel>
-                      <textarea
-                        value={description}
-                        onChange={e => {
-                          setDescription(e.target.value)
-                          if (fieldErrors.description) setFieldErrors(prev => ({ ...prev, description: "" }))
-                        }}
-                        rows={1}
-                        placeholder="Brief description or landmark of this hotspot location e.g. (Near Tsongsan)..."
-                        className={`w-full text-[#122A48] rounded-lg text-sm border bg-[#1565BC05] px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#1565BC40] ${
-                          fieldErrors.description ? "border-[#FF0000]" : "border-[#727272]"
-                        }`}
-                      />
-                      <FieldError className="text-xs">{fieldErrors.description}</FieldError>
-                    </Field>
+                  <div className="flex gap-3 items-start">
+                    <div className="w-32 md:w-44 shrink-0">
+                      <Field className="flex gap-1.5 flex-col">
+                        <FieldLabel className="text-[#122A48] text-xs md:text-sm">PUROK <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <PurokSelect
+                          size="md"
+                          value={purok}
+                          onChange={value => {
+                            setPurok(value)
+                            if (fieldErrors.purok) setFieldErrors(prev => ({ ...prev, purok: "" }))
+                          }}
+                          count={selectedBarangay?.purok_count}
+                          error={!!fieldErrors.purok}
+                        />
+                        <FieldError className="text-xs">{fieldErrors.purok}</FieldError>
+                      </Field>
+                    </div>
+
+                    <div ref={descriptionRef} className="flex-1 min-w-0">
+                      <Field className="flex gap-1.5 flex-col">
+                        <FieldLabel className="text-[#122A48] text-xs md:text-sm">DESCRIPTION <span className="text-[#FF0000]">*</span></FieldLabel>
+                        <textarea
+                          value={description}
+                          onChange={e => {
+                            setDescription(e.target.value)
+                            if (fieldErrors.description) setFieldErrors(prev => ({ ...prev, description: "" }))
+                          }}
+                          rows={1}
+                          placeholder="Brief description or landmark, e.g. (Near Tsongsan)..."
+                          className={`w-full h-10 md:h-10.5 py-2.5 text-[#122A48] rounded-lg text-sm border bg-[#1565BC05] px-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#1565BC40] ${
+                            fieldErrors.description ? "border-[#FF0000]" : "border-[#727272]"
+                          }`}
+                        />
+                        <FieldError className="text-xs">{fieldErrors.description}</FieldError>
+                      </Field>
+                    </div>
                   </div>
                 </div>
+
               </div>
             </div>
 

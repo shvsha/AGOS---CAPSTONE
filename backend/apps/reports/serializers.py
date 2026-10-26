@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import CanalMonitoringReport, ReportMedia, CustomWasteType, ReportCustomWaste
+from .models import CanalMonitoringReport, ReportMedia, CustomWasteType, ReportCustomWaste, ReportNodeSummary, ReportPurokRow
 from apps.barangay.serializers import BarangaySerializer
 from apps.users.serializers import UserSerializer
 
@@ -29,16 +29,38 @@ class ReportCustomWasteSerializer(serializers.ModelSerializer):
         read_only_fields = ['item_id']
 
 
+class ReportNodeSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReportNodeSummary
+        exclude = ['report']
+
+
+class ReportPurokRowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReportPurokRow
+        exclude = ['report']
+
+
 class CanalMonitoringReportSerializer(serializers.ModelSerializer):
     barangay_details = BarangaySerializer(source='barangay', read_only=True)
     media = ReportMediaSerializer(many=True, read_only=True, source='reportmedia_set')
     reported_by_details = UserSerializer(source='reported_by', read_only=True)
     custom_waste = ReportCustomWasteSerializer(many=True, required=False)
+    node_summaries = ReportNodeSummarySerializer(many=True, read_only=True)
+    verified_by_name = serializers.SerializerMethodField()
+    purok_rows = ReportPurokRowSerializer(many=True, read_only=True)
+
+    def validate_report_scope(self, value):
+        if self.instance is not None and value != self.instance.report_scope:
+            raise serializers.ValidationError('The scope of a report cannot be changed.')
+        return value
 
     class Meta:
         model = CanalMonitoringReport
         fields = '__all__'
-        read_only_fields = ['barangay', 'reported_by', 'submitted_at']
+        read_only_fields = ['barangay', 'reported_by', 'submitted_at', 'status',
+                            'condition_source', 'post_completed_at', 'verified_by', 'verified_at',
+                            'submission', 'carried_over']
 
     SUBMIT_REQUIRED_FIELDS = [
         'purok', 'date_observed', 'severity',
@@ -47,12 +69,23 @@ class CanalMonitoringReportSerializer(serializers.ModelSerializer):
         'waste_collected_amount',
     ]
 
+    def get_verified_by_name(self, obj):
+        u = obj.verified_by
+        return f"{u.first_name} {u.last_name}".strip() if u else None
+
     def validate_clog_event(self, event):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         if event and user and user.user_role == 'Barangay' and event.barangay_id != user.barangay_id:
             raise serializers.ValidationError('That clog event belongs to another barangay.')
         return event
+
+    def validate_is_submitted(self, value):
+        if value:
+            raise serializers.ValidationError(
+                'Reports are submitted to MENRO from the Submit screen, after they are verified.'
+            )
+        return value
 
     def validate_custom_waste(self, items):
         request = self.context.get('request')

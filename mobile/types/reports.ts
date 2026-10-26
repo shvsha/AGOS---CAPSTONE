@@ -28,6 +28,26 @@ export type MediaCategory = 'Before_Clearing' | 'After_Clearing' | 'Additional_E
 export interface CanalMonitoringReport {
   report_id: number
   is_submitted: boolean
+  status: 'Draft' | 'Awaiting_Post_Report' | 'Ready_To_Verify' | 'Verified' | 'Submitted' | 'Voided'
+  condition_source: 'Sensor' | 'Manual'
+  post_completed_at: string | null
+  verified_at: string | null
+  verified_by_name: string | null
+  node_summaries?: {
+    node_name: string
+    hotspot_name: string
+    purok: number | null
+    window_start: string
+    window_end: string
+    reading_count: number
+    peak_clog_pct: number | null
+    avg_clog_pct: number | null
+    peak_water_level_cm: number | null
+    peak_water_level_pct: number | null
+    min_flow_rate: number | null
+    worst_water_status: string
+    worst_flow: string
+  }[]
 
   // Monitoring site
   barangay: number

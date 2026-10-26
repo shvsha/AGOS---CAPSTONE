@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { CanalMonitoringReport } from "@/types/reports";
 import { SEVERITY_COLORS, severityLabel } from "@/constants/reports";
 import AlertBellButton from "@/components/alerts/AlertBellButton";
+import SubmitBanner from "@/components/reports/SubmitBanner";
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Shadow } from "react-native-shadow-2";
@@ -51,14 +52,22 @@ function SeverityBadge({ severity }: { severity: CanalMonitoringReport["severity
   );
 }
 
-function InProgressBadge() {
+const STATUS_BADGE: Record<string, { label: string; bg: string; text: string }> = {
+  Draft:                { label: "In progress",          bg: "#fef3c7", text: "#b45309" },  // amber
+  Awaiting_Post_Report: { label: "Awaiting post-report", bg: "#e0f2fe", text: "#0369a1" },  // blue
+  Ready_To_Verify:      { label: "Ready to verify",      bg: "#dcfce7", text: "#166534" },  // green
+  Verified:             { label: "Verified",             bg: "#ede9fe", text: "#6d28d9" },  // violet
+  Voided:               { label: "Voided",               bg: "#f1f5f9", text: "#64748b" },  // grey
+}
+
+function InProgressBadge({ status }: { status?: string }) {
+  const s = STATUS_BADGE[status ?? "Draft"] ?? STATUS_BADGE.Draft;
   return (
-    <View className="shrink-0 self-start rounded-xl bg-[#fef3c7] px-2.5 py-1">
-      <Text className="text-[11px] font-semibold text-[#b45309]">In progress</Text>
+    <View className="shrink-0 self-start rounded-xl px-2.5 py-1" style={{ backgroundColor: s.bg }}>
+      <Text className="text-[11px] font-semibold" style={{ color: s.text }}>{s.label}</Text>
     </View>
   );
 }
-
 function formatObserved(report: CanalMonitoringReport) {
   if (!report.date_observed) return "No date yet";
   const d = new Date(report.date_observed);
@@ -116,17 +125,14 @@ export default function ReportsListScreen() {
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
+  const needsReview = (r: CanalMonitoringReport) =>
+    !r.is_submitted && (r.status === "Ready_To_Verify" || r.status === "Verified");
+
   const goToReport = (report: CanalMonitoringReport) => {
-    if (!report.is_submitted) {
-      router.push({
-        pathname: "/new-report",
-        params: { report_id: String(report.report_id) },
-      } as any);
+    if (report.is_submitted || needsReview(report)) {
+      router.push({ pathname: "/view-report", params: { id: String(report.report_id) } } as any);
     } else {
-      router.push({
-        pathname: "/view-report",
-        params: { id: String(report.report_id) },
-      } as any);
+      router.push({ pathname: "/new-report", params: { report_id: String(report.report_id) } } as any);
     }
   };
 
@@ -171,6 +177,8 @@ export default function ReportsListScreen() {
 
         {error ? <Text className="mb-3 text-xs text-[#dc2626]">{error}</Text> : null}
 
+        <SubmitBanner />
+
         <View className="mb-5 gap-2.5">
           <View className="flex-row gap-2.5">
             <MetricCard label="Total reports" value={totalReports} />
@@ -192,7 +200,8 @@ export default function ReportsListScreen() {
           )}
 
           {sortedReports.map((report) => {
-            const isDraft = !report.is_submitted;
+            const isDraft = !report.is_submitted && !needsReview(report);
+            const isReview = needsReview(report);
             const filesCount = report.media?.length ?? 0;
             const collected = report.waste_collected_amount;
 
@@ -213,16 +222,16 @@ export default function ReportsListScreen() {
                 <View className="mb-2.5 flex-row items-start justify-between gap-2">
                   <View className="flex-1 flex-row items-center gap-2">
                     <MaterialCommunityIcons
-                      name={isDraft ? "clipboard-text-outline" : "checkbox-marked-circle-outline"}
+                      name={isDraft || isReview ? "clipboard-text-outline" : "checkbox-marked-circle-outline"}
                       size={20}
-                      color={isDraft ? "#d97706" : "#16a34a"}
+                      color={isDraft || isReview ? "#d97706" : "#16a34a"}
                       style={{ marginTop: 2 }}
                     />
                     <Text className="flex-1 shrink text-sm font-semibold leading-5 text-[#122A48]">
                       {report.purok ? `Purok ${report.purok}` : "Untitled report"}
                     </Text>
                   </View>
-                  {isDraft ? <InProgressBadge /> : <SeverityBadge severity={report.severity} />}
+                  {isDraft || isReview ? <InProgressBadge status={report.status} /> : <SeverityBadge severity={report.severity} />}
                 </View>
 
                 <View className="mb-2 flex-row flex-wrap items-center gap-3">
@@ -250,21 +259,18 @@ export default function ReportsListScreen() {
 
                 <View className="flex-row gap-2">
                   <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      goToReport(report);
-                    }}
+                    onPress={(e) => { e.stopPropagation(); goToReport(report); }}
                     className={`flex-1 flex-row items-center justify-center gap-1 rounded-md py-1.5 ${
-                      isDraft ? "bg-[#15803d]" : "border border-[#cbd5e1]"
+                      isDraft || report.status === "Ready_To_Verify" ? "bg-[#15803d]" : "border border-[#cbd5e1]"
                     }`}
                   >
                     <MaterialCommunityIcons
-                      name={isDraft ? "pencil-outline" : "eye-outline"}
+                      name={isDraft ? "pencil-outline" : report.status === "Ready_To_Verify" ? "shield-check-outline" : "eye-outline"}
                       size={14}
-                      color={isDraft ? "white" : "#475569"}
+                      color={isDraft || report.status === "Ready_To_Verify" ? "white" : "#475569"}
                     />
-                    <Text className={`text-xs font-semibold ${isDraft ? "text-white" : "text-[#475569] font-medium"}`}>
-                      {isDraft ? "Continue report" : "View"}
+                    <Text className={`text-xs font-semibold ${isDraft || report.status === "Ready_To_Verify" ? "text-white" : "text-[#475569] font-medium"}`}>
+                      {isDraft ? "Continue report" : report.status === "Ready_To_Verify" ? "Review & verify" : "View"}
                     </Text>
                   </TouchableOpacity>
 

@@ -8,15 +8,15 @@ from apps.sensor_nodes.serializers import get_node_identity_as_of
 
 
 def clog_clear_reason(event):
-    if event.status not in ('Cleared', 'Verified') and not event.resolved_at:
+    if event.status == 'Responded':
+        return 'Responded'
+    if event.status != 'Cleared' and not event.resolved_at:
         return None
     if event.auto_cleared:
         return 'Auto-cleared'
     if event.cleared_by_id:
         return 'Manual Clear'
-    if event.resolved_at:
-        return 'Clear readings'
-    return None
+    return 'Clear readings'
 
 
 class ClogEventSerializer(serializers.ModelSerializer):

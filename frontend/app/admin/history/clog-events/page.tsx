@@ -70,15 +70,22 @@ type Clogs = {
     dominant_waste_type: string
   } | null
   auto_cleared: boolean
-  clear_reason: 'Manual Clear' | 'Auto-cleared' | 'Clear readings' | null
+  responded_by_details: {
+    user_id: number
+    first_name: string
+    last_name: string
+  } | null
+  clear_reason: 'Responded' | 'Manual Clear' | 'Auto-cleared' | 'Clear readings' | null
 }
 
 const CLEAR_REASON_LABEL: Record<string, string> = {
+  'Responded': 'Cleared by response',
   'Manual Clear': 'Cleared manually',
   'Auto-cleared': 'Auto-cleared after 7 days',
   'Clear readings': 'Clear readings',
 }
 const CLEAR_REASON_SHORT: Record<string, string> = {
+  'Responded': 'Responded',
   'Manual Clear': 'Manual clear',
   'Auto-cleared': 'Auto clear (7 days)',
   'Clear readings': 'Clear readings',
@@ -180,10 +187,12 @@ export default function ClogEvents() {
     .filter(n => severity === 'All Severity' || n.severity === severity)
     .filter(n => status === 'All Status' || n.status === status)
 
-  const total = cardScopedClogs.length
-  const cleared = cardScopedClogs.filter(n => n.status === 'Cleared').length
+  const isCleared = (n: Clogs) => n.status === 'Cleared' || n.status === 'Responded'
 
-  const clearedWithDuration = cardScopedClogs.filter(n => n.status === 'Cleared' && n.resolved_at && n.detected_at)
+  const total = cardScopedClogs.length
+  const cleared = cardScopedClogs.filter(isCleared).length
+
+  const clearedWithDuration = cardScopedClogs.filter(n => isCleared(n) && n.resolved_at && n.detected_at)
   const avgResolutionMinutes = clearedWithDuration.length > 0
     ? clearedWithDuration.reduce((sum, n) => sum + (new Date(n.resolved_at).getTime() - new Date(n.detected_at).getTime()) / 60000, 0) / clearedWithDuration.length
     : 0
@@ -197,7 +206,7 @@ export default function ClogEvents() {
   }
 
   const monthlyCompleted = cardScopedClogs.filter(n => {
-    if (n.status !== 'Cleared' || !n.resolved_at) return false
+    if (!isCleared(n) || !n.resolved_at) return false
     if (selectedMonth === 'All') {
       const now = new Date()
       const resolvedDate = new Date(n.resolved_at)
@@ -309,6 +318,7 @@ export default function ClogEvents() {
               <SelectContent position="popper" className='min-w-0'>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="All Status">All Status</SelectItem>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Detected">Detected</SelectItem>
+                <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Responded">Responded</SelectItem>
                 <SelectItem className="text-xs cursor-pointer p-2 text-[#122A48]" value="Cleared">Cleared</SelectItem>
               </SelectContent>
             </Select>
@@ -571,9 +581,11 @@ export default function ClogEvents() {
                     <p>Reason</p>
                     <p>
                       {clearReasonLabel(selectedClog.clear_reason)}
-                      {selectedClog.clear_reason === 'Manual Clear' && selectedClog.cleared_by_details
-                        ? ` by ${selectedClog.cleared_by_details.first_name} ${selectedClog.cleared_by_details.last_name}`
-                        : ''}
+                      {selectedClog.clear_reason === 'Responded' && selectedClog.responded_by_details
+                        ? ` by ${selectedClog.responded_by_details.first_name} ${selectedClog.responded_by_details.last_name}`
+                        : selectedClog.clear_reason === 'Manual Clear' && selectedClog.cleared_by_details
+                          ? ` by ${selectedClog.cleared_by_details.first_name} ${selectedClog.cleared_by_details.last_name}`
+                          : ''}
                     </p>
                   </div>
                 )}

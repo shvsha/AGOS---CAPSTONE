@@ -117,7 +117,7 @@ export default function ClogEventsScreen() {
   const totalCount = events.length
   const detectedCount = events.filter(e => e.status === 'Detected').length
   const respondedCount = events.filter(e => e.status === 'Responded').length
-  const resolvedCount = events.filter(e => e.status === 'Cleared' || e.status === 'Verified').length
+  const resolvedCount = events.filter(e => e.status === 'Cleared').length
 
   const handlePress = (event: ClogEvent) => {
     setSelectedEvent(event)

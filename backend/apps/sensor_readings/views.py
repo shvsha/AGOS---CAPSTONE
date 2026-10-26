@@ -465,6 +465,7 @@ class SensorReadingWithFlowView(APIView):
         open_event = ClogEvent.objects.filter(
             node=node,
             status__in=['Detected', 'Responded'],
+            settled_at__isnull=True,
         ).order_by('-detected_at').first()
 
         if open_event and open_event.classification is None:

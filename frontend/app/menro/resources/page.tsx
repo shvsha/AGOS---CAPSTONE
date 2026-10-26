@@ -300,7 +300,7 @@ export default function Resources() {
     0
   )
 
-  const clearedAreas = allClogs.filter(c => c.status === 'Cleared' || c.status === 'Verified').length
+  const clearedAreas = allClogs.filter(c => c.status === 'Cleared')
 
   const fetchAllResourceData = useCallback(async () => {
     await Promise.allSettled([

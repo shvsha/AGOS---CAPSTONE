@@ -18,7 +18,7 @@ class HotspotSerializer(serializers.ModelSerializer):
         model = Hotspot
         fields = [
             'hotspot_id', 'barangay', 'barangay_details',
-            'name', 'code', 'description',
+            'name', 'code', 'purok', 'description',
             'latitude', 'longitude',
             'canal_width', 'canal_shape', 'sensor_height', 'canal_depth',
             'is_occupied',
@@ -55,6 +55,15 @@ class HotspotSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         barangay = attrs.get('barangay', getattr(self.instance, 'barangay', None))
         code = attrs.get('code', getattr(self.instance, 'code', None))
+
+        # purok: required for new hotspots; old ones may still be empty until edited
+        purok = attrs.get('purok', getattr(self.instance, 'purok', None))
+        if purok is None and (self.instance is None or 'purok' in attrs):
+            raise serializers.ValidationError({'purok': 'Purok is required.'})
+        if purok is not None and barangay is not None and not (1 <= purok <= barangay.purok_count):
+            raise serializers.ValidationError({
+                'purok': f'{barangay.barangay_name} has {barangay.purok_count} purok(s). Choose 1 to {barangay.purok_count}.'
+            })
 
         qs = Hotspot.objects.filter(barangay=barangay, code=code)
         if self.instance:

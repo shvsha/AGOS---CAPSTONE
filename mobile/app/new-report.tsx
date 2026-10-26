@@ -22,6 +22,9 @@ import { SubmitReportModal } from "@/components/reports/SubmitReportModal";
 import { IncompleteReportModal } from "@/components/reports/IncompleteReportModal";
 import { PhotoPreviewModal } from "@/components/reports/PhotoPreviewModal";
 import { IncompleteSignatoriesModal } from "@/components/reports/IncompleteSignatoriesModal";
+import { PostReportSummary, type SystemData } from "@/components/reports/PostReportSummary";
+import { CompletePostModal } from "@/components/reports/CompletePostModal";
+import { ConfirmActionModal } from "@/components/reports/ConfirmActionModal";
 
 
 interface PhotoAsset {
@@ -109,7 +112,7 @@ const INITIAL_STATE: ReportFormState = {
   evidencePhotos: [],
 };
 
-function Field({ label, value, onChangeText, placeholder, keyboardType = "default", multiline = false, numberOfLines = 1, required = false, }: {
+function Field({ label, value, onChangeText, placeholder, keyboardType = "default", multiline = false, numberOfLines = 1, required = false, stacked = false, }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -118,9 +121,10 @@ function Field({ label, value, onChangeText, placeholder, keyboardType = "defaul
   multiline?: boolean;
   numberOfLines?: number;
   required?: boolean;
+  stacked?: boolean;
 }) {
   return (
-    <View className={`flex-1 ${multiline ? "mb-3" : ""}`}>
+    <View className={`${stacked ? "" : "flex-1"} ${multiline ? "mb-3" : ""}`}>
       <Text className="mb-1.5 text-xs font-semibold text-[#334155]">
         {label} {required && <Text className="text-[#dc2626]">*</Text>}
       </Text>
@@ -181,7 +185,7 @@ function DateTimeField({ label, value, onChange, required = false, placeholder =
   };
 
   return (
-    <View className="flex-1">
+    <View>
       <Text className="mb-1.5 text-xs font-semibold text-[#334155]">
         {label} {required && <Text className="text-[#dc2626]">*</Text>}
       </Text>
@@ -220,9 +224,9 @@ function SectionHeader({ icon, title }: { icon: string; title: string }) {
 }
 
 // Read-only display for auto-filled, locked values (Barangay, Municipality)
-function LockedField({ label, value }: { label: string; value: string }) {
+function LockedField({ label, value, stacked = false }: { label: string; value: string; stacked?: boolean }) {
   return (
-    <View className="flex-1">
+    <View className={stacked ? "" : "flex-1"}>
       <Text className="mb-1.5 text-xs font-semibold text-[#334155]">{label}</Text>
       <View className="flex-row items-center gap-2 rounded-[10px] border border-[#e2e8f0] bg-[#e2e8f0] px-3 py-2.5">
         <MaterialCommunityIcons name="lock-outline" size={14} color="#94a3b8" />
@@ -458,6 +462,16 @@ function DraftSavedModal({ visible, onClose }: { visible: boolean; onClose: () =
   );
 }
 
+function postErrorMessage(err: any): string {
+  if (!err) return "Couldn't complete the report. Please try again.";
+  const extra = Array.isArray(err.missing) ? `\nMissing: ${err.missing.join(", ")}` : "";
+  if (typeof err.detail === "string") return err.detail + extra;
+  if (typeof err.is_submitted === "string" || Array.isArray(err.is_submitted)) return String(err.is_submitted);
+  const parts = Object.values(err).flat().filter((v) => typeof v === "string") as string[];
+  return parts.length ? parts.join("\n") : "Couldn't complete the report. Please try again.";
+}
+
+
 export default function NewReportScreen() {
   const router = useRouter();
   // report_id: continuing an existing in-progress report
@@ -487,6 +501,13 @@ export default function NewReportScreen() {
   const [missingSignatories, setMissingSignatories] = useState<string[]>([]);
   const [isSignatoriesVisible, setIsSignatoriesVisible] = useState(false);
   const [isIncompleteVisible, setIsIncompleteVisible] = useState(false);
+
+  const [isPost, setIsPost] = useState(false);
+  const [reportStatus, setReportStatus] = useState("Draft");
+  const [systemData, setSystemData] = useState<SystemData | null>(null);
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
 
   const [preview, setPreview] = useState<{ field: PhotoField; index: number } | null>(null);
 
@@ -569,6 +590,19 @@ export default function NewReportScreen() {
           afterPhotos: toPhotos("After_Clearing"),
           evidencePhotos: toPhotos("Additional_Evidence"),
         });
+        const post =
+          report.clog_event != null &&
+          ["Awaiting_Post_Report", "Ready_To_Verify"].includes(report.status);
+        setIsPost(post);
+        setReportStatus(report.status);
+        if (post) {
+          setSystemLoading(true);
+          api
+            .get(`/api/canal-reports/${report.report_id}/system-data/`)
+            .then((d: SystemData) => setSystemData(d))
+            .catch(() => setSystemData(null))
+            .finally(() => setSystemLoading(false));
+        }
       })
       .catch(() => {
         Alert.alert("Error", "Couldn't load that report. Please try again.");
@@ -701,9 +735,8 @@ export default function NewReportScreen() {
   const allPhotos = [...form.beforePhotos, ...form.afterPhotos, ...form.evidencePhotos];
   const hasUploadingPhotos = allPhotos.some((p) => p.uploading);
 
-  // Drafts keep blank waste fields as null; on submit they become 0.
-  // is_submitted is only ever sent as true — a draft save never sends it, so a stale
-  // second device saving a draft can't accidentally un-submit a report.
+  // Drafts keep blank waste fields as null; on complete they become 0.
+  // Reports are never submitted from this form: submitting happens on the Submit screen after verifying.
   const buildPayload = (submit: boolean) => {
     const kg = (text: string) => (submit ? parseAmount(text) : toNumberOrNull(text));
     const textOrNull = (text: string) => (text.trim() ? text.trim() : null);
@@ -739,8 +772,6 @@ export default function NewReportScreen() {
       action_taken: textOrNull(form.actionTaken),
       waste_collected_amount: submit || hasAnyWaste ? wasteTotalKg : null,
       remarks: form.remarks.trim(),
-
-      ...(submit ? { is_submitted: true } : {}),
     };
   };
 
@@ -791,59 +822,90 @@ export default function NewReportScreen() {
     router.replace("/(tabs)/reports" as any);
   };
 
-  const handleOpenSubmitModal = async () => {
+  // a report filled in by hand: check it, confirm, then go to the preview
+  const handleOpenCompleteModal = () => {
     if (hasUploadingPhotos) {
       Alert.alert("Please wait", "Photos are still uploading.");
       return;
     }
-
     const missing = getMissingFields();
     if (missing.length > 0) {
       setMissingFields(missing);
       setIsIncompleteVisible(true);
       return;
     }
-
     if (form.dateResponded!.getTime() < form.dateObserved!.getTime()) {
       Alert.alert("Check the dates", "The response time can't be earlier than the time the problem was observed.");
       return;
     }
+    setIsSubmitModalVisible(true);
+  };
 
-    setIsCheckingSignatories(true);
-      try {
-      const status = await api.get("/api/canal-reports/signatory-status/");
-        if (!status.complete) {
-          setMissingSignatories(status.missing);
-          setIsSignatoriesVisible(true);
-          return;
-        }
-      } catch {
-        // couldn't check (e.g. network blip): let the server decide on submit
-      } finally {
-        setIsCheckingSignatories(false);
-      }
-
-      setIsSubmitModalVisible(true);
-    };
-
-  const handleConfirmSubmit = async () => {
+  const handleConfirmComplete = async () => {
     setIsSubmitting(true);
     try {
       const id = await ensureReportExists();
       await api.patch(`/api/canal-reports/${id}/`, buildPayload(true));
-
+      await api.post(`/api/canal-reports/${id}/complete/`, {});
       setIsSubmitModalVisible(false);
-      Alert.alert(
-        "Report Submitted",
-        "Your report was successfully submitted!",
-        [{ text: "OK", onPress: () => router.replace("/(tabs)/reports" as any) }],
-        { cancelable: false }
-      );
+      router.replace({ pathname: "/view-report", params: { id: String(id) } } as any);
     } catch (err: any) {
       setIsSubmitModalVisible(false);
-      Alert.alert("Error", getErrorMessage(err, "Couldn't submit report. Please try again."));
+      Alert.alert("Can't complete yet", postErrorMessage(err));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // post-report: waste, photos and remarks are required; the canal condition comes from the sensors
+  const getPostMissing = (): string[] => {
+    const missing: string[] = [];
+    if (wasteTotalKg <= 0) missing.push("Waste composition (at least one category)");
+    form.customWaste.forEach((c) => {
+      if (parseAmount(c.kg) <= 0) missing.push(`Weight for ${c.name}`);
+    });
+    if (form.beforePhotos.length === 0) missing.push("Before Cleanup photo");
+    if (form.afterPhotos.length === 0) missing.push("After Cleanup photo");
+    return missing;
+  };
+
+  const handleCompletePost = () => {
+    if (hasUploadingPhotos) {
+      Alert.alert("Please wait", "Photos are still uploading.");
+      return;
+    }
+    const missing = getPostMissing();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setIsIncompleteVisible(true);
+      return;
+    }
+    setCompleteOpen(true);
+  };
+
+  const confirmCompletePost = async () => {
+    setIsCompleting(true);
+    try {
+      const id = await ensureReportExists();
+      await api.patch(`/api/canal-reports/${id}/`, buildPayload(false));
+      const done = await api.post(`/api/canal-reports/${id}/complete-post/`, {});
+
+      setForm((prev) => ({
+        ...prev,
+        purok: done.purok ?? prev.purok,
+        severity: done.severity ?? prev.severity,
+        waterLevel: done.overall_water_level,
+        obstructionCoverage: done.overall_obstruction_coverage,
+        waterFlowCondition: done.overall_water_flow_condition,
+      }));
+      setReportStatus(done.status);
+      setCompleteOpen(false);
+      router.replace({ pathname: "/view-report", params: { id: String(id) } } as any);
+    } catch (err: any) {
+      setCompleteOpen(false);
+      Alert.alert("Can't complete yet", postErrorMessage(err));
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -887,7 +949,7 @@ export default function NewReportScreen() {
         </TouchableOpacity>
 
         <Text className="text-lg font-bold text-[#122A48]">
-          {reportId ? "Continue Report" : "New Canal Report"}
+          {isPost ? "Post-Report" : reportId ? "Continue Report" : "New Canal Report"}
         </Text>
 
         <View className="w-7" />
@@ -904,78 +966,100 @@ export default function NewReportScreen() {
             shadowOffset: { width: 0, height: 2 },
           }}
         >
-          {/* MONITORING SITE INFORMATION */}
-          <SectionHeader icon="map-marker-radius-outline" title="MONITORING SITE INFORMATION" />
-
-          <View className="mb-3 flex-row gap-2.5">
-            <LockedField label="Barangay" value={barangayName} />
-            <LockedField label="Municipality" value="Rosario, La Union" />
-          </View>
-
-          <ChipSelect
-            label="Purok"
-            required
-            options={PUROK_OPTIONS}
-            value={form.purok != null ? String(form.purok) : null}
-            onChange={(v) => update("purok", Number(v))}
-          />
-
-          <View className="mb-3 h-px bg-[#f1f5f9]" />
-
-          {/* DETECTION SUMMARY */}
-          <SectionHeader icon="clipboard-alert-outline" title="DETECTION SUMMARY" />
-
-          <View className="mb-3">
-            <DateTimeField
-              label="Date / Time Observed"
-              required
-              value={form.dateObserved}
-              onChange={(d) => update("dateObserved", d)}
+          {isPost ? (
+            <PostReportSummary
+              barangay={barangayName}
+              purok={form.purok}
+              detectedAt={form.dateObserved}
+              severity={form.severity}
+              personnel={form.assignedPersonnel}
+              respondedAt={form.dateResponded}
+              action={form.actionTaken}
+              condition={{
+                waterLevel: form.waterLevel,
+                obstruction: form.obstructionCoverage,
+                flow: form.waterFlowCondition,
+              }}
+              system={systemData}
+              systemLoading={systemLoading}
+              completed={reportStatus === "Ready_To_Verify"}
             />
-          </View>
+          ) : (
+            <>
+              {/* MONITORING SITE INFORMATION */}
+              <SectionHeader icon="map-marker-radius-outline" title="MONITORING SITE INFORMATION" />
 
-          <ChipSelect
-            label="Severity"
-            required
-            options={SEVERITY_OPTIONS}
-            value={form.severity}
-            onChange={(v) => update("severity", v)}
-            colorMap={SEVERITY_COLORS}
-          />
+              <View className="mb-3 flex-row gap-2.5">
+                <LockedField label="Barangay" value={barangayName} />
+                <LockedField label="Municipality" value="Rosario, La Union" />
+              </View>
 
-          <View className="mb-3 h-px bg-[#f1f5f9]" />
+              <ChipSelect
+                label="Purok"
+                required
+                options={PUROK_OPTIONS}
+                value={form.purok != null ? String(form.purok) : null}
+                onChange={(v) => update("purok", Number(v))}
+              />
 
-          {/* OVERALL CANAL CONDITION */}
-          <SectionHeader icon="waves" title="OVERALL CANAL CONDITION" />
-          <Text className="mb-3 -mt-1 text-[11px] text-[#94a3b8]">
-            Describe the purok as a whole: the highest water level, the worst flow, and how much of its canals were obstructed.
-          </Text>
+              <View className="mb-3 h-px bg-[#f1f5f9]" />
 
-          <ChipSelect
-            label="Overall Water Level"
-            required
-            options={WATER_LEVEL_OPTIONS}
-            value={form.waterLevel}
-            onChange={(v) => update("waterLevel", v)}
-          />
+              {/* DETECTION SUMMARY */}
+              <SectionHeader icon="clipboard-alert-outline" title="DETECTION SUMMARY" />
 
-          <ChipSelect
-            label="Overall Obstruction"
-            required
-            options={OBSTRUCTION_COVERAGE_OPTIONS}
-            value={form.obstructionCoverage}
-            onChange={(v) => update("obstructionCoverage", v)}
-          />
+              <View className="mb-3">
+                <DateTimeField
+                  label="Date / Time Observed"
+                  required
+                  value={form.dateObserved}
+                  onChange={(d) => update("dateObserved", d)}
+                />
+              </View>
 
-          <ChipSelect
-            label="Overall Water Flow"
-            required
-            options={WATER_FLOW_OPTIONS}
-            value={form.waterFlowCondition}
-            onChange={(v) => update("waterFlowCondition", v)}
-          />
+              <ChipSelect
+                label="Severity"
+                required
+                options={SEVERITY_OPTIONS}
+                value={form.severity}
+                onChange={(v) => update("severity", v)}
+                colorMap={SEVERITY_COLORS}
+              />
 
-          <View className="mb-3 h-px bg-[#f1f5f9]" />
+              <View className="mb-3 h-px bg-[#f1f5f9]" />
+
+              {/* OVERALL CANAL CONDITION */}
+              <SectionHeader icon="waves" title="OVERALL CANAL CONDITION" />
+              <Text className="mb-3 -mt-1 text-[11px] text-[#94a3b8]">
+                Describe the purok as a whole: the highest water level, the worst flow, and how much of its canals were obstructed.
+              </Text>
+
+              <ChipSelect
+                label="Overall Water Level"
+                required
+                options={WATER_LEVEL_OPTIONS}
+                value={form.waterLevel}
+                onChange={(v) => update("waterLevel", v)}
+              />
+
+              <ChipSelect
+                label="Overall Obstruction"
+                required
+                options={OBSTRUCTION_COVERAGE_OPTIONS}
+                value={form.obstructionCoverage}
+                onChange={(v) => update("obstructionCoverage", v)}
+              />
+
+              <ChipSelect
+                label="Overall Water Flow"
+                required
+                options={WATER_FLOW_OPTIONS}
+                value={form.waterFlowCondition}
+                onChange={(v) => update("waterFlowCondition", v)}
+              />
+
+              <View className="mb-3 h-px bg-[#f1f5f9]" />
+            </>
+          )}
 
           {/* WASTE COMPOSITION */}
           <SectionHeader icon="trash-can-outline" title="WASTE COMPOSITION" />
@@ -1065,40 +1149,47 @@ export default function NewReportScreen() {
           {/* BARANGAY RESPONSE */}
           <SectionHeader icon="account-hard-hat-outline" title="BARANGAY RESPONSE" />
 
-          <View className="mb-3">
-            <Field
-              label="Assigned Personnel"
-              required
-              value={form.assignedPersonnel}
-              onChangeText={(t) => update("assignedPersonnel", t)}
-              placeholder="Who carried out the cleanup"
-            />
-          </View>
+          {!isPost && (
+            <>
+              <View className="mb-3">
+                <Field
+                  stacked 
+                  label="Assigned Personnel"
+                  required
+                  value={form.assignedPersonnel}
+                  onChangeText={(t) => update("assignedPersonnel", t)}
+                  placeholder="Who carried out the cleanup"
+                />
+              </View>
+
+              <View className="mb-3">
+                <DateTimeField
+                  label="Date / Time Responded"
+                  required
+                  value={form.dateResponded}
+                  onChange={(d) => update("dateResponded", d)}
+                />
+              </View>
+
+              <Field
+                stacked 
+                label="Action Taken"
+                required
+                value={form.actionTaken}
+                onChangeText={(t) => update("actionTaken", t)}
+                placeholder="Describe what was done to clear the canal..."
+                multiline
+                numberOfLines={3}
+              />
+            </>
+          )}
 
           <View className="mb-3">
-            <DateTimeField
-              label="Date / Time Responded"
-              required
-              value={form.dateResponded}
-              onChange={(d) => update("dateResponded", d)}
-            />
+            <LockedField stacked label="Waste Collected (auto total)" value={`${wasteTotalKg.toFixed(2)} kg`} />
           </View>
 
           <Field
-            label="Action Taken"
-            required
-            value={form.actionTaken}
-            onChangeText={(t) => update("actionTaken", t)}
-            placeholder="Describe what was done to clear the canal..."
-            multiline
-            numberOfLines={3}
-          />
-
-          <View className="mb-3">
-            <LockedField label="Waste Collected (auto total)" value={`${wasteTotalKg.toFixed(2)} kg`} />
-          </View>
-
-          <Field
+            stacked
             label="Remarks"
             value={form.remarks}
             onChangeText={(t) => update("remarks", t)}
@@ -1136,11 +1227,43 @@ export default function NewReportScreen() {
             onPreview={(i) => setPreview({ field: "evidencePhotos", index: i })}
           />
 
-          <View className="mt-3 flex-row gap-2.5">
+          <View className="mt-4 gap-2.5">
+            {isPost ? (
+              <TouchableOpacity
+                onPress={handleCompletePost}
+                disabled={isSavingDraft || isCompleting}
+                className={`flex-row items-center justify-center gap-2 rounded-xl bg-[#16a34a] py-3.5 ${
+                  isCompleting ? "opacity-60" : "opacity-100"
+                }`}
+              >
+                {isCompleting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <MaterialCommunityIcons name="check-circle-outline" size={18} color="white" />
+                )}
+                <Text className="text-sm font-bold text-white">
+                  {reportStatus === "Ready_To_Verify" ? "Save & Review" : "Complete Post-Report"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleOpenCompleteModal}
+                disabled={isSavingDraft || isSubmitting}
+                className={`flex-row items-center justify-center gap-2 rounded-xl bg-[#16a34a] py-3.5 ${
+                  isSubmitting ? "opacity-60" : "opacity-100"
+                }`}
+              >
+                <MaterialCommunityIcons name="check-circle-outline" size={18} color="white" />
+                <Text className="text-sm font-bold text-white">
+                  {reportStatus === "Ready_To_Verify" ? "Save & Review" : "Complete & Review"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={handleSaveDraft}
-              disabled={isSavingDraft || isSubmitting || isCheckingSignatories}
-              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-[#cbd5e1] bg-[#f8fafc] py-3 ${
+              disabled={isSavingDraft || isSubmitting || isCheckingSignatories || isCompleting}
+              className={`flex-row items-center justify-center gap-2 rounded-xl border border-[#cbd5e1] bg-white py-3 ${
                 isSavingDraft ? "opacity-60" : "opacity-100"
               }`}
             >
@@ -1149,20 +1272,9 @@ export default function NewReportScreen() {
               ) : (
                 <>
                   <MaterialCommunityIcons name="content-save-outline" size={18} color="#475569" />
-                  <Text className="text-[13px] font-semibold text-[#475569]">Save Draft</Text>
+                  <Text className="text-sm font-semibold text-[#475569]">Save Draft</Text>
                 </>
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleOpenSubmitModal}
-              disabled={isSavingDraft || isSubmitting || isCheckingSignatories}
-              className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3 ${
-                isSubmitting || isCheckingSignatories ? "opacity-60" : "opacity-100"
-              }`}
-            >
-              <MaterialCommunityIcons name="send-outline" size={18} color="white" />
-              <Text className="text-[13px] font-semibold text-white">Submit</Text>
             </TouchableOpacity>
           </View>
 
@@ -1184,20 +1296,15 @@ export default function NewReportScreen() {
         }}
       />
 
-      <SubmitReportModal
+      <ConfirmActionModal
         visible={isSubmitModalVisible}
+        loading={isSubmitting}
+        title="Complete this report?"
+        icon="clipboard-check-outline"
+        message="Your report will be saved and shown in a preview, where you can verify it. You can still edit it until you verify."
+        confirmLabel="Complete"
         onClose={() => setIsSubmitModalVisible(false)}
-        onConfirm={handleConfirmSubmit}
-        isSubmitting={isSubmitting}
-        summary={{
-          location: barangayName,
-          purok: form.purok,
-          severity: form.severity,
-          dateObserved: form.dateObserved,
-          responder: form.assignedPersonnel.trim(),
-          wasteCollectedKg: wasteTotalKg,
-          photoCount: allPhotos.length,
-        }}
+        onConfirm={handleConfirmComplete}
       />
 
       <IncompleteReportModal
@@ -1228,6 +1335,15 @@ export default function NewReportScreen() {
         excludeIds={form.customWaste.map((c) => c.wasteTypeId)}
         onPick={addCustomWaste}
         onCreated={addCustomWaste}
+      />
+
+      <CompletePostModal
+        visible={completeOpen}
+        loading={isCompleting}
+        wasteKg={wasteTotalKg}
+        photoCount={form.beforePhotos.length + form.afterPhotos.length + form.evidencePhotos.length}
+        onClose={() => setCompleteOpen(false)}
+        onConfirm={confirmCompletePost}
       />
     </SafeAreaView>
   );

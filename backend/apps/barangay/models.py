@@ -13,6 +13,7 @@ class Barangay(models.Model):
   deactivation_reason = models.TextField(blank=True, default='')
 
   boundary = models.JSONField(null=True, blank=True)
+  purok_count = models.PositiveSmallIntegerField(default=7)
 
   class Meta:
     db_table = 'tbl_barangay'

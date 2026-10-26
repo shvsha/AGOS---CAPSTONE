@@ -15,12 +15,14 @@ import { SpinnerIcon } from "@/components/SpinnerIcon"
 import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
 import { fetchBarangayBoundaryById } from "@/lib/barangayBoundary"
+import { DEFAULT_PUROK_COUNT, MAX_PUROK_COUNT } from "@/lib/purok"
 
 type BarangayLite = {
   barangay_id: number
   barangay_name: string
   latitude: number
   longitude: number
+  purok_count?: number
 }
 
 type Props = {
@@ -85,6 +87,7 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
   const [name, setName] = useState("")
   const [lat, setLat] = useState("")
   const [lng, setLng] = useState("")
+  const [purokCount, setPurokCount] = useState(String(DEFAULT_PUROK_COUNT))
   const [boundary, setBoundary] = useState<any>(null)
   const [boundaryAction, setBoundaryAction] = useState<BoundaryAction>("keep")
   const [fileName, setFileName] = useState("")
@@ -105,6 +108,7 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
     setName(barangay?.barangay_name ?? "")
     setLat(barangay ? String(barangay.latitude) : "")
     setLng(barangay ? String(barangay.longitude) : "")
+    setPurokCount(String(barangay?.purok_count ?? DEFAULT_PUROK_COUNT))
     setBoundary(null)
     setBoundaryAction("keep")
     setFileName("")
@@ -131,6 +135,10 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
 
   const latNum = parseCoord(lat, -90, 90)
   const lngNum = parseCoord(lng, -180, 180)
+  const purokNum =
+    /^\d+$/.test(purokCount.trim()) && Number(purokCount) >= 1 && Number(purokCount) <= MAX_PUROK_COUNT
+      ? Number(purokCount)
+      : null
   const trimmed = name.trim()
   const renamed = isEdit && trimmed !== barangay!.barangay_name
 
@@ -139,8 +147,12 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
     !booleanPointInPolygon(point([lngNum, latNum]), boundary)
 
   const dirty = isEdit
-    ? renamed || latNum !== barangay!.latitude || lngNum !== barangay!.longitude || boundaryAction !== "keep"
-    : !!(trimmed || lat || lng || boundaryAction !== "keep")
+    ? renamed ||
+      latNum !== barangay!.latitude ||
+      lngNum !== barangay!.longitude ||
+      purokNum !== (barangay!.purok_count ?? DEFAULT_PUROK_COUNT) ||
+      boundaryAction !== "keep"
+    : !!(trimmed || lat || lng || purokCount !== String(DEFAULT_PUROK_COUNT) || boundaryAction !== "keep")
 
   const requestClose = () => {
     if (submitting) return
@@ -202,12 +214,13 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
     }
     if (latNum == null) e.latitude = "Enter a valid latitude, or click the map."
     if (lngNum == null) e.longitude = "Enter a valid longitude, or click the map."
+    if (purokNum == null) e.purok_count = `Enter a number from 1 to ${MAX_PUROK_COUNT}.`
     return e
   }
 
   const buildPayload = (confirmOutside = false) => {
     if (!isEdit) {
-      const p: any = { barangay_name: trimmed, latitude: latNum, longitude: lngNum }
+      const p: any = { barangay_name: trimmed, latitude: latNum, longitude: lngNum, purok_count: purokNum }
       if (boundaryAction === "replace") p.boundary = boundary
       return p
     }
@@ -215,6 +228,7 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
     if (renamed) p.barangay_name = trimmed
     if (latNum !== barangay!.latitude) p.latitude = latNum
     if (lngNum !== barangay!.longitude) p.longitude = lngNum
+    if (purokNum !== (barangay!.purok_count ?? DEFAULT_PUROK_COUNT)) p.purok_count = purokNum
     if (boundaryAction === "replace") p.boundary = boundary
     if (boundaryAction === "remove") p.boundary = null
     if (confirmOutside) p.confirm_outside_hotspots = true
@@ -248,7 +262,7 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
         return
       }
       const fe: Record<string, string> = {}
-      for (const k of ["barangay_name", "latitude", "longitude", "boundary"]) {
+      for (const k of ["barangay_name", "latitude", "longitude", "purok_count", "boundary"]) {
         if (err?.[k]) fe[k] = String(err[k])
       }
       setErrors(fe)
@@ -347,6 +361,22 @@ export function BarangayFormDialog({ open, barangay, existingNames, onClose, onS
                   </Field>
                 ))}
               </div>
+
+              <Field className="flex gap-1.5 flex-col">
+                <FieldLabel className="text-[#122A48] text-[11px]">NUMBER OF PUROKS *</FieldLabel>
+                <Input
+                  type="number"
+                  min={1}
+                  max={MAX_PUROK_COUNT}
+                  value={purokCount}
+                  onChange={e => { setPurokCount(e.target.value); clearError("purok_count") }}
+                  className={`text-[#122A48] rounded-lg text-xs !font-normal md:h-9 bg-[#1565BC05] w-32 ${errors.purok_count ? "border-[#FF0000]" : "border-[#727272]"}`}
+                />
+                <FieldError className="text-xs">{errors.purok_count}</FieldError>
+                <p className="text-[11px] text-[#727272]">
+                  Hotspots in this barangay can be placed in Purok 1 up to this number.
+                </p>
+              </Field>
 
               <div className="flex flex-col gap-2 rounded-lg border border-[#C6C6C8] p-3">
                 <p className="font-semibold text-xs">Barangay outline (optional)</p>

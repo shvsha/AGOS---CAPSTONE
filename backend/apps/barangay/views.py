@@ -62,6 +62,18 @@ def _number(value, label, lo, hi):
     return v, None
 
 
+MAX_PUROK_COUNT = 30
+
+def _purok_count(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None, 'Number of puroks must be a whole number.'
+    if not (1 <= n <= MAX_PUROK_COUNT):
+        return None, f'Number of puroks must be between 1 and {MAX_PUROK_COUNT}.'
+    return n, None
+
+
 def _ip(request):
     return request.META.get('REMOTE_ADDR')
 
@@ -104,11 +116,18 @@ class BarangayListView(generics.ListCreateAPIView):
             except BoundaryError as e:
                 errors['boundary'] = str(e)
 
+        purok_count = 7
+        if data.get('purok_count') not in (None, ''):
+            purok_count, err = _purok_count(data.get('purok_count'))
+            if err:
+                errors['purok_count'] = err
+
         if errors:
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
         # New barangays start Unregistered, same as the existing ones. Admin registers them from the list.
         barangay = Barangay.objects.create(
+            purok_count=purok_count,
             barangay_name=name, latitude=lat, longitude=lng,
             is_registered=False, is_active=True, boundary=boundary,
         )
@@ -133,6 +152,7 @@ class BarangayDetailView(generics.RetrieveUpdateAPIView):
 
         old_name = b.barangay_name
         name, lat, lng, boundary = old_name, b.latitude, b.longitude, b.boundary
+        purok_count = b.purok_count
         boundary_given = False
 
         if 'barangay_name' in data:
@@ -157,6 +177,19 @@ class BarangayDetailView(generics.RetrieveUpdateAPIView):
                     boundary = normalize_boundary(data.get('boundary'), name)
                 except BoundaryError as e:
                     errors['boundary'] = str(e)
+
+        if 'purok_count' in data:
+            purok_count, err = _purok_count(data.get('purok_count'))
+            if err:
+                errors['purok_count'] = err
+            else:
+                too_high = (Hotspot.objects
+                            .filter(barangay=b, is_active=True, purok__gt=purok_count)
+                            .order_by('-purok').first())
+                if too_high:
+                    errors['purok_count'] = (
+                        f'Purok {too_high.purok} is still used by {too_high.name}. Move or remove it first.'
+                    )
 
         if errors:
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
@@ -183,6 +216,7 @@ class BarangayDetailView(generics.RetrieveUpdateAPIView):
                 boundary = {**boundary, 'properties': {**(boundary.get('properties') or {}), 'adm4_en': name}}
 
             b.barangay_name, b.latitude, b.longitude, b.boundary = name, lat, lng, boundary
+            b.purok_count = purok_count
             b.save()
 
             if renamed:

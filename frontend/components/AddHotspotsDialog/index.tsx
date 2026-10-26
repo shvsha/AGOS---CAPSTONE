@@ -17,6 +17,7 @@ import { DIALOG_COLOR } from "@/lib/constant"
 import { api } from "@/lib/api"
 import { fetchWithAuth } from "@/lib/auth"
 import { fetchBarangayBoundaryById } from "@/lib/barangayBoundary"
+import { PurokSelect } from "@/components/PurokSelect"
 
 type Row = {
   id: number
@@ -28,13 +29,14 @@ type Row = {
   canalShape: string
   sensorHeight: string
   canalDepth: string
+  purok: string
 }
 type RowErrors = Record<string, string>
 
 type Props = {
   open: boolean
-  barangay: { barangay_id: number; barangay_name: string; latitude?: number | null; longitude?: number | null } | null
-  existingMarkers?: any[]            // hotspots already on the map (context only)
+  barangay: { barangay_id: number; barangay_name: string; latitude?: number | null; longitude?: number | null; purok_count?: number | null } | null
+  existingMarkers?: any[]
   onClose: () => void
   onCreated: (created: any[]) => void
 }
@@ -47,6 +49,7 @@ const API_FIELD: Record<string, string> = {
   description: "description",
   latitude: "latitude",
   longitude: "longitude",
+  purok: "purok",
   canal_width: "canalWidth",
   canal_shape: "canalShape",
   sensor_height: "sensorHeight",
@@ -84,6 +87,7 @@ export function AddHotspotsDialog({ open, barangay, existingMarkers = [], onClos
     description: "",
     latitude: "",
     longitude: "",
+    purok: "",
     canalWidth: "",
     canalShape: "rectangular",
     sensorHeight: "",
@@ -207,6 +211,7 @@ export function AddHotspotsDialog({ open, barangay, existingMarkers = [], onClos
 
       if (!r.description.trim()) re.description = "This field is required."
       if (!r.latitude || !r.longitude) re.latitude = "Click the map to pin this hotspot."
+      if (!r.purok) re.purok = "Select a purok."
       if (!r.canalWidth) re.canalWidth = "Required."
       if (!r.sensorHeight) re.sensorHeight = "Required."
       if (!r.canalDepth) re.canalDepth = "Required."
@@ -237,6 +242,7 @@ export function AddHotspotsDialog({ open, barangay, existingMarkers = [], onClos
         barangay: barangay.barangay_id,
         hotspots: rows.map(r => ({
           code: r.code.trim(),
+          purok: parseInt(r.purok),
           description: r.description.trim(),
           latitude: parseFloat(r.latitude),
           longitude: parseFloat(r.longitude),
@@ -373,6 +379,16 @@ export function AddHotspotsDialog({ open, barangay, existingMarkers = [], onClos
 
                     <div className="flex gap-3">
                       <TextField label="CODE *" value={r.code} onChange={v => update(r.id, "code", v)} error={e.code} placeholder="2" />
+                      <Field className="flex gap-1.5 flex-col flex-1">
+                        <FieldLabel className="text-[#122A48] text-[11px]">PUROK *</FieldLabel>
+                        <PurokSelect
+                          value={r.purok}
+                          onChange={v => update(r.id, "purok", v)}
+                          count={barangay.purok_count}
+                          error={!!e.purok}
+                        />
+                        <FieldError className="text-xs">{e.purok}</FieldError>
+                      </Field>
                       <div className="flex-[2]">
                         <TextField
                           label="DESCRIPTION *"

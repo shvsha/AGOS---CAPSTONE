@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from .models import ClogEvent
 from .serializers import ClogEventSerializer, clog_clear_reason
 from django.utils import timezone
-from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay
+from apps.users.permissions import IsAdmin, IsAdminOrMENRO, IsAdminOrMENROOrBarangay, IsBarangay
 from apps.audit_logs.utils import log_action
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -14,6 +14,10 @@ from agos_backend.pdf_utils import render_to_pdf
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from apps.audit_logs.utils import log_action
+from datetime import timedelta
+from django.db import transaction
+from django.utils.dateparse import parse_datetime
+from apps.reports.models import CanalMonitoringReport
 
 
 class ClogEventListView(generics.ListCreateAPIView):
@@ -91,19 +95,19 @@ class UpdateClogStatusView(APIView):
                 )
 
             # Role-based status restrictions
-            if user.user_role == 'Barangay' and new_status not in ['Responded', 'Cleared']:
+            if user.user_role == 'Barangay':
                 return Response(
-                    {'error': 'Barangay can only set Responded or Cleared'},
+                    {'error': 'Please use the response form to respond to a clog event.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            if user.user_role in ('MENRO', 'MENRO_Staff') and new_status not in ['Verified']:
+            if user.user_role in ('MENRO', 'MENRO_Staff'):
                 return Response(
-                    {'error': 'MENRO can only set Verified'},
+                    {'error': 'MENRO cannot change clog event status'},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            if new_status not in ['Detected', 'Responded', 'Cleared', 'Verified']:
+            if new_status not in ['Detected', 'Responded', 'Cleared']:
                 return Response(
                     {'error': 'Invalid status'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -205,3 +209,101 @@ class ClogEventExportView(APIView):
             orientation="landscape",
             filename="clog-events.pdf",
         )
+
+
+CLOG_TO_REPORT_SEVERITY = {'High': 'Critical', 'Medium': 'Medium', 'Low': 'Low'}
+
+
+def _responded_at(raw, event):
+    """Time of the tap, as sent by the app; falls back to now if it looks wrong."""
+    now = timezone.now()
+    if raw:
+        dt = parse_datetime(str(raw))
+        if dt is not None:
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.utc)
+            if event.detected_at <= dt <= now + timedelta(minutes=2) and now - dt <= timedelta(hours=12):
+                return min(dt, now)
+    return now
+
+
+class ClogEventRespondView(APIView):
+    """Pre-report: records the response, clears the event and starts the report in one step."""
+    permission_classes = [IsBarangay]
+
+    def post(self, request, event_id):
+        user = request.user
+        try:
+            event = ClogEvent.objects.select_related('barangay', 'node').get(event_id=event_id)
+        except ClogEvent.DoesNotExist:
+            return Response({'error': 'Clog event not found'}, status=404)
+
+        if event.barangay_id != user.barangay_id:
+            return Response({'error': 'You can only respond to clog events in your barangay.'}, status=403)
+        if not event.barangay.is_active:
+            return Response({'error': 'Your barangay is no longer active.'}, status=400)
+
+        personnel = (request.data.get('assigned_personnel') or '').strip()
+        action = (request.data.get('action_taken') or '').strip()
+        errors = {}
+        if not personnel:
+            errors['assigned_personnel'] = 'Please list the personnel assigned to the response.'
+        elif len(personnel) > 500:
+            errors['assigned_personnel'] = 'Personnel list is too long (max 500 characters).'
+        if not action:
+            errors['action_taken'] = 'Please describe the action to be taken.'
+        elif len(action) > 2000:
+            errors['action_taken'] = 'Action is too long (max 2000 characters).'
+        if errors:
+            return Response(errors, status=400)
+
+        with transaction.atomic():
+            event = ClogEvent.objects.select_for_update().get(pk=event.pk)
+            if event.status != 'Detected':
+                return Response(
+                    {'error': 'This clog event has already been responded to or cleared.'},
+                    status=status.HTTP_409_CONFLICT
+                )
+
+            responded_at = _responded_at(request.data.get('responded_at'), event)
+
+            event.status = 'Responded'
+            event.responded_at = responded_at
+            event.responded_by = user
+            event.resolved_at = responded_at      # a response clears the event
+            event.save()
+
+            hotspot = getattr(event.node, 'hotspot', None)
+            report = CanalMonitoringReport.objects.filter(
+                clog_event=event, barangay=event.barangay
+            ).first()
+            if report is None:
+                report = CanalMonitoringReport(clog_event=event, barangay=event.barangay, reported_by=user)
+            report.purok = getattr(hotspot, 'purok', None)
+            report.date_observed = event.detected_at          # the system's detection time
+            report.severity = CLOG_TO_REPORT_SEVERITY.get(event.peak_severity or event.severity)
+            report.assigned_personnel = personnel
+            report.action_taken = action
+            report.date_responded = responded_at
+            if not report.is_submitted:
+                report.status = 'Awaiting_Post_Report'
+            report.save()
+
+        log_action(
+            user=user, action='Responded to Clog Event', affected_table='tbl_clog_events',
+            new_value=f"event {event.event_id}: {personnel}", ip_address=request.META.get('REMOTE_ADDR'),
+        )
+
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "clog_events",
+                {"type": "clog_message", "event": ClogEventSerializer(event).data},
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'event': ClogEventSerializer(event).data,
+            'report_id': report.report_id,
+        }, status=status.HTTP_201_CREATED)

@@ -44,6 +44,7 @@ type Barangay = {
   is_active: boolean
   deactivation_reason?: string
   has_boundary?: boolean
+  purok_count?: number
 }
 
 type DialogState = {

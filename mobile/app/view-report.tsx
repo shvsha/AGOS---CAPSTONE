@@ -11,6 +11,8 @@ import {
   WATER_FLOW_OPTIONS, optionLabel, severityLabel
 } from "@/constants/reports";
 import { PhotoPreviewModal } from "@/components/reports/PhotoPreviewModal";
+import { SensorDataCard } from "@/components/reports/SensorDataCard";
+import { ConfirmActionModal } from "@/components/reports/ConfirmActionModal";
 
 
 const WASTE_ROWS: { key: keyof CanalMonitoringReport; label: string }[] = [
@@ -85,6 +87,9 @@ export default function ViewReportScreen() {
   const [loadError, setLoadError] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const [preview, setPreview] = useState<{ photos: { uri: string }[]; index: number } | null>(null);
 
   useEffect(() => {
@@ -97,7 +102,7 @@ export default function ViewReportScreen() {
       .get(`/api/canal-reports/${params.id}/`)
       .then((data: CanalMonitoringReport) => {
         // an unsubmitted report belongs in the form, not the read-only view
-        if (!data.is_submitted) {
+        if (!data.is_submitted && !["Ready_To_Verify", "Verified"].includes(data.status)) {
           router.replace({
             pathname: "/new-report",
             params: { report_id: String(data.report_id) },
@@ -125,6 +130,23 @@ export default function ViewReportScreen() {
       Alert.alert("Export failed", "Could not generate the PDF. Please try again.");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!report) return;
+    setIsVerifying(true);
+    try {
+      const updated: CanalMonitoringReport = await api.post(`/api/canal-reports/${report.report_id}/verify/`, {});
+      setReport(updated);
+      setVerifyOpen(false);
+      Alert.alert("Report verified", "The report is locked and will be included in your next submission to MENRO.");
+    } catch (err: any) {
+      setVerifyOpen(false);
+      const missing = Array.isArray(err?.missing) ? `\nMissing: ${err.missing.join(", ")}` : "";
+      Alert.alert("Can't verify yet", (err?.detail ?? "Please try again.") + missing);
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -226,7 +248,7 @@ export default function ViewReportScreen() {
           {/* DETECTION SUMMARY */}
           <SectionHeader icon="clipboard-alert-outline" title="DETECTION SUMMARY" />
           <View className="flex-row">
-            <DetailLabelValue label="DATE / TIME OBSERVED" value={formatDateTime(report.date_observed)} flex={2} />
+            <DetailLabelValue label={report.clog_event ? "DETECTED BY SYSTEM" : "DATE / TIME OBSERVED"} value={formatDateTime(report.date_observed)} flex={2} />
             <DetailLabelValue
               label="SEVERITY"
               value={severityLabel(report.severity)}
@@ -246,6 +268,19 @@ export default function ViewReportScreen() {
             />
           </View>
           <DetailLabelValue label="WATER FLOW" value={optionLabel(WATER_FLOW_OPTIONS, report.overall_water_flow_condition)} />
+
+          {report.condition_source === "Manual" && (
+            <Text className="mb-2 text-[11px] text-[#94a3b8]">
+              Entered by the barangay, not taken from sensors.
+            </Text>
+          )}
+
+          {report.node_summaries && report.node_summaries.length > 0 && (
+            <>
+              <View className="my-3 h-px bg-[#f1f5f9]" />
+              <SensorDataCard summaries={report.node_summaries} />
+            </>
+          )}
 
           <View className="my-3 h-px bg-[#f1f5f9]" />
 
@@ -313,22 +348,55 @@ export default function ViewReportScreen() {
             </>
           )}
 
-          <View className="mt-4">
-            <TouchableOpacity
-              onPress={handleExport}
-              disabled={isExporting}
-              className="flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3"
-              style={isExporting ? { opacity: 0.6 } : undefined}
-            >
-              {isExporting ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <MaterialCommunityIcons name="tray-arrow-up" size={18} color="white" />
-              )}
-              <Text className="text-[13px] font-semibold text-white">
-                {isExporting ? "Exporting..." : "Export to PDF"}
-              </Text>
-            </TouchableOpacity>
+          <View className="mt-4 gap-2.5">
+            {!report.is_submitted && report.status === "Ready_To_Verify" && (
+              <>
+                <TouchableOpacity
+                  onPress={() => setVerifyOpen(true)}
+                  className="flex-row items-center justify-center gap-2 rounded-xl bg-[#16a34a] py-3.5"
+                >
+                  <MaterialCommunityIcons name="shield-check-outline" size={18} color="white" />
+                  <Text className="text-sm font-bold text-white">Verify Report</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push({ pathname: "/new-report", params: { report_id: String(report.report_id) } } as any)}
+                  className="flex-row items-center justify-center gap-2 rounded-xl border border-[#cbd5e1] bg-white py-3"
+                >
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color="#475569" />
+                  <Text className="text-sm font-semibold text-[#475569]">Edit</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {!report.is_submitted && report.status === "Verified" && (
+              <View className="rounded-xl bg-[#ede9fe] px-3 py-3">
+                <Text className="text-[12px] font-semibold text-[#6d28d9]">
+                  Verified{report.verified_by_name ? ` by ${report.verified_by_name}` : ""}
+                  {report.verified_at ? ` on ${formatDateTime(report.verified_at)}` : ""}
+                </Text>
+                <Text className="mt-0.5 text-[11px] text-[#6d28d9]">
+                  This report is locked and will be included in your next submission to MENRO.
+                </Text>
+              </View>
+            )}
+
+            {report.is_submitted && (
+              <TouchableOpacity
+                onPress={handleExport}
+                disabled={isExporting}
+                className="flex-row items-center justify-center gap-1.5 rounded-[10px] bg-[#16a34a] py-3"
+                style={isExporting ? { opacity: 0.6 } : undefined}
+              >
+                {isExporting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <MaterialCommunityIcons name="tray-arrow-up" size={18} color="white" />
+                )}
+                <Text className="text-[13px] font-semibold text-white">
+                  {isExporting ? "Exporting..." : "Export to PDF"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -338,6 +406,16 @@ export default function ViewReportScreen() {
         photos={preview?.photos ?? []}
         initialIndex={preview?.index ?? 0}
         onClose={() => setPreview(null)}
+      />
+
+      <ConfirmActionModal
+        visible={verifyOpen}
+        loading={isVerifying}
+        title="Verify this report?"
+        message="By verifying, you confirm the details are correct. The report will be locked and included in your next submission to MENRO. You can't edit it afterwards."
+        confirmLabel="Verify"
+        onClose={() => setVerifyOpen(false)}
+        onConfirm={handleVerify}
       />
     </SafeAreaView>
   );
