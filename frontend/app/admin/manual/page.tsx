@@ -199,21 +199,11 @@ const TOPICS: ManualTopic[] = [
           images: ["/admin-manual/topbar/topbar-markasread.png"],
         },
         {
-          label: "Read Notification",
-          description:"Notifications that have already been read appear dimmed in the list, allowing the admin to easily distinguish them from unread notifications, which are displayed in full color.",
-          images: ["/admin-manual/topbar/topbar-readnotif.png"],
-        },
-        {
           label: "See all alerts",
           description:"Located at the bottom of the Notifications dropdown; Clicking “See all alerts” navigates the admin to the Alerts module for a full, detailed view.",
           images: ["/admin-manual/topbar/topbar-seeallalerts.png"],
         },
-        {
-          label: "“You’re all caught up” Message",
-          description: "Displayed in the Notifications dropdown when there are no new notifications, indicating the admin has no pending alerts or reports to review.",
-          
-        },
-        
+
       ]
     },
     {
@@ -342,12 +332,6 @@ const TOPICS: ManualTopic[] = [
             description: "This is the alert detail modal opened from the Live Alerts section: it shows the alert type , the node ID, barangay, and detection timestamp, plus detail fields for severity, water flow status, water level, and water flow rate readings from that sensor node at the time of the alert.",
             images: ["/admin-manual/dashboard/dashboard-livealert_selectalert.png", "/admin-manual/dashboard/dashboard-livealert_selectalert_modal.png"],
           },
-          {
-            label: "Live Alert (Empty State)",
-            description: "When there are no active alerts for the day, the panel displays a “No alerts today” message in place of the alert list.",
-            
-          },
-          
         ],
       },
       
@@ -511,11 +495,6 @@ const TOPICS: ManualTopic[] = [
         whyItMatters: "The Notification Table is important because it lists all alerts and reports in one place, showing the node ID, alert type, barangay, and time detected. The color-coded alert types help the administrator spot urgent issues quickly, dimmed read notifications show which ones have already been reviewed, and the pagination controls make it easy to browse through longer lists without losing track of entries.",
         extraSections: [
           {
-            label: "Read Notification",
-            description: "Notifications that have already been read appear dimmed in the list, allowing the admin to easily distinguish them from unread notifications, which are displayed in full color.",
-            images: ["/admin-manual/alert/alerts-readnotification.png"],
-          },
-          {
             label: "Pagination Controls",
             description: "Located at the bottom of the table, they show the current page number and total number of pages (e.g., “Page 1 of 3”). Clicking “Next” moves to the following page of entries, while clicking “Previous” returns to the prior page; a button appears dimmed when there is no page in that direction.",
             images: ["/admin-manual/alert/alerts-pagination.png"],
@@ -622,7 +601,7 @@ const TOPICS: ManualTopic[] = [
           {
             label: "Add Confirmation",
             description: "Clicking the “Add Hotspot” button will display a confirmation modal asking the user to confirm the registration of the new hotspot. This ensures that all entered information is reviewed and confirmed before the hotspot is added to the system. \n\nClicking the “Cancel” button will display a confirmation modal asking the user to confirm whether they want to cancel the hotspot registration or keep editing. This ensures that the user does not accidentally discard the information entered for the new hotspot.",
-            images: [ "/admin-manual/canal-hotspots/.png","/admin-manual/canal-hotspots/canalhotspot-addbtn_form_confirmationmodal.png"],
+            images: ["/admin-manual/canal-hotspots/canalhotspot-addbtn_form_confirmationmodal.png"],
           },
         ],
       },
@@ -758,20 +737,9 @@ const TOPICS: ManualTopic[] = [
             images: [ "/admin-manual/node-management/nodemanagement-addbtn_modal_cancel.png"],
           },
           {
-            label: "Loading Add Confirmation",
-            description: "A loading indicator is shown briefly after clicking Add Node confirming that the system is processing and saving the new sensor node's details.",
-            
-          },
-          {
-            label: "Cancel Adding Confirmation",
-            description: "Appears when the user clicks Cancel while the Add Node modal is open, asking for confirmation before discarding the entry. Clicking Keep Editing returns to the form, while Yes, Cancel discards the entry and closes the modal.",
-            images: [ "/admin-manual/node-management/nodemanagement-addbtn_modal_cancel.png"],
-          },
-          {
             label: "Generating Device Key Dialog",
             description: "A loading indicator is shown after the node is added, confirming that the system is creating a secure device key for the new sensor node and emailing it to the admin.",
             images: [ "/admin-manual/node-management/nodemanagement-addbtn_modal_confirm_loading.png"],
-            
           },
           {
             label: "Device Key Generated Dialog",
@@ -823,11 +791,6 @@ const TOPICS: ManualTopic[] = [
             images: [ "/admin-manual/node-management/nodemanagement-table_editbtn_modal_confirmation.png"],
           },
           {
-            label: "Saving Changes Dialog",
-            description: "A loading indicator shown after confirming the update, confirming that the system is processing and saving the node's updated information.",
-            images: [ "/admin-manual/node-management/nodemanagement-table_editbtn_modal_confirmation_savingstate.png"],
-          },
-          {
             label: "Success Dialog",
             description: "Confirms that the node's information has been successfully updated. Clicking Done closes the dialog and returns the user to the Node Management page.",
             images: [ "/admin-manual/node-management/nodemanagement-table_editbtn_modal_confirmation_savingstate_success.png"],
@@ -839,7 +802,6 @@ const TOPICS: ManualTopic[] = [
         label: "Assign Node",
         description: "Clicking Assign Node opens the Assign Node form, where you select a Node, Barangay, and Hotspot, and set the Installed At date.",
         whyItMatters: "The Assign Node form is important because it links a sensor node to a specific barangay and canal hotspot, so the system knows exactly where each sensor is installed. Setting the Installed At date also keeps a record of when monitoring started at that location, which helps the administrator track deployments and trace readings back to the right place.",
-        
       },
       {
         id: "reassign-node-act",
@@ -914,12 +876,12 @@ const TOPICS: ManualTopic[] = [
         label: "Decomission Node",
         description: "Appears when the admin chooses to decommission a sensor node from the Node Management tab, asking for confirmation before proceeding. Decommissioning marks the node as retired and removes it from active monitoring. Clicking “Cancel” dismisses the dialog without making changes, while “Decommission” confirms and retires the node.",
         whyItMatters: "The Decommission Node section is important because it allows the admin to retire sensor nodes that are no longer needed and remove them from active monitoring. Confirmation and success dialogs help prevent accidental decommissioning, while the restriction on occupied nodes ensures that a sensor node is unassigned from its canal hotspot before retirement.",
-        images: [ "/admin-manual/node-management/nodemanagement-table_moreaction_decommission.png"],
+        
         extraSections: [
           {
             label: "Success Dialog (Node Decommissioned)",
             description: "Confirms that the sensor node has been successfully decommissioned, marking it as retired and removing it from active monitoring. Clicking “Done” closes the dialog and returns the admin to the Node Management tab.",
-            images: [ "/admin-manual/node-management/nodemanagement-table_moreaction_decommission_modal_success.png"],
+            
           },
           {
             label: "Cannot Decommission Node Dialog",
@@ -1114,12 +1076,7 @@ const TOPICS: ManualTopic[] = [
             description: "Located at the top right of the Clog Events tab, it allows the admin to download the clog events table as a file for record-keeping or reporting and is ready for printing. The exported data reflects the filters currently applied, such as barangay, severity, status, and month.",
             images: ["/admin-manual/clog-events/clogevent-exportbtn.png"],
             whyItMatters: "Placeholder — explain why the detail view matters.",
-            extraSections: [
-              {
-                label: "-",
-                description: "-",
-              },
-            ],
+
           },
         ],
       },
