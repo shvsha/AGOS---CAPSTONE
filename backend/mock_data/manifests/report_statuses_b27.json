@@ -1,0 +1,83 @@
+{
+  "sensor_readings.SensorReading": [
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96
+  ],
+  "waste_classification.WasteClassification": [
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47
+  ],
+  "clog_events.ClogEvent": [
+    7,
+    8,
+    9
+  ],
+  "reports.CanalMonitoringReport": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "reports.ReportNodeSummary": [
+    1,
+    2,
+    3
+  ],
+  "reports.ReportPurokRow": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}

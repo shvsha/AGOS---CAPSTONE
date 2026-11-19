@@ -9,6 +9,9 @@ import ManualSearch from "../components/userManual/common/ManualSearch";
 import ManualMenu from "../components/userManual/common/ManualMenu";
 import ManualEmptyState from "../components/userManual/common/ManualEmptyState";
 
+// LOGIN
+import Login from "../components/userManual/login/Login";
+
 // MAP
 import MapAccess from "../components/userManual/map/MapAccess";
 import MapUnderstanding from "../components/userManual/map/MapUnderstanding";
@@ -33,29 +36,39 @@ import EstimatedWasteVolume from "../components/userManual/analytics/EstimatedWa
 import SolidDebrisDetection from "../components/userManual/analytics/SolidDebrisDetection";
 import ClassifiedWasteType from "../components/userManual/analytics/ClassifiedWasteType";
 
+// CLOG EVENTS
 import ClogEventsAccess from "../components/userManual/clogEvents/ClogEventsAccess";
 import ClogEventSummary from "../components/userManual/clogEvents/ClogEventSummary";
 import ClogEventDetails from "../components/userManual/clogEvents/ClogEventDetails";
-import ClogEventTimeline from "../components/userManual/clogEvents/ClogEventTimeline";
+import ClogEventResponse from "../components/userManual/clogEvents/ClogEventResponse";
 
+// REPORTS
 import ReportsAccess from "../components/userManual/reports/ReportsAccess";
 import RecentReports from "../components/userManual/reports/RecentReports";
 import AddReport from "../components/userManual/reports/AddReport";
 import AddEditReport from "../components/userManual/reports/AddEditReport";
-//import WasteCollected from "../components/userManual/reports/WasteCollected";
-//import UploadEvidence from "../components/userManual/reports/UploadEvidence";
-//import SubmissionStatus from "../components/userManual/reports/SubmissionStatus";
+import SubmissionPeriod from "../components/userManual/reports/SubmissionPeriod";
+import PostReport from "../components/userManual/reports/PostReport";
 
-import SensorReadings from "../components/userManual/readings/SensorReadings";
-import SensorReadingSummary from "../components/userManual/readings/SensorReadingSummary";
-import SensorReadingDetails from "../components/userManual/readings/SensorReadingDetails";
-import SensorReadingFilters from "../components/userManual/readings/SensorReadingFilters";
+// SENSOR NODES
+import SensorReadings from "../components/userManual/nodes/SensorReadings";
+import SensorReadingSummary from "../components/userManual/nodes/SensorReadingSummary";
+import SensorReadingDetails from "../components/userManual/nodes/SensorReadingDetails";
+import SensorHealth from "../components/userManual/nodes/SensorHealth";
+import SensorHistoryFilters from "../components/userManual/nodes/SensorHistoryFilters";
 
+// PROFILE
 import Profile from "../components/userManual/profile/Profile";
 
 /* ================================================= */
 /* SECTION NAMES                                     */
 /* ================================================= */
+
+const LOGIN_SECTIONS = [
+  "Accessing the AGOS System",
+  "Logging in to AGOS",
+  "Login Page Guide",
+];
 
 const MAP_SECTIONS = [
   "Map Access",
@@ -88,6 +101,7 @@ const SENSOR_READING_SECTIONS = [
   "Sensor Readings",
   "Reading Summary Cards",
   "Individual Sensor Readings",
+  "Sensor Health",
   "Reading Filters",
 ];
 
@@ -95,7 +109,7 @@ const CLOG_EVENT_SECTIONS = [
   "Clog Events",
   "Event Summary",
   "Clog Event Details",
-  "Event Timeline",
+  "Responding to a Clog Event",
 ];
 
 const REPORT_SECTIONS = [
@@ -103,9 +117,8 @@ const REPORT_SECTIONS = [
   "Recent Reports",
   "Creating a New Report",
   "Add or Edit Report",
-  //"Waste Collected",
-  //"Upload Evidence",
-  //"Submission Status",
+  "Submission Period",
+  "Post-Report",
 ];
 
 const PROFILE_SECTIONS = ["Profile"];
@@ -118,15 +131,13 @@ export default function UserManualScreen() {
   const router = useRouter();
 
   const [selectedFilter, setSelectedFilter] = useState("All");
-
   const [search, setSearch] = useState("");
-
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({
-    "Map Access": true,
+    "Accessing the AGOS System": true,
   });
 
   /* ================================================= */
@@ -145,6 +156,14 @@ export default function UserManualScreen() {
   /* ================================================= */
 
   const normalizedSearch = search.trim().toLowerCase();
+
+  const loginMatches = useMemo(() => {
+    if (!normalizedSearch) return true;
+
+    return LOGIN_SECTIONS.some((section) =>
+      section.toLowerCase().includes(normalizedSearch),
+    );
+  }, [normalizedSearch]);
 
   const mapMatches = useMemo(() => {
     if (!normalizedSearch) return true;
@@ -206,6 +225,10 @@ export default function UserManualScreen() {
   /* WHICH MAIN CATEGORY SHOULD SHOW?                 */
   /* ================================================= */
 
+  const shouldShowLogin =
+    (selectedFilter === "All" || selectedFilter === "Getting Started") &&
+    loginMatches;
+
   const shouldShowMap =
     (selectedFilter === "All" || selectedFilter === "Map") && mapMatches;
 
@@ -237,6 +260,7 @@ export default function UserManualScreen() {
 
   const noResults =
     normalizedSearch.length > 0 &&
+    !loginMatches &&
     !mapMatches &&
     !alertMatches &&
     !analyticsMatches &&
@@ -331,6 +355,24 @@ export default function UserManualScreen() {
         {noResults && (
           <View className="px-5">
             <ManualEmptyState query={search} />
+          </View>
+        )}
+
+        {/* ================================================= */}
+        {/* GETTING STARTED / LOGIN                           */}
+        {/* ================================================= */}
+
+        {shouldShowLogin && (
+          <View className="px-5">
+            <SectionTitle
+              title="Getting Started"
+              description="Learn how to access the AGOS application using your registered account."
+            />
+
+            <Login
+              expanded={!!expandedSections["Accessing the AGOS System"]}
+              onPress={() => toggleSection("Accessing the AGOS System")}
+            />
           </View>
         )}
 
@@ -441,28 +483,20 @@ export default function UserManualScreen() {
               description="Learn how to view and understand waste monitoring data."
             />
 
-            {/* 1 — WASTE ANALYTICS */}
-
             <WasteAnalytics
               expanded={!!expandedSections["Waste Analytics"]}
               onPress={() => toggleSection("Waste Analytics")}
             />
-
-            {/* 2 — ESTIMATED WASTE VOLUME */}
 
             <EstimatedWasteVolume
               expanded={!!expandedSections["Estimated Waste Volume"]}
               onPress={() => toggleSection("Estimated Waste Volume")}
             />
 
-            {/* 3 — SOLID DEBRIS DETECTION */}
-
             <SolidDebrisDetection
               expanded={!!expandedSections["Solid Debris Detection"]}
               onPress={() => toggleSection("Solid Debris Detection")}
             />
-
-            {/* 4 — CLASSIFIED WASTE TYPE */}
 
             <ClassifiedWasteType
               expanded={!!expandedSections["Classified Waste Type"]}
@@ -470,7 +504,10 @@ export default function UserManualScreen() {
             />
           </View>
         )}
-        {/* CLOG EVENTS */}
+
+        {/* ================================================= */}
+        {/* CLOG EVENTS                                        */}
+        {/* ================================================= */}
 
         {shouldShowClogEvents && (
           <View className="px-5">
@@ -494,21 +531,21 @@ export default function UserManualScreen() {
               onPress={() => toggleSection("Clog Event Details")}
             />
 
-            <ClogEventTimeline
-              expanded={!!expandedSections["Event Timeline"]}
-              onPress={() => toggleSection("Event Timeline")}
+            <ClogEventResponse
+              expanded={!!expandedSections["Responding to a Clog Event"]}
+              onPress={() => toggleSection("Responding to a Clog Event")}
             />
           </View>
         )}
 
         {/* ================================================= */}
-        {/* SENSOR READINGS                                  */}
+        {/* SENSOR READINGS                                   */}
         {/* ================================================= */}
 
         {shouldShowSensorReadings && (
           <View className="px-5">
             <SectionTitle
-              title="Sensor Readings"
+              title="Sensor Nodes"
               description="Learn how to view, filter, and understand sensor measurements."
             />
 
@@ -516,23 +553,32 @@ export default function UserManualScreen() {
               expanded={!!expandedSections["Sensor Readings"]}
               onPress={() => toggleSection("Sensor Readings")}
             />
-            {/* Section 2: Reading Summary Cards */}
+
             <SensorReadingSummary
               expanded={!!expandedSections["Reading Summary Cards"]}
               onPress={() => toggleSection("Reading Summary Cards")}
             />
+
             <SensorReadingDetails
               expanded={!!expandedSections["Individual Sensor Readings"]}
               onPress={() => toggleSection("Individual Sensor Readings")}
             />
-            <SensorReadingFilters
+
+            <SensorHealth
+              expanded={!!expandedSections["Sensor Health"]}
+              onPress={() => toggleSection("Sensor Health")}
+            />
+
+            <SensorHistoryFilters
               expanded={!!expandedSections["Reading Filters"]}
               onPress={() => toggleSection("Reading Filters")}
             />
           </View>
         )}
 
-        {/* REPORTS */}
+        {/* ================================================= */}
+        {/* REPORTS                                            */}
+        {/* ================================================= */}
 
         {shouldShowReports && (
           <View className="px-5">
@@ -544,6 +590,11 @@ export default function UserManualScreen() {
             <ReportsAccess
               expanded={!!expandedSections["Reports"]}
               onPress={() => toggleSection("Reports")}
+            />
+
+            <SubmissionPeriod
+              expanded={!!expandedSections["Submission Period"]}
+              onPress={() => toggleSection("Submission Period")}
             />
 
             <RecentReports
@@ -561,20 +612,10 @@ export default function UserManualScreen() {
               onPress={() => toggleSection("Add or Edit Report")}
             />
 
-            {/* <WasteCollected
-              expanded={!!expandedSections["Waste Collected"]}
-              onPress={() => toggleSection("Waste Collected")}
-            /> */}
-
-            {/* <UploadEvidence
-              expanded={!!expandedSections["Upload Evidence"]}
-              onPress={() => toggleSection("Upload Evidence")}
-            /> */}
-
-            {/* <SubmissionStatus
-              expanded={!!expandedSections["Submission Status"]}
-              onPress={() => toggleSection("Submission Status")}
-            /> */}
+            <PostReport
+              expanded={!!expandedSections["Post-Report"]}
+              onPress={() => toggleSection("Post-Report")}
+            />
           </View>
         )}
 
