@@ -15,7 +15,7 @@ type Props = {
 export default function SensorReadingDetails({ expanded, onPress }: Props) {
   const [isImageVisible, setIsImageVisible] = useState(false);
 
-  const readingImage = require("../../../assets/images/userManual/readings/sensor-reading-details.jpg");
+  const readingImage = require("../../../assets/images/userManual/nodes/sensor-reading-details.jpg");
 
   return (
     <>

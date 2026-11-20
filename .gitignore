@@ -7,6 +7,7 @@ backend/*.pyc
 backend/.env
 backend/db.sqlite3
 backend/media/report_media
+backend/mock_data/
 
 # ─── AI Model ───
 ai_model/dataset/
@@ -55,7 +56,7 @@ upload_test.py
 
 # Mobile (Expo/React Native)
 mobile/node_modules/
-mobile/.expo/
+.expo/
 mobile/dist/
 mobile/*.jks
 mobile/*.p8

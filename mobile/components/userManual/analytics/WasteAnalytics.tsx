@@ -120,45 +120,6 @@ export default function WasteAnalytics({ expanded, onPress }: Props) {
             </Text>
           </ManualStep>
 
-          {/* ================================================= */}
-          {/* CALENDAR EXAMPLE */}
-          {/* ================================================= */}
-
-          <View className="mt-2">
-            <Pressable
-              onPress={() => setIsImageVisible(true)}
-              className="overflow-hidden rounded-2xl border border-slate-300 bg-white"
-            >
-              <View className="relative">
-                <Image
-                  source={wasteAnalyticsImage}
-                  resizeMode="contain"
-                  style={{
-                    width: "100%",
-                    height: 210,
-                    backgroundColor: "#F8FAFC",
-                  }}
-                />
-
-                <View className="absolute bottom-3 right-3 rounded-full bg-slate-900/80 px-3 py-2">
-                  <Text className="text-[10px] font-semibold text-white">
-                    🔍 Tap to enlarge
-                  </Text>
-                </View>
-              </View>
-
-              <View className="border-t border-slate-100 px-4 py-3">
-                <Text className="text-center text-xs font-semibold text-slate-700">
-                  Monthly Waste Data
-                </Text>
-
-                <Text className="mt-1 text-center text-[10px] text-slate-400">
-                  Tap to zoom and view the calendar area
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-
           <View className="mt-4">
             <ManualTip>
               Use the calendar when you need to review waste monitoring data
